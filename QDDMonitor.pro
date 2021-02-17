@@ -9,6 +9,7 @@ CONFIG(release, debug|release): CONFIG += ltcg
 
 HEADERS += \
     AVObjectWrapper.h \
+    D3D11FlushHelper.h \
     D3D11SharedResource.h \
     LiveStreamSource.h \
     LiveStreamSourceModel.h \
@@ -20,6 +21,7 @@ HEADERS += \
 PRECOMPILED_HEADER = pch.h
 
 SOURCES += \
+        D3D11FlushHelper.cpp \
         D3D11SharedResource.cpp \
         LiveStreamSource.cpp \
         LiveStreamSourceModel.cpp \

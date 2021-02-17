@@ -3,6 +3,7 @@
 
 #include <type_traits>
 
+#include <atomic>
 #include <chrono>
 #include <memory>
 #include <string>

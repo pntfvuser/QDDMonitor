@@ -4,6 +4,7 @@
 
 #ifdef _WIN32
 #include "D3D11SharedResource.h"
+#include "D3D11FlushHelper.h"
 #endif
 
 #include <QLoggingCategory>
@@ -26,6 +27,7 @@ int main(int argc, char *argv[])
 
     qmlRegisterType<LiveStreamSource>("org.anon.QDDMonitor", 1, 0, "LiveStreamSource");
     qmlRegisterType<LiveStreamView>("org.anon.QDDMonitor", 1, 0, "LiveStreamView");
+    qmlRegisterType<D3D11FlushHelper>("org.anon.QDDMonitor", 1, 0, "D3D11FlushHelper");
 
     const QUrl url(QStringLiteral("qrc:/main.qml"));
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,

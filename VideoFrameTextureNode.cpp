@@ -30,15 +30,12 @@ VideoFrameTextureNode::TextureItem::TextureItem(QQuickWindow *window, ID3D11Devi
 VideoFrameTextureNode::VideoFrameTextureNode(QQuickItem *item)
     :item_(item)
 {
-    window_ = item_->window();
-    dpr_ = window_->effectiveDevicePixelRatio();
-    connect(window_, &QQuickWindow::frameSwapped, this, &VideoFrameTextureNode::Render, Qt::DirectConnection);
-    connect(window_, &QQuickWindow::screenChanged, this, &VideoFrameTextureNode::UpdateScreen);
-
+    UpdateWindow(item_->window());
 #ifdef _DEBUG
     last_frame_time_ = PlaybackClock::now();
     max_diff_time_ = PlaybackClock::duration(0);
     min_diff_time_ = std::chrono::seconds(10);
+    ResynchronizeTimer();
 #endif
 }
 
@@ -56,19 +53,21 @@ void VideoFrameTextureNode::AddVideoFrame(const QSharedPointer<VideoFrame> &fram
     video_frames_.push_back(frame);
 }
 
-void VideoFrameTextureNode::ResynchronizeTimer()
+void VideoFrameTextureNode::Synchronize(QQuickItem *item)
 {
-#ifdef _DEBUG
-    last_frame_time_ = last_second_ = PlaybackClock::now();
-    max_diff_time_ = PlaybackClock::duration(0);
-    min_diff_time_ = std::chrono::seconds(10);
-#endif
-}
-
-void VideoFrameTextureNode::Synchronize()
-{
-    const QSize new_size = (rect().size() * dpr_).toSize();
     bool needs_new = false;
+
+    if (item != item_)
+    {
+        item_ = item;
+    }
+    QQuickWindow *window = item_->window();
+    if (window != window_)
+    {
+        UpdateWindow(window);
+    }
+
+    const QSize new_size = (rect().size() * dpr_).toSize();
 
     if (!texture())
         needs_new = true;
@@ -141,7 +140,9 @@ void VideoFrameTextureNode::Synchronize()
     if (current_time - last_second_ > std::chrono::seconds(1))
     {
         last_second_ += std::chrono::seconds(1);
-        qDebug((std::to_string(rendered_texture_queue_.size()) + " frames in rendered queue").c_str());
+        qDebug((std::to_string(rendered_texture_queue_.size()) + " textures rendered").c_str());
+        qDebug((std::to_string(used_texture_queue_.size()) + " textures used").c_str());
+        qDebug((std::to_string(empty_texture_queue_.size()) + " textures empty").c_str());
         qDebug((std::to_string(video_frames_.size()) + " frames in pending queue").c_str());
         qDebug((std::to_string(frames_per_second_) + " sfps").c_str());
         qDebug((std::to_string(renders_per_second_) + " fps").c_str());
@@ -192,6 +193,28 @@ void VideoFrameTextureNode::UpdateScreen()
 {
     if (window_->effectiveDevicePixelRatio() != dpr_)
         item_->update();
+}
+
+void VideoFrameTextureNode::UpdateWindow(QQuickWindow *new_window)
+{
+    if (window_)
+    {
+        disconnect(window_, &QQuickWindow::frameSwapped, this, &VideoFrameTextureNode::Render);
+        disconnect(window_, &QQuickWindow::screenChanged, this, &VideoFrameTextureNode::UpdateScreen);
+    }
+    window_ = new_window;
+    dpr_ = window_->effectiveDevicePixelRatio();
+    connect(window_, &QQuickWindow::frameSwapped, this, &VideoFrameTextureNode::Render, Qt::DirectConnection);
+    connect(window_, &QQuickWindow::screenChanged, this, &VideoFrameTextureNode::UpdateScreen);
+}
+
+void VideoFrameTextureNode::ResynchronizeTimer()
+{
+#ifdef _DEBUG
+    last_frame_time_ = last_second_ = PlaybackClock::now();
+    max_diff_time_ = PlaybackClock::duration(0);
+    min_diff_time_ = std::chrono::seconds(10);
+#endif
 }
 
 void VideoFrameTextureNode::NewTextureItem(int count)

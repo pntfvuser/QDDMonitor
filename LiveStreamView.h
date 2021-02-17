@@ -27,8 +27,6 @@ public slots:
     void onNewFrame(QSharedPointer<VideoFrame> video_frame);
 
     void debugRefreshSlot();
-private slots:
-    void invalidateSceneGraph();
 private:
     void releaseResources() override;
 

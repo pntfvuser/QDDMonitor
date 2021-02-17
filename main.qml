@@ -8,6 +8,8 @@ Window {
     visible: true
     title: "Video Playback Test"
 
+    D3D11FlushHelper {}
+
     LiveStreamView {
         anchors.fill: parent
         source: LiveStreamSource {

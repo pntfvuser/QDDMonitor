@@ -282,10 +282,6 @@ void LiveStreamSource::ReceiveVideoFrame()
             return;
         }
 
-        AVD3D11VADeviceContextUniqueLock lock(shared_resource->d3d11_device_ctx);
-        shared_resource->device_context->Flush();
-        lock.Unlock();
-
         QSharedPointer<VideoFrame> video_frame = QSharedPointer<VideoFrame>::create();
         //video_frame->frame = std::move(frame);
         video_frame->frame_time = next_frame_time_ + next_frame_offset_ + kDecodeToRenderLatency;

@@ -49,7 +49,7 @@ QSGNode *LiveStreamView::updatePaintNode(QSGNode *node_base, QQuickItem::UpdateP
         next_frames_.clear();
     }
 
-    node->Synchronize();
+    node->Synchronize(this);
 
     return node;
 }
@@ -77,11 +77,6 @@ void LiveStreamView::onNewFrame(QSharedPointer<VideoFrame> video_frame)
 void LiveStreamView::debugRefreshSlot()
 {
     update();
-}
-
-void LiveStreamView::invalidateSceneGraph()
-{
-    //node_ = nullptr;
 }
 
 void LiveStreamView::releaseResources()

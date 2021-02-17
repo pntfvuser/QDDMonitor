@@ -27,7 +27,7 @@ class VideoFrameTextureNode : public QSGTextureProvider, public QSGSimpleTexture
         bool do_not_recycle = false;
     };
 
-    static constexpr int kQueueSize = 12, kUsedQueueSize = 6;
+    static constexpr int kQueueSize = 12, kUsedQueueSize = 4;
     static constexpr auto kTextureFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 public:
     VideoFrameTextureNode(QQuickItem *item);
@@ -37,11 +37,12 @@ public:
 
     void AddVideoFrame(const QSharedPointer<VideoFrame> &frame);
 
-    void Synchronize();
+    void Synchronize(QQuickItem *item);
 public slots:
     void Render();
     void UpdateScreen();
 private:
+    void UpdateWindow(QQuickWindow *new_window);
     void ResynchronizeTimer();
 
     void NewTextureItem(int count);
