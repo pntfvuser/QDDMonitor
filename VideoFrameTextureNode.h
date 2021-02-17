@@ -27,7 +27,7 @@ class VideoFrameTextureNode : public QSGTextureProvider, public QSGSimpleTexture
         bool do_not_recycle = false;
     };
 
-    static constexpr int kQueueSize = 16, kQueueStartPlaySize = 8;
+    static constexpr int kQueueSize = 12, kUsedQueueSize = 6;
     static constexpr auto kTextureFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 public:
     VideoFrameTextureNode(QQuickItem *item);
@@ -56,14 +56,12 @@ private:
     ID3D11Device *device_ = nullptr;
 
     QVector<QSharedPointer<VideoFrame>> video_frames_;
-    QVector<TextureItem> rendered_texture_queue_, empty_texture_queue_;
-    TextureItem garbage_texture_;
-    bool playing_ = false;
+    QVector<TextureItem> empty_texture_queue_, rendered_texture_queue_, used_texture_queue_;
 
 #ifdef _DEBUG
     PlaybackClock::time_point last_frame_time_, last_second_;
     PlaybackClock::duration max_diff_time_, min_diff_time_;
-    int frames_per_second_ = 0, renders_per_second_ = 0;
+    int frames_per_second_ = 0, renders_per_second_ = 0, texture_updates_per_second_ = 0;
 #endif
 };
 

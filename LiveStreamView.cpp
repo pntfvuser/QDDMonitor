@@ -18,12 +18,12 @@ void LiveStreamView::setSource(LiveStreamSource *source)
         {
             disconnect(current_source_, &LiveStreamSource::newMedia, this, &LiveStreamView::onNewMedia);
             disconnect(current_source_, &LiveStreamSource::newVideoFrame, this, &LiveStreamView::onNewFrame);
-            disconnect(current_source_, &LiveStreamSource::temporaryRefreshSignal, this, &LiveStreamView::temporaryRefreshSlot);
+            disconnect(current_source_, &LiveStreamSource::debugRefreshSignal, this, &LiveStreamView::debugRefreshSlot);
         }
         current_source_ = source;
         connect(current_source_, &LiveStreamSource::newMedia, this, &LiveStreamView::onNewMedia);
         connect(current_source_, &LiveStreamSource::newVideoFrame, this, &LiveStreamView::onNewFrame);
-        connect(current_source_, &LiveStreamSource::temporaryRefreshSignal, this, &LiveStreamView::temporaryRefreshSlot);
+        connect(current_source_, &LiveStreamSource::debugRefreshSignal, this, &LiveStreamView::debugRefreshSlot);
         emit sourceChanged();
     }
 }
@@ -74,7 +74,7 @@ void LiveStreamView::onNewFrame(QSharedPointer<VideoFrame> video_frame)
         update();
 }
 
-void LiveStreamView::temporaryRefreshSlot()
+void LiveStreamView::debugRefreshSlot()
 {
     update();
 }

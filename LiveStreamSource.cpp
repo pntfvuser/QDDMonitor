@@ -116,12 +116,19 @@ void LiveStreamSource::start()
     next_frame_offset_ = PlaybackClock::duration(0);
     emit newMedia();
     SetUpNextVideoFrameTick();
+    debugMSTick();
 }
 
 void LiveStreamSource::onNextVideoFrameTick()
 {
     ReceiveVideoFrame();
     SetUpNextVideoFrameTick();
+}
+
+void LiveStreamSource::debugMSTick()
+{
+    emit debugRefreshSignal();
+    QTimer::singleShot(4, this, &LiveStreamSource::debugMSTick);
 }
 
 void LiveStreamSource::SendData()
@@ -274,6 +281,10 @@ void LiveStreamSource::ReceiveVideoFrame()
             fprintf(stderr, "Error while creating rgb_texture\n");
             return;
         }
+
+        AVD3D11VADeviceContextUniqueLock lock(shared_resource->d3d11_device_ctx);
+        shared_resource->device_context->Flush();
+        lock.Unlock();
 
         QSharedPointer<VideoFrame> video_frame = QSharedPointer<VideoFrame>::create();
         //video_frame->frame = std::move(frame);

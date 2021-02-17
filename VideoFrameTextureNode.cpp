@@ -93,80 +93,91 @@ void VideoFrameTextureNode::Synchronize()
         {
             rendered_texture_queue_[i].do_not_recycle = true;
         }
-        if (!empty_texture_queue_.empty())
-            garbage_texture_ = std::move(empty_texture_queue_.back()); //Keep last used texture
+        for (int i = 0; i < used_texture_queue_.size(); ++i)
+        {
+            used_texture_queue_[i].do_not_recycle = true;
+        }
         empty_texture_queue_.clear();
-        NewTextureItem(std::max(0, kQueueSize - rendered_texture_queue_.size()));
+        NewTextureItem(std::max(0, kQueueSize - rendered_texture_queue_.size() - used_texture_queue_.size()));
 
-        if (!texture()) //Have to assign a texture
+        if (!texture()) //Have to assign a texture if there isn't any
         {
             auto &empty_texture = empty_texture_queue_.front();
             setTexture(empty_texture.texture_qsg.get());
-            rendered_texture_queue_.push_back(std::move(empty_texture));
+            used_texture_queue_.push_back(std::move(empty_texture));
             empty_texture_queue_.pop_front();
         }
     }
 
-    if (playing_)
+    QSGTexture *next_texture_qsg = nullptr;
+
+    auto current_time = PlaybackClock::now();
+    while (!rendered_texture_queue_.empty() && rendered_texture_queue_.front().frame_time <= current_time)
     {
-        QSGTexture *next_texture_qsg = nullptr;
-
-        auto current_time = PlaybackClock::now();
-        while (!rendered_texture_queue_.empty() && rendered_texture_queue_.front().frame_time <= current_time)
-        {
 #ifdef _DEBUG
-            frames_per_second_ += 1;
+        frames_per_second_ += 1;
 #endif
-            auto &next_texture = rendered_texture_queue_.front();
-            next_texture_qsg = next_texture.texture_qsg.get();
-            if (next_texture.do_not_recycle)
-            {
-                NewTextureItem(1);
-                garbage_texture_ = std::move(next_texture);
-            }
-            else
-            {
-                empty_texture_queue_.push_back(std::move(next_texture));
-                if (garbage_texture_.do_not_recycle)
-                {
-                    garbage_texture_.texture.Reset();
-                    garbage_texture_.texture_share_handle = nullptr;
-                    garbage_texture_.texture_qsg.reset();
-                    garbage_texture_.do_not_recycle = false;
-                }
-            }
-            rendered_texture_queue_.pop_front();
-        }
+        auto &next_texture = rendered_texture_queue_.front();
+        next_texture_qsg = next_texture.texture_qsg.get();
+        used_texture_queue_.push_back(std::move(next_texture));
+        rendered_texture_queue_.pop_front();
+    }
 
-        if (next_texture_qsg != nullptr)
-            setTexture(next_texture_qsg);
-
+    if (next_texture_qsg != nullptr)
+    {
+        setTexture(next_texture_qsg);
 #ifdef _DEBUG
-        renders_per_second_ += 1;
-        if (current_time - last_frame_time_ > max_diff_time_)
-            max_diff_time_ = current_time - last_frame_time_;
-        if (current_time - last_frame_time_ < min_diff_time_)
-            min_diff_time_ = current_time - last_frame_time_;
-        last_frame_time_ = current_time;
-        if (current_time - last_second_ > std::chrono::seconds(1))
-        {
-            last_second_ += std::chrono::seconds(1);
-            qDebug((std::to_string(rendered_texture_queue_.size()) + " frames rendered").c_str());
-            qDebug((std::to_string(video_frames_.size()) + " frames pending").c_str());
-            qDebug((std::to_string(frames_per_second_) + " sfps").c_str());
-            qDebug((std::to_string(renders_per_second_) + " fps").c_str());
-            qDebug((std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(max_diff_time_).count()) + "us max diff").c_str());
-            qDebug((std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(min_diff_time_).count()) + "us min diff").c_str());
-            max_diff_time_ = PlaybackClock::duration(0);
-            min_diff_time_ = std::chrono::seconds(10);
-            frames_per_second_ = renders_per_second_ = 0;
-        }
+        texture_updates_per_second_ += 1;
 #endif
     }
+
+#ifdef _DEBUG
+    renders_per_second_ += 1;
+    if (current_time - last_frame_time_ > max_diff_time_)
+        max_diff_time_ = current_time - last_frame_time_;
+    if (current_time - last_frame_time_ < min_diff_time_)
+        min_diff_time_ = current_time - last_frame_time_;
+    last_frame_time_ = current_time;
+    if (current_time - last_second_ > std::chrono::seconds(1))
+    {
+        last_second_ += std::chrono::seconds(1);
+        qDebug((std::to_string(rendered_texture_queue_.size()) + " frames in rendered queue").c_str());
+        qDebug((std::to_string(video_frames_.size()) + " frames in pending queue").c_str());
+        qDebug((std::to_string(frames_per_second_) + " sfps").c_str());
+        qDebug((std::to_string(renders_per_second_) + " fps").c_str());
+        qDebug((std::to_string(texture_updates_per_second_) + " texture updates").c_str());
+        qDebug((std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(max_diff_time_).count()) + "us max diff").c_str());
+        qDebug((std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(min_diff_time_).count()) + "us min diff").c_str());
+        max_diff_time_ = PlaybackClock::duration(0);
+        min_diff_time_ = std::chrono::seconds(10);
+        frames_per_second_ = renders_per_second_ = texture_updates_per_second_ = 0;
+    }
+#endif
 }
 
 void VideoFrameTextureNode::Render()
 {
+#ifdef _DEBUG
+    if (rendered_texture_queue_.empty())
+        ResynchronizeTimer();
+#endif
+    while (used_texture_queue_.size() > kUsedQueueSize)
+    {
+        auto &used_texture = used_texture_queue_.front();
+        if (used_texture.do_not_recycle)
+        {
+            used_texture.texture.Reset();
+            used_texture.texture_share_handle = nullptr;
+            used_texture.texture_qsg.reset();
+            used_texture.do_not_recycle = false;
+            NewTextureItem(1);
+        }
+        else
+        {
+            empty_texture_queue_.push_back(std::move(used_texture));
+        }
+        used_texture_queue_.pop_front();
+    }
     while (!video_frames_.empty() && !empty_texture_queue_.empty())
     {
         bool success = RenderFrame(empty_texture_queue_.front());
@@ -174,11 +185,6 @@ void VideoFrameTextureNode::Render()
             break;
         rendered_texture_queue_.push_back(std::move(empty_texture_queue_.front()));
         empty_texture_queue_.pop_front();
-    }
-    if (!playing_ && rendered_texture_queue_.size() >= kQueueStartPlaySize)
-    {
-        playing_ = true;
-        ResynchronizeTimer();
     }
 }
 

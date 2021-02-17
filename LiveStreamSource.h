@@ -38,9 +38,12 @@ signals:
     //void newAudioFrame();
 
     void queueNextVideoFrameTick();
-    void temporaryRefreshSignal();
+
+    void debugRefreshSignal();
 public slots:
     void onNextVideoFrameTick();
+
+    void debugMSTick();
 private:
     void SendData();
     void ReceiveVideoFrame();
