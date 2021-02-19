@@ -46,8 +46,7 @@ QSGNode *LiveStreamView::updatePaintNode(QSGNode *node_base, QQuickItem::UpdateP
     node->setRect(0, 0, width(), height());
     if (!next_frames_.empty())
     {
-        for (const auto &p : next_frames_)
-            node->AddVideoFrame(p);
+        node->AddVideoFrames(std::move(next_frames_));
         next_frames_.clear();
     }
 
@@ -71,7 +70,7 @@ void LiveStreamView::onNewMedia()
 void LiveStreamView::onNewVideoFrame(QSharedPointer<VideoFrame> video_frame)
 {
     bool need_update = next_frames_.empty();
-    next_frames_.push_back(video_frame);
+    next_frames_.push_back(std::move(video_frame));
     if (need_update)
         update();
 }

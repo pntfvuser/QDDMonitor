@@ -26,9 +26,9 @@ class LiveStreamSource : public QObject
     };
     using SwsContextObject = AVObjectBase<SwsContext, SwsContextReleaseFunctor>;
 
-    static constexpr PlaybackClock::duration kFrameBufferStartThreshold = std::chrono::milliseconds(500), kFrameBufferFullThreshold = std::chrono::milliseconds(500);
-    static constexpr std::chrono::milliseconds kFrameBufferPushInterval = std::chrono::milliseconds(100);
-    static constexpr PlaybackClock::duration kUploadToRenderLatency = std::chrono::milliseconds(500);
+    static constexpr PlaybackClock::duration kFrameBufferStartThreshold = std::chrono::milliseconds(200), kFrameBufferFullThreshold = std::chrono::milliseconds(200);
+    static constexpr std::chrono::milliseconds kFrameBufferPushInterval = std::chrono::milliseconds(50);
+    static constexpr PlaybackClock::duration kUploadToRenderLatency = std::chrono::milliseconds(400);
 public:
     explicit LiveStreamSource(QObject *parent = nullptr);
 
@@ -67,8 +67,8 @@ private:
     SwsContextObject sws_context_;
 
     bool playing_ = false;
-    QVector<QSharedPointer<VideoFrame>> video_frames_;
-    QVector<QSharedPointer<AudioFrame>> audio_frames_;
+    std::vector<QSharedPointer<VideoFrame>> video_frames_;
+    std::vector<QSharedPointer<AudioFrame>> audio_frames_;
 
     AVRational video_stream_time_base_, audio_stream_time_base_;
     PlaybackClock::time_point base_time_;

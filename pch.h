@@ -7,8 +7,10 @@
 #include <atomic>
 #include <chrono>
 #include <memory>
-#include <string>
 #include <stdexcept>
+
+#include <vector>
+#include <string>
 
 #include <QObject>
 #include <QMetaType>

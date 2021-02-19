@@ -8,7 +8,6 @@ struct AudioFrame
     int64_t timestamp;
     PlaybackClock::time_point present_time;
 
-    int source;
     AVFrameObject frame;
 };
 Q_DECLARE_METATYPE(QSharedPointer<AudioFrame>);

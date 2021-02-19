@@ -27,7 +27,7 @@ class VideoFrameTextureNode : public QSGTextureProvider, public QSGSimpleTexture
         bool do_not_recycle = false;
     };
 
-    static constexpr int kQueueSize = 12, kUsedQueueSize = 6;
+    static constexpr size_t kQueueSize = 12, kUsedQueueSize = 6;
     static constexpr auto kTextureFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 public:
     VideoFrameTextureNode(QQuickItem *item);
@@ -36,6 +36,7 @@ public:
     QSGTexture *texture() const override;
 
     void AddVideoFrame(const QSharedPointer<VideoFrame> &frame);
+    void AddVideoFrames(std::vector<QSharedPointer<VideoFrame>> &&frame);
 
     void Synchronize(QQuickItem *item);
 public slots:
@@ -56,8 +57,8 @@ private:
 
     ID3D11Device *device_ = nullptr;
 
-    QVector<QSharedPointer<VideoFrame>> video_frames_;
-    QVector<TextureItem> empty_texture_queue_, rendered_texture_queue_, used_texture_queue_;
+    std::vector<QSharedPointer<VideoFrame>> video_frames_;
+    std::vector<TextureItem> empty_texture_queue_, rendered_texture_queue_, used_texture_queue_;
 
 #ifdef _DEBUG
     PlaybackClock::time_point last_frame_time_, last_texture_change_time_, last_second_;

@@ -50,6 +50,11 @@ void VideoFrameTextureNode::AddVideoFrame(const QSharedPointer<VideoFrame> &fram
     video_frames_.push_back(frame);
 }
 
+void VideoFrameTextureNode::AddVideoFrames(std::vector<QSharedPointer<VideoFrame>> &&frame)
+{
+    video_frames_.insert(video_frames_.end(), std::make_move_iterator(frame.begin()), std::make_move_iterator(frame.end()));
+}
+
 void VideoFrameTextureNode::Synchronize(QQuickItem *item)
 {
     bool needs_new = false;
@@ -85,29 +90,32 @@ void VideoFrameTextureNode::Synchronize(QQuickItem *item)
         device_ = reinterpret_cast<ID3D11Device *>(rif->getResource(window_, QSGRendererInterface::DeviceResource));
         Q_ASSERT(device_);
 
-        for (int i = 0; i < rendered_texture_queue_.size(); ++i)
+        for (size_t i = 0; i < rendered_texture_queue_.size(); ++i)
         {
             rendered_texture_queue_[i].do_not_recycle = true;
         }
-        for (int i = 0; i < used_texture_queue_.size(); ++i)
+        for (size_t i = 0; i < used_texture_queue_.size(); ++i)
         {
             used_texture_queue_[i].do_not_recycle = true;
         }
         empty_texture_queue_.clear();
-        NewTextureItem(std::max(0, kQueueSize - rendered_texture_queue_.size() - used_texture_queue_.size()));
+
+        Q_ASSERT(rendered_texture_queue_.size() + used_texture_queue_.size() <= kQueueSize);
+        if (rendered_texture_queue_.size() + used_texture_queue_.size() < kQueueSize)
+            NewTextureItem(kQueueSize - rendered_texture_queue_.size() - used_texture_queue_.size());
 
         if (!texture()) //Have to assign a texture if there isn't any
         {
             auto &empty_texture = empty_texture_queue_.front();
             setTexture(empty_texture.texture_qsg.get());
             used_texture_queue_.push_back(std::move(empty_texture));
-            empty_texture_queue_.pop_front();
+            empty_texture_queue_.erase(empty_texture_queue_.begin());
         }
     }
 
     auto current_time = PlaybackClock::now();
 
-    auto present_time_limit = current_time + std::chrono::microseconds(1000);
+    auto present_time_limit = current_time + std::chrono::microseconds(100);
     QSGTexture *next_texture_qsg = nullptr;
     while (!rendered_texture_queue_.empty() && rendered_texture_queue_.front().present_time <= present_time_limit)
     {
@@ -117,7 +125,7 @@ void VideoFrameTextureNode::Synchronize(QQuickItem *item)
         auto &next_texture = rendered_texture_queue_.front();
         next_texture_qsg = next_texture.texture_qsg.get();
         used_texture_queue_.push_back(std::move(next_texture));
-        rendered_texture_queue_.pop_front();
+        rendered_texture_queue_.erase(rendered_texture_queue_.begin());
     }
 
     if (next_texture_qsg != nullptr)
@@ -182,7 +190,7 @@ void VideoFrameTextureNode::Render()
         {
             empty_texture_queue_.push_back(std::move(used_texture));
         }
-        used_texture_queue_.pop_front();
+        used_texture_queue_.erase(used_texture_queue_.begin());
     }
     while (!video_frames_.empty() && !empty_texture_queue_.empty())
     {
@@ -190,7 +198,7 @@ void VideoFrameTextureNode::Render()
         if (!success)
             break;
         rendered_texture_queue_.push_back(std::move(empty_texture_queue_.front()));
-        empty_texture_queue_.pop_front();
+        empty_texture_queue_.erase(empty_texture_queue_.begin());
     }
 }
 
@@ -252,7 +260,7 @@ bool VideoFrameTextureNode::RenderFrame(TextureItem &target)
     if (aspect_ratio_ == 0)
         return false;
     QSharedPointer<VideoFrame> current_video_frame = std::move(video_frames_.front());
-    video_frames_.pop_front();
+    video_frames_.erase(video_frames_.begin());
 
     HRESULT hr;
     D3D11SharedResource *shared_resource = D3D11SharedResource::resource;

@@ -162,7 +162,7 @@ void LiveStreamSource::onPushTick()
         for (; video_itr != video_itr_end; ++video_itr)
         {
             VideoFrame &frame = **video_itr;
-            auto duration = AVTimestampToDuration<std::chrono::milliseconds>(frame.timestamp, video_stream_time_base_);
+            auto duration = AVTimestampToDuration<std::chrono::microseconds>(frame.timestamp, video_stream_time_base_);
             if (duration >= pushed_time_)
                 break;
             frame.present_time = base_time_ + duration + kUploadToRenderLatency;
@@ -174,7 +174,7 @@ void LiveStreamSource::onPushTick()
         for (; audio_itr != audio_itr_end; ++audio_itr)
         {
             AudioFrame &frame = **audio_itr;
-            auto duration = AVTimestampToDuration<std::chrono::milliseconds>(frame.timestamp, audio_stream_time_base_);
+            auto duration = AVTimestampToDuration<std::chrono::microseconds>(frame.timestamp, audio_stream_time_base_);
             if (duration >= pushed_time_)
                 break;
             frame.present_time = base_time_ + duration + kUploadToRenderLatency;
@@ -260,8 +260,8 @@ void LiveStreamSource::StartPlaying()
     Q_ASSERT(!video_frames_.empty() && !audio_frames_.empty());
     playing_ = true;
     auto current_time = PlaybackClock::now();
-    base_time_ = std::min(current_time - AVTimestampToDuration<std::chrono::milliseconds>(video_frames_.front()->timestamp, video_stream_time_base_),
-                          current_time - AVTimestampToDuration<std::chrono::milliseconds>(audio_frames_.front()->timestamp, audio_stream_time_base_));
+    base_time_ = std::min(current_time - AVTimestampToDuration<std::chrono::microseconds>(video_frames_.front()->timestamp, video_stream_time_base_),
+                          current_time - AVTimestampToDuration<std::chrono::microseconds>(audio_frames_.front()->timestamp, audio_stream_time_base_));
     emit playingChanged();
 }
 

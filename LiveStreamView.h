@@ -38,7 +38,7 @@ private:
 
     int t_ = 0;
     LiveStreamSource *current_source_ = nullptr;
-    QVector<QSharedPointer<VideoFrame>> next_frames_;
+    std::vector<QSharedPointer<VideoFrame>> next_frames_;
 };
 
 #endif // LIVESTREAMVIEW_H
