@@ -142,7 +142,7 @@ LiveStreamSource::LiveStreamSource(QObject *parent)
 
 void LiveStreamSource::start()
 {
-    emit newMedia();
+    emit newMedia(video_decoder_ctx_.Get(), audio_decoder_ctx_.Get());
     Synchronize();
     StartPushTick();
     debugSourceTick();

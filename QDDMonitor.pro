@@ -1,4 +1,4 @@
-QT += quick
+QT += quick multimedia
 
 CONFIG += c++17 metatypes
 CONFIG(release, debug|release): CONFIG += ltcg
@@ -10,6 +10,7 @@ CONFIG(release, debug|release): CONFIG += ltcg
 HEADERS += \
     AVObjectWrapper.h \
     AudioFrame.h \
+    AudioOutput.h \
     D3D11FlushHelper.h \
     D3D11SharedResource.h \
     LiveStreamSource.h \
@@ -22,6 +23,7 @@ HEADERS += \
 PRECOMPILED_HEADER = pch.h
 
 SOURCES += \
+        AudioOutput.cpp \
         D3D11FlushHelper.cpp \
         D3D11SharedResource.cpp \
         LiveStreamSource.cpp \

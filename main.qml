@@ -10,8 +10,13 @@ Window {
 
     D3D11FlushHelper {}
 
+    AudioOutput {
+        id: mainAudioOut
+    }
+
     LiveStreamView {
         anchors.fill: parent
+        audioOut: mainAudioOut
         NumberAnimation on t {
             from: 0
             to: 100

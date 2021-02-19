@@ -38,7 +38,7 @@ public:
 signals:
     void playingChanged();
 
-    void newMedia();
+    void newMedia(const AVCodecContext *video_decoder_context, const AVCodecContext *audio_decoder_context);
     void newVideoFrame(QSharedPointer<VideoFrame> video_frame);
     void newAudioFrame(QSharedPointer<AudioFrame> audio_frame);
 

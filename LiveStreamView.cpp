@@ -1,8 +1,9 @@
 #include "pch.h"
 #include "LiveStreamView.h"
 
-#include "VideoFrameTextureNode.h"
 #include "LiveStreamSource.h"
+#include "VideoFrameTextureNode.h"
+#include "AudioOutput.h"
 
 LiveStreamView::LiveStreamView(QQuickItem *parent)
     :QQuickItem(parent)
@@ -19,12 +20,35 @@ void LiveStreamView::setSource(LiveStreamSource *source)
         {
             disconnect(current_source_, &LiveStreamSource::newMedia, this, &LiveStreamView::onNewMedia);
             disconnect(current_source_, &LiveStreamSource::newVideoFrame, this, &LiveStreamView::onNewVideoFrame);
+            disconnect(current_source_, &LiveStreamSource::newAudioFrame, this, &LiveStreamView::onNewAudioFrame);
         }
         current_source_ = source;
-        if (source)
+        if (current_source_)
         {
-            connect(source, &LiveStreamSource::newMedia, this, &LiveStreamView::onNewMedia);
-            connect(source, &LiveStreamSource::newVideoFrame, this, &LiveStreamView::onNewVideoFrame);
+            connect(current_source_, &LiveStreamSource::newMedia, this, &LiveStreamView::onNewMedia);
+            connect(current_source_, &LiveStreamSource::newVideoFrame, this, &LiveStreamView::onNewVideoFrame);
+            connect(current_source_, &LiveStreamSource::newAudioFrame, this, &LiveStreamView::onNewAudioFrame);
+        }
+        emit sourceChanged();
+    }
+}
+
+void LiveStreamView::setAudioOut(AudioOutput *audio_out)
+{
+    if (audio_out != audio_out_)
+    {
+        if (audio_out_)
+        {
+            disconnect(this, &LiveStreamView::newAudioSource, audio_out_, &AudioOutput::onNewAudioSource);
+            disconnect(this, &LiveStreamView::deleteAudioSource, audio_out_, &AudioOutput::onDeleteAudioSource);
+            disconnect(this, &LiveStreamView::newAudioFrame, audio_out_, &AudioOutput::onNewAudioFrame);
+        }
+        audio_out_ = audio_out;
+        if (audio_out_)
+        {
+            connect(this, &LiveStreamView::newAudioSource, audio_out_, &AudioOutput::onNewAudioSource);
+            connect(this, &LiveStreamView::deleteAudioSource, audio_out_, &AudioOutput::onDeleteAudioSource);
+            connect(this, &LiveStreamView::newAudioFrame, audio_out_, &AudioOutput::onNewAudioFrame);
         }
         emit sourceChanged();
     }
@@ -63,8 +87,11 @@ void LiveStreamView::geometryChanged(const QRectF &newGeometry, const QRectF &ol
         update();
 }
 
-void LiveStreamView::onNewMedia()
+void LiveStreamView::onNewMedia(const AVCodecContext *video_decoder_context, const AVCodecContext *audio_decoder_context)
 {
+    Q_UNUSED(video_decoder_context);
+    emit deleteAudioSource(reinterpret_cast<uintptr_t>(this));
+    emit newAudioSource(reinterpret_cast<uintptr_t>(this), audio_decoder_context);
 }
 
 void LiveStreamView::onNewVideoFrame(QSharedPointer<VideoFrame> video_frame)
@@ -73,6 +100,11 @@ void LiveStreamView::onNewVideoFrame(QSharedPointer<VideoFrame> video_frame)
     next_frames_.push_back(std::move(video_frame));
     if (need_update)
         update();
+}
+
+void LiveStreamView::onNewAudioFrame(QSharedPointer<AudioFrame> audio_frame)
+{
+    emit newAudioFrame(reinterpret_cast<uintptr_t>(this), audio_frame);
 }
 
 void LiveStreamView::onTChanged()

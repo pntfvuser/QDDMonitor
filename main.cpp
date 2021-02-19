@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "LiveStreamSource.h"
 #include "LiveStreamView.h"
+#include "AudioOutput.h"
 
 #ifdef _WIN32
 #include "D3D11SharedResource.h"
@@ -12,11 +13,13 @@
 
 int main(int argc, char *argv[])
 {
+    qRegisterMetaType<const AVCodecContext *>();
     qRegisterMetaType<QSharedPointer<AudioFrame>>();
     qRegisterMetaType<QSharedPointer<VideoFrame>>();
 
     qmlRegisterType<LiveStreamSource>("org.anon.QDDMonitor", 1, 0, "LiveStreamSource");
     qmlRegisterType<LiveStreamView>("org.anon.QDDMonitor", 1, 0, "LiveStreamView");
+    qmlRegisterType<AudioOutput>("org.anon.QDDMonitor", 1, 0, "AudioOutput");
     qmlRegisterType<D3D11FlushHelper>("org.anon.QDDMonitor", 1, 0, "D3D11FlushHelper");
 
     QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);

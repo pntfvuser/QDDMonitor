@@ -10,15 +10,22 @@
 #include <stdexcept>
 
 #include <vector>
+#include <unordered_map>
 #include <string>
 
 #include <QObject>
 #include <QMetaType>
 #include <QMetaMethod>
+
+#include <QtEndian>
+#include <QIODevice>
+#include <QMutex>
+#include <QMutexLocker>
+#include <QThread>
 #include <QSharedPointer>
 
 #include <QAbstractItemModel>
-#include <QThread>
+#include <QAudioOutput>
 #include <QTimer>
 #include <QScreen>
 
@@ -52,6 +59,7 @@ extern "C"
 #include <libavutil/opt.h>
 #include <libavutil/avassert.h>
 #include <libswscale/swscale.h>
+#include <libswresample/swresample.h>
 }
 
 template <bool> struct PlaybackClockTypeHelper;

@@ -79,4 +79,6 @@ struct AVPacketReleaseFunctor
 };
 using AVPacketObject = AVObjectBase<AVPacket, AVPacketReleaseFunctor>;
 
+Q_DECLARE_METATYPE(const AVCodecContext *);
+
 #endif // AVOBJECTWRAPPER_H
