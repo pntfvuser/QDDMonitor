@@ -7,10 +7,18 @@
 #include "D3D11FlushHelper.h"
 #endif
 
+#include <QQmlContext>
 #include <QLoggingCategory>
 
 int main(int argc, char *argv[])
 {
+    qRegisterMetaType<QSharedPointer<AudioFrame>>();
+    qRegisterMetaType<QSharedPointer<VideoFrame>>();
+
+    qmlRegisterType<LiveStreamSource>("org.anon.QDDMonitor", 1, 0, "LiveStreamSource");
+    qmlRegisterType<LiveStreamView>("org.anon.QDDMonitor", 1, 0, "LiveStreamView");
+    qmlRegisterType<D3D11FlushHelper>("org.anon.QDDMonitor", 1, 0, "D3D11FlushHelper");
+
     QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 
     QGuiApplication app(argc, argv);
@@ -25,9 +33,12 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
 
-    qmlRegisterType<LiveStreamSource>("org.anon.QDDMonitor", 1, 0, "LiveStreamSource");
-    qmlRegisterType<LiveStreamView>("org.anon.QDDMonitor", 1, 0, "LiveStreamView");
-    qmlRegisterType<D3D11FlushHelper>("org.anon.QDDMonitor", 1, 0, "D3D11FlushHelper");
+    LiveStreamSource *source = new LiveStreamSource(nullptr);
+    QThread source_thread;
+    source->moveToThread(&source_thread);
+    QObject::connect(&source_thread, &QThread::finished, source, &QObject::deleteLater);
+    source_thread.start();
+    engine.rootContext()->setContextProperty("debugSource", source);
 
     const QUrl url(QStringLiteral("qrc:/main.qml"));
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
@@ -37,9 +48,13 @@ int main(int argc, char *argv[])
     }, Qt::QueuedConnection);
     engine.load(url);
 
+    source->start();
+
     int retcode = app.exec();
 
     //Join threads here
+    source_thread.quit();
+    source_thread.wait();
 
     return retcode;
 }

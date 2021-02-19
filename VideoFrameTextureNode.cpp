@@ -32,9 +32,6 @@ VideoFrameTextureNode::VideoFrameTextureNode(QQuickItem *item)
 {
     UpdateWindow(item_->window());
 #ifdef _DEBUG
-    last_frame_time_ = PlaybackClock::now();
-    max_diff_time_ = PlaybackClock::duration(0);
-    min_diff_time_ = std::chrono::seconds(10);
     ResynchronizeTimer();
 #endif
 }
@@ -108,10 +105,11 @@ void VideoFrameTextureNode::Synchronize(QQuickItem *item)
         }
     }
 
-    QSGTexture *next_texture_qsg = nullptr;
-
     auto current_time = PlaybackClock::now();
-    while (!rendered_texture_queue_.empty() && rendered_texture_queue_.front().frame_time <= current_time)
+
+    auto present_time_limit = current_time + std::chrono::microseconds(1000);
+    QSGTexture *next_texture_qsg = nullptr;
+    while (!rendered_texture_queue_.empty() && rendered_texture_queue_.front().present_time <= present_time_limit)
     {
 #ifdef _DEBUG
         frames_per_second_ += 1;
@@ -127,6 +125,11 @@ void VideoFrameTextureNode::Synchronize(QQuickItem *item)
         setTexture(next_texture_qsg);
 #ifdef _DEBUG
         texture_updates_per_second_ += 1;
+        if (current_time - last_texture_change_time_ > max_texture_diff_time_)
+            max_texture_diff_time_ = current_time - last_texture_change_time_;
+        if (current_time - last_texture_change_time_ < min_texture_diff_time_)
+            min_texture_diff_time_ = current_time - last_texture_change_time_;
+        last_texture_change_time_ = current_time;
 #endif
     }
 
@@ -140,17 +143,19 @@ void VideoFrameTextureNode::Synchronize(QQuickItem *item)
     if (current_time - last_second_ > std::chrono::seconds(1))
     {
         last_second_ += std::chrono::seconds(1);
-        qDebug((std::to_string(rendered_texture_queue_.size()) + " textures rendered").c_str());
-        qDebug((std::to_string(used_texture_queue_.size()) + " textures used").c_str());
-        qDebug((std::to_string(empty_texture_queue_.size()) + " textures empty").c_str());
-        qDebug((std::to_string(video_frames_.size()) + " frames in pending queue").c_str());
-        qDebug((std::to_string(frames_per_second_) + " sfps").c_str());
-        qDebug((std::to_string(renders_per_second_) + " fps").c_str());
-        qDebug((std::to_string(texture_updates_per_second_) + " texture updates").c_str());
-        qDebug((std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(max_diff_time_).count()) + "us max diff").c_str());
-        qDebug((std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(min_diff_time_).count()) + "us min diff").c_str());
-        max_diff_time_ = PlaybackClock::duration(0);
-        min_diff_time_ = std::chrono::seconds(10);
+        qDebug("%d textures rendered", rendered_texture_queue_.size());
+        qDebug("%d textures used", used_texture_queue_.size());
+        qDebug("%d textures empty", empty_texture_queue_.size());
+        qDebug("%d frames in pending queue", video_frames_.size());
+        qDebug("%d fps from source", frames_per_second_);
+        qDebug("%d fps used", renders_per_second_);
+        qDebug("%d texture updates", texture_updates_per_second_);
+        qDebug("%lldus max diff (frame to frame)", std::chrono::duration_cast<std::chrono::microseconds>(max_diff_time_).count());
+        qDebug("%lldus min diff (frame to frame)", std::chrono::duration_cast<std::chrono::microseconds>(min_diff_time_).count());
+        qDebug("%lldus max diff (texture to texture)", std::chrono::duration_cast<std::chrono::microseconds>(max_texture_diff_time_).count());
+        qDebug("%lldus min diff (texture to texture)", std::chrono::duration_cast<std::chrono::microseconds>(min_texture_diff_time_).count());
+        max_diff_time_ = max_texture_diff_time_ = PlaybackClock::duration(0);
+        min_diff_time_ = min_texture_diff_time_ = std::chrono::seconds(10);
         frames_per_second_ = renders_per_second_ = texture_updates_per_second_ = 0;
     }
 #endif
@@ -203,17 +208,20 @@ void VideoFrameTextureNode::UpdateWindow(QQuickWindow *new_window)
         disconnect(window_, &QQuickWindow::screenChanged, this, &VideoFrameTextureNode::UpdateScreen);
     }
     window_ = new_window;
-    dpr_ = window_->effectiveDevicePixelRatio();
-    connect(window_, &QQuickWindow::frameSwapped, this, &VideoFrameTextureNode::Render, Qt::DirectConnection);
-    connect(window_, &QQuickWindow::screenChanged, this, &VideoFrameTextureNode::UpdateScreen);
+    if (window_)
+    {
+        dpr_ = window_->effectiveDevicePixelRatio();
+        connect(window_, &QQuickWindow::frameSwapped, this, &VideoFrameTextureNode::Render, Qt::DirectConnection);
+        connect(window_, &QQuickWindow::screenChanged, this, &VideoFrameTextureNode::UpdateScreen);
+    }
 }
 
 void VideoFrameTextureNode::ResynchronizeTimer()
 {
 #ifdef _DEBUG
-    last_frame_time_ = last_second_ = PlaybackClock::now();
-    max_diff_time_ = PlaybackClock::duration(0);
-    min_diff_time_ = std::chrono::seconds(10);
+    last_frame_time_ = last_texture_change_time_ = last_second_ = PlaybackClock::now();
+    max_diff_time_ = max_texture_diff_time_ = PlaybackClock::duration(0);
+    min_diff_time_ = min_texture_diff_time_ = std::chrono::seconds(10);
 #endif
 }
 
@@ -252,16 +260,16 @@ bool VideoFrameTextureNode::RenderFrame(TextureItem &target)
 
     do
     {
-        target.frame_time = current_video_frame->frame_time;
+        target.present_time = current_video_frame->present_time;
 
         float horizontal_limit, vertical_limit;
-        float src_aspect_ratio = (float)current_video_frame->frame_size.width() / current_video_frame->frame_size.height();
+        float src_aspect_ratio = (float)current_video_frame->size.width() / current_video_frame->size.height();
         if (src_aspect_ratio == aspect_ratio_)
             horizontal_limit = vertical_limit = 1.0f;
         else if (src_aspect_ratio > aspect_ratio_)
-            horizontal_limit = 1.0f, vertical_limit = (float)(size_.width() * current_video_frame->frame_size.height()) / (current_video_frame->frame_size.width() * size_.height());
+            horizontal_limit = 1.0f, vertical_limit = (float)(size_.width() * current_video_frame->size.height()) / (current_video_frame->size.width() * size_.height());
         else
-            horizontal_limit = (float)(size_.height() * current_video_frame->frame_size.width()) / (current_video_frame->frame_size.height() * size_.width()), vertical_limit = 1.0f;
+            horizontal_limit = (float)(size_.height() * current_video_frame->size.width()) / (current_video_frame->size.height() * size_.width()), vertical_limit = 1.0f;
 
         ID3D11Texture2D *src_texture = current_video_frame->texture.Get();
         ComPtr<ID3D11Texture2D> dst_texture = nullptr;

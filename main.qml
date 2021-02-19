@@ -12,11 +12,14 @@ Window {
 
     LiveStreamView {
         anchors.fill: parent
-        source: LiveStreamSource {
-            id: source
-            Component.onCompleted: {
-                source.start()
-            }
+        NumberAnimation on t {
+            from: 0
+            to: 100
+            running: true
+            loops: Animation.Infinite
+        }
+        Component.onCompleted: {
+            source = debugSource
         }
     }
 }

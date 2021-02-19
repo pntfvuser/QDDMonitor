@@ -9,6 +9,7 @@ CONFIG(release, debug|release): CONFIG += ltcg
 
 HEADERS += \
     AVObjectWrapper.h \
+    AudioFrame.h \
     D3D11FlushHelper.h \
     D3D11SharedResource.h \
     LiveStreamSource.h \

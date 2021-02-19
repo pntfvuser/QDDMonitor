@@ -1,6 +1,7 @@
 #ifndef PCH_H
 #define PCH_H
 
+#include <cstdint>
 #include <type_traits>
 
 #include <atomic>
@@ -15,6 +16,7 @@
 #include <QSharedPointer>
 
 #include <QAbstractItemModel>
+#include <QThread>
 #include <QTimer>
 #include <QScreen>
 

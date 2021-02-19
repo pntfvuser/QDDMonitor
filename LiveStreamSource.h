@@ -2,6 +2,7 @@
 #define LIVESTREAMSOURCE_H
 
 #include "VideoFrame.h"
+#include "AudioFrame.h"
 
 class LiveStreamView;
 
@@ -25,39 +26,59 @@ class LiveStreamSource : public QObject
     };
     using SwsContextObject = AVObjectBase<SwsContext, SwsContextReleaseFunctor>;
 
-    static constexpr PlaybackClock::duration kDecodeToRenderLatency = std::chrono::milliseconds(500);
-
-    //Q_PROPERTY(int sourceId READ sourceId WRITE setSourceId NOTIFY sourceIdChanged)
+    static constexpr PlaybackClock::duration kFrameBufferStartThreshold = std::chrono::milliseconds(500), kFrameBufferFullThreshold = std::chrono::milliseconds(500);
+    static constexpr std::chrono::milliseconds kFrameBufferPushInterval = std::chrono::milliseconds(100);
+    static constexpr PlaybackClock::duration kUploadToRenderLatency = std::chrono::milliseconds(500);
 public:
     explicit LiveStreamSource(QObject *parent = nullptr);
 
+    bool playing() const { return playing_; }
+
     Q_INVOKABLE void start();
 signals:
+    void playingChanged();
+
     void newMedia();
     void newVideoFrame(QSharedPointer<VideoFrame> video_frame);
-    //void newAudioFrame();
+    void newAudioFrame(QSharedPointer<AudioFrame> audio_frame);
 
-    void queueNextVideoFrameTick();
-
-    void debugRefreshSignal();
+    void queuePushTick();
 public slots:
-    void onNextVideoFrameTick();
+    void onPushTick();
 
-    void debugMSTick();
+    void debugSourceTick();
 private:
-    void SendData();
-    void ReceiveVideoFrame();
-    void SetUpNextVideoFrameTick();
+    bool IsBufferLongerThan(PlaybackClock::duration duration);
+    void StartPlaying();
+    void StopPlaying();
 
-    AVFormatContextObject input_ctx;
-    int video_stream_index, audio_stream_index;
-    AVCodecContextObject video_decoder_ctx;
-    AVPacket packet;
+    void Synchronize();
+
+    int ReceiveVideoFrame();
+    int ReceiveAudioFrame();
+
+    void StartPushTick();
+    void StopPushTick();
+    void SetUpNextPushTick();
+
+    AVFormatContextObject input_ctx_;
+    int video_stream_index_, audio_stream_index_;
+    AVCodecContextObject video_decoder_ctx_, audio_decoder_ctx_;
     SwsContextObject sws_context_;
 
-    PlaybackClock::time_point next_frame_time_;
-    PlaybackClock::duration frame_rate_, next_frame_offset_;
-    int frames_per_second_ = 0;
+    bool playing_ = false;
+    QVector<QSharedPointer<VideoFrame>> video_frames_;
+    QVector<QSharedPointer<AudioFrame>> audio_frames_;
+
+    AVRational video_stream_time_base_, audio_stream_time_base_;
+    PlaybackClock::time_point base_time_;
+    std::chrono::milliseconds pushed_time_;
+
+    PlaybackClock::time_point push_tick_time_;
+    bool push_tick_enabled_ = false;
+#ifdef _DEBUG
+    int video_frames_per_second_ = 0;
+#endif
 };
 
 #endif // LIVESTREAMSOURCE_H

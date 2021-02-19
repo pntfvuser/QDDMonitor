@@ -8,6 +8,7 @@ LiveStreamView::LiveStreamView(QQuickItem *parent)
     :QQuickItem(parent)
 {
     setFlag(ItemHasContents, true);
+    connect(this, &LiveStreamView::tChanged, this, &LiveStreamView::onTChanged);
 }
 
 void LiveStreamView::setSource(LiveStreamSource *source)
@@ -17,13 +18,14 @@ void LiveStreamView::setSource(LiveStreamSource *source)
         if (current_source_)
         {
             disconnect(current_source_, &LiveStreamSource::newMedia, this, &LiveStreamView::onNewMedia);
-            disconnect(current_source_, &LiveStreamSource::newVideoFrame, this, &LiveStreamView::onNewFrame);
-            disconnect(current_source_, &LiveStreamSource::debugRefreshSignal, this, &LiveStreamView::debugRefreshSlot);
+            disconnect(current_source_, &LiveStreamSource::newVideoFrame, this, &LiveStreamView::onNewVideoFrame);
         }
         current_source_ = source;
-        connect(current_source_, &LiveStreamSource::newMedia, this, &LiveStreamView::onNewMedia);
-        connect(current_source_, &LiveStreamSource::newVideoFrame, this, &LiveStreamView::onNewFrame);
-        connect(current_source_, &LiveStreamSource::debugRefreshSignal, this, &LiveStreamView::debugRefreshSlot);
+        if (source)
+        {
+            connect(source, &LiveStreamSource::newMedia, this, &LiveStreamView::onNewMedia);
+            connect(source, &LiveStreamSource::newVideoFrame, this, &LiveStreamView::onNewVideoFrame);
+        }
         emit sourceChanged();
     }
 }
@@ -66,7 +68,7 @@ void LiveStreamView::onNewMedia()
 {
 }
 
-void LiveStreamView::onNewFrame(QSharedPointer<VideoFrame> video_frame)
+void LiveStreamView::onNewVideoFrame(QSharedPointer<VideoFrame> video_frame)
 {
     bool need_update = next_frames_.empty();
     next_frames_.push_back(video_frame);
@@ -74,7 +76,7 @@ void LiveStreamView::onNewFrame(QSharedPointer<VideoFrame> video_frame)
         update();
 }
 
-void LiveStreamView::debugRefreshSlot()
+void LiveStreamView::onTChanged()
 {
     update();
 }

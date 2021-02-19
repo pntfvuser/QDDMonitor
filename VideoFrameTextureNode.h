@@ -23,11 +23,11 @@ class VideoFrameTextureNode : public QSGTextureProvider, public QSGSimpleTexture
         ComPtr<ID3D11Texture2D> texture;
         HANDLE texture_share_handle;
         std::shared_ptr<QSGTexture> texture_qsg;
-        PlaybackClock::time_point frame_time;
+        PlaybackClock::time_point present_time;
         bool do_not_recycle = false;
     };
 
-    static constexpr int kQueueSize = 12, kUsedQueueSize = 4;
+    static constexpr int kQueueSize = 12, kUsedQueueSize = 6;
     static constexpr auto kTextureFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 public:
     VideoFrameTextureNode(QQuickItem *item);
@@ -60,8 +60,8 @@ private:
     QVector<TextureItem> empty_texture_queue_, rendered_texture_queue_, used_texture_queue_;
 
 #ifdef _DEBUG
-    PlaybackClock::time_point last_frame_time_, last_second_;
-    PlaybackClock::duration max_diff_time_, min_diff_time_;
+    PlaybackClock::time_point last_frame_time_, last_texture_change_time_, last_second_;
+    PlaybackClock::duration max_diff_time_, min_diff_time_, max_texture_diff_time_, min_texture_diff_time_;
     int frames_per_second_ = 0, renders_per_second_ = 0, texture_updates_per_second_ = 0;
 #endif
 };
