@@ -1,4 +1,4 @@
-QT += quick multimedia
+QT += quick
 
 CONFIG += c++17 metatypes
 CONFIG(release, debug|release): CONFIG += ltcg
@@ -45,10 +45,12 @@ qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
+DEFINES += AL_LIBTYPE_STATIC
+
 win32: {
     CONFIG(release, debug|release): LIBS += -LC:/usr/lib/Release
     else:CONFIG(debug, debug|release): LIBS += -LC:/usr/lib/Debug
-    LIBS += libavcodec.lib libavformat.lib libavutil.lib libswresample.lib libswscale.lib libx264.lib x265.lib evr.lib mf.lib strmiids.lib mfplat.lib mfplay.lib mfreadwrite.lib mfuuid.lib ws2_32.lib bcrypt.lib secur32.lib d3d11.lib
+    LIBS += libavcodec.lib libavformat.lib libavutil.lib libswresample.lib libswscale.lib libx264.lib x265.lib OpenAL32.lib evr.lib mf.lib strmiids.lib mfplat.lib mfplay.lib mfreadwrite.lib mfuuid.lib ws2_32.lib bcrypt.lib secur32.lib d3d11.lib
 
     INCLUDEPATH += C:/usr/include
     DEPENDPATH += C:/usr/include

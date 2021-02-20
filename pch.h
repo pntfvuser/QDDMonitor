@@ -25,7 +25,7 @@
 #include <QSharedPointer>
 
 #include <QAbstractItemModel>
-#include <QAudioOutput>
+#include <QLoggingCategory>
 #include <QTimer>
 #include <QScreen>
 
@@ -46,6 +46,10 @@ using Microsoft::WRL::ComPtr;
 #include <dxgi1_2.h>
 #include <DirectXMath.h>
 #endif
+
+#include <AL/al.h>
+#include <AL/alc.h>
+#include <AL/alext.h>
 
 extern "C"
 {
