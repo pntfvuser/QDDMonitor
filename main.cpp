@@ -26,7 +26,8 @@ int main(int argc, char *argv[])
 
     QGuiApplication app(argc, argv);
 
-    QLoggingCategory::setFilterRules("qt.scenegraph.general=true");
+    QLoggingCategory::setFilterRules(//"qddm.video=false\n"
+                                     "qt.scenegraph.general=true");
 
 #ifdef _WIN32
     D3D11SharedResource d3d11resource;

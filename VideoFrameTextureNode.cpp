@@ -5,6 +5,8 @@
 #include "D3D11SharedResource.h"
 #endif
 
+Q_LOGGING_CATEGORY(video_playback_category, "qddm.video")
+
 VideoFrameTextureNode::TextureItem::TextureItem(QQuickWindow *window, ID3D11Device *device, const D3D11_TEXTURE2D_DESC &desc, const QSize &size)
 {
     HRESULT hr;
@@ -133,6 +135,13 @@ void VideoFrameTextureNode::Synchronize(QQuickItem *item)
     if (next_texture_qsg != nullptr)
     {
         setTexture(next_texture_qsg);
+#ifdef _DEBUG
+        auto timing_diff = rendered_texture_queue_.empty() ?
+                    present_time_limit - used_texture_queue_.back().present_time :
+                    std::min(present_time_limit - used_texture_queue_.back().present_time, rendered_texture_queue_.front().present_time - present_time_limit);
+        if (timing_diff < min_timing_diff_)
+            min_timing_diff_ = timing_diff;
+#endif
         if (present_time_limit - used_texture_queue_.back().present_time < kTimingBadThreshold ||
             (!rendered_texture_queue_.empty() && rendered_texture_queue_.front().present_time - present_time_limit < kTimingBadThreshold))
         {
@@ -142,7 +151,7 @@ void VideoFrameTextureNode::Synchronize(QQuickItem *item)
                 timing_shift_ = !timing_shift_;
                 timing_bad_count_ = 0;
 #ifdef _DEBUG
-                qDebug("timing shift flipped");
+                qCDebug(video_playback_category, "timing shift flipped");
 #endif
             }
         }
@@ -156,6 +165,8 @@ void VideoFrameTextureNode::Synchronize(QQuickItem *item)
             max_texture_diff_time_ = current_time - last_texture_change_time_;
         if (current_time - last_texture_change_time_ < min_texture_diff_time_)
             min_texture_diff_time_ = current_time - last_texture_change_time_;
+        if (present_time_limit - used_texture_queue_.back().present_time > max_latency_)
+            max_latency_ = present_time_limit - used_texture_queue_.back().present_time;
         last_texture_change_time_ = current_time;
 #endif
     }
@@ -170,18 +181,20 @@ void VideoFrameTextureNode::Synchronize(QQuickItem *item)
     if (current_time - last_second_ > std::chrono::seconds(1))
     {
         last_second_ += std::chrono::seconds(1);
-        qDebug("%d textures rendered", rendered_texture_queue_.size());
-        qDebug("%d textures used", used_texture_queue_.size());
-        qDebug("%d frames in pending queue", video_frames_.size());
-        qDebug("%d fps from source", frames_per_second_);
-        qDebug("%d texture updates", texture_updates_per_second_);
-        qDebug("%lldus max diff (frame to frame)", std::chrono::duration_cast<std::chrono::microseconds>(max_diff_time_).count());
-        qDebug("%lldus min diff (frame to frame)", std::chrono::duration_cast<std::chrono::microseconds>(min_diff_time_).count());
-        qDebug("%lldus max diff (texture to texture)", std::chrono::duration_cast<std::chrono::microseconds>(max_texture_diff_time_).count());
-        qDebug("%lldus min diff (texture to texture)", std::chrono::duration_cast<std::chrono::microseconds>(min_texture_diff_time_).count());
-        qDebug("timing shift %s", timing_shift_ ? "on" : "off");
-        max_diff_time_ = max_texture_diff_time_ = PlaybackClock::duration(0);
-        min_diff_time_ = min_texture_diff_time_ = std::chrono::seconds(10);
+        qCDebug(video_playback_category, "%d textures rendered", rendered_texture_queue_.size());
+        qCDebug(video_playback_category, "%d textures used", used_texture_queue_.size());
+        qCDebug(video_playback_category, "%d frames in pending queue", video_frames_.size());
+        qCDebug(video_playback_category, "%d fps from source", frames_per_second_);
+        qCDebug(video_playback_category, "%d texture updates", texture_updates_per_second_);
+        qCDebug(video_playback_category, "%lldus max diff (frame to frame)", std::chrono::duration_cast<std::chrono::microseconds>(max_diff_time_).count());
+        qCDebug(video_playback_category, "%lldus min diff (frame to frame)", std::chrono::duration_cast<std::chrono::microseconds>(min_diff_time_).count());
+        qCDebug(video_playback_category, "%lldus max diff (texture to texture)", std::chrono::duration_cast<std::chrono::microseconds>(max_texture_diff_time_).count());
+        qCDebug(video_playback_category, "%lldus min diff (texture to texture)", std::chrono::duration_cast<std::chrono::microseconds>(min_texture_diff_time_).count());
+        qCDebug(video_playback_category, "%lldus max latency", std::chrono::duration_cast<std::chrono::microseconds>(max_latency_).count());
+        qCDebug(video_playback_category, "%lldus min timing diff", std::chrono::duration_cast<std::chrono::microseconds>(min_timing_diff_).count());
+        qCDebug(video_playback_category, "timing shift %s", timing_shift_ ? "on" : "off");
+        max_diff_time_ = max_texture_diff_time_ = max_latency_ = PlaybackClock::duration(0);
+        min_diff_time_ = min_texture_diff_time_ = min_timing_diff_ = std::chrono::seconds(10);
         frames_per_second_ = renders_per_second_ = texture_updates_per_second_ = 0;
     }
 #endif
@@ -246,8 +259,8 @@ void VideoFrameTextureNode::ResynchronizeTimer()
 {
 #ifdef _DEBUG
     last_frame_time_ = last_texture_change_time_ = last_second_ = PlaybackClock::now();
-    max_diff_time_ = max_texture_diff_time_ = PlaybackClock::duration(0);
-    min_diff_time_ = min_texture_diff_time_ = std::chrono::seconds(10);
+    max_diff_time_ = max_texture_diff_time_ = max_latency_ = PlaybackClock::duration(0);
+    min_diff_time_ = min_texture_diff_time_ = min_timing_diff_ = std::chrono::seconds(10);
 #endif
 }
 

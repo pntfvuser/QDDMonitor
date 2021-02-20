@@ -29,7 +29,7 @@ class VideoFrameTextureNode : public QSGTextureProvider, public QSGSimpleTexture
 
     static constexpr size_t kQueueSize = 12, kUsedQueueSize = 6;
     static constexpr auto kTextureFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-    static constexpr PlaybackClock::duration kTimingBadThreshold = std::chrono::microseconds(1000), kTimingShift = std::chrono::microseconds(3500);
+    static constexpr PlaybackClock::duration kTimingBadThreshold = std::chrono::microseconds(2000), kTimingShift = std::chrono::microseconds(3500);
 public:
     VideoFrameTextureNode(QQuickItem *item);
     ~VideoFrameTextureNode();
@@ -65,7 +65,7 @@ private:
 
 #ifdef _DEBUG
     PlaybackClock::time_point last_frame_time_, last_texture_change_time_, last_second_;
-    PlaybackClock::duration max_diff_time_, min_diff_time_, max_texture_diff_time_, min_texture_diff_time_;
+    PlaybackClock::duration max_diff_time_, min_diff_time_, max_texture_diff_time_, min_texture_diff_time_, max_latency_, min_timing_diff_;
     int frames_per_second_ = 0, renders_per_second_ = 0, texture_updates_per_second_ = 0;
 #endif
 };
