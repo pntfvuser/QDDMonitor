@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "LiveStreamSource.h"
+#include "LiveStreamSourceFile.h"
 #include "LiveStreamView.h"
 #include "AudioOutput.h"
 
@@ -13,11 +13,13 @@
 
 int main(int argc, char *argv[])
 {
+    qRegisterMetaType<SourceInputCallback>();
     qRegisterMetaType<const AVCodecContext *>();
     qRegisterMetaType<QSharedPointer<AudioFrame>>();
     qRegisterMetaType<QSharedPointer<VideoFrame>>();
 
     qmlRegisterType<LiveStreamSource>("org.anon.QDDMonitor", 1, 0, "LiveStreamSource");
+    qmlRegisterType<LiveStreamSourceFile>("org.anon.QDDMonitor", 1, 0, "LiveStreamSourceFile");
     qmlRegisterType<LiveStreamView>("org.anon.QDDMonitor", 1, 0, "LiveStreamView");
     qmlRegisterType<AudioOutput>("org.anon.QDDMonitor", 1, 0, "AudioOutput");
     qmlRegisterType<D3D11FlushHelper>("org.anon.QDDMonitor", 1, 0, "D3D11FlushHelper");
@@ -37,7 +39,7 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
 
-    LiveStreamSource *source = new LiveStreamSource(nullptr);
+    LiveStreamSourceFile *source = new LiveStreamSourceFile(nullptr);
     QThread source_thread;
     source->moveToThread(&source_thread);
     QObject::connect(&source_thread, &QThread::finished, source, &QObject::deleteLater);
@@ -52,6 +54,7 @@ int main(int argc, char *argv[])
     }, Qt::QueuedConnection);
     engine.load(url);
 
+    source->setFilePath("E:\\Home\\Documents\\Qt\\QDDMonitor\\testsrc.mkv");
     source->start();
 
     int retcode = app.exec();

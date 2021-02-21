@@ -14,6 +14,7 @@ HEADERS += \
     D3D11FlushHelper.h \
     D3D11SharedResource.h \
     LiveStreamSource.h \
+    LiveStreamSourceFile.h \
     LiveStreamSourceModel.h \
     LiveStreamView.h \
     VideoFrame.h \
@@ -27,6 +28,7 @@ SOURCES += \
         D3D11FlushHelper.cpp \
         D3D11SharedResource.cpp \
         LiveStreamSource.cpp \
+        LiveStreamSourceFile.cpp \
         LiveStreamSourceModel.cpp \
         LiveStreamView.cpp \
         VideoFrameTextureNode.cpp \

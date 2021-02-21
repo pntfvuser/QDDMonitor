@@ -26,6 +26,7 @@
 #include <QSharedPointer>
 
 #include <QAbstractItemModel>
+#include <QFile>
 #include <QLoggingCategory>
 #include <QTimer>
 #include <QScreen>

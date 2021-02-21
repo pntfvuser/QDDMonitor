@@ -4,6 +4,8 @@
 #include "LiveStreamView.h"
 #include "D3D11SharedResource.h"
 
+static constexpr int kInputBufferSize = 0x1000;
+
 static constexpr AVHWDeviceType kHwDeviceType = AV_HWDEVICE_TYPE_D3D11VA;
 static constexpr AVPixelFormat kHwPixelFormat = AV_PIX_FMT_D3D11;
 
@@ -42,17 +44,48 @@ enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
 LiveStreamSource::LiveStreamSource(QObject *parent)
     :QObject(parent)
 {
-    connect(this, &LiveStreamSource::queuePushTick, this, &LiveStreamSource::onPushTick, Qt::QueuedConnection);
+    connect(this, &LiveStreamSource::queuePushTick, this, &LiveStreamSource::OnPushTick, Qt::QueuedConnection);
+}
+
+LiveStreamSource::~LiveStreamSource()
+{
+}
+
+void LiveStreamSource::OnNewInputStream(void *opaque, SourceInputCallback read_callback)
+{
+    StopPushTick();
+    StopPlaying();
+    video_frames_.clear();
+    audio_frames_.clear();
+    sws_context_ = nullptr;
+    video_decoder_ctx_ = nullptr;
+    audio_decoder_ctx_ = nullptr;
+    demuxer_ctx_ = nullptr;
+    input_ctx_ = nullptr;
 
     int i, ret;
 
-    if (avformat_open_input(input_ctx_.GetAddressOf(), "E:\\Home\\Documents\\Qt\\QDDMonitor\\testsrc.2.mp4", NULL, NULL) != 0)
+    AVAllocatedMemory input_buffer_ = (uint8_t *)av_malloc(kInputBufferSize);
+    if (!(input_ctx_ = avio_alloc_context(input_buffer_.Get(), kInputBufferSize, 0, opaque, read_callback, nullptr, nullptr)))
     {
-        qWarning("Cannot open input file '%s'", "testsrc.mp4");
+        qWarning("Failed to alloc avio context");
+        return;
+    }
+    input_buffer_.DetachObject();
+
+    if (!(demuxer_ctx_ = avformat_alloc_context()))
+    {
+        qWarning("Failed to allocate demuxer context");
+        return;
+    }
+    demuxer_ctx_->pb = input_ctx_.Get();
+    if (avformat_open_input(demuxer_ctx_.GetAddressOf(), "", NULL, NULL) != 0)
+    {
+        qWarning("Cannot open input");
         return;
     }
 
-    if (avformat_find_stream_info(input_ctx_.Get(), NULL) < 0)
+    if (avformat_find_stream_info(demuxer_ctx_.Get(), NULL) < 0)
     {
         qWarning("Cannot find input stream information.");
         return;
@@ -60,7 +93,7 @@ LiveStreamSource::LiveStreamSource(QObject *parent)
 
     /* find the video stream information */
     AVCodec *video_decoder = nullptr;
-    ret = av_find_best_stream(input_ctx_.Get(), AVMEDIA_TYPE_VIDEO, -1, -1, &video_decoder, 0);
+    ret = av_find_best_stream(demuxer_ctx_.Get(), AVMEDIA_TYPE_VIDEO, -1, -1, &video_decoder, 0);
     if (ret < 0)
     {
         qWarning("Cannot find a video stream in the input file");
@@ -68,7 +101,7 @@ LiveStreamSource::LiveStreamSource(QObject *parent)
     }
     video_stream_index_ = ret;
 
-    AVStream *video_stream = input_ctx_->streams[video_stream_index_];
+    AVStream *video_stream = demuxer_ctx_->streams[video_stream_index_];
 
     for (i = 0;; i++)
     {
@@ -105,7 +138,7 @@ LiveStreamSource::LiveStreamSource(QObject *parent)
     {
         sws_context_ = sws_getContext(video_decoder_ctx_->width, video_decoder_ctx_->height, video_decoder_ctx_->pix_fmt,
                                       video_decoder_ctx_->width, video_decoder_ctx_->height, AV_PIX_FMT_RGB0,
-                                      SWS_BICUBLIN | SWS_BITEXACT, nullptr, nullptr, nullptr);
+                                      SWS_POINT | SWS_BITEXACT, nullptr, nullptr, nullptr);
         if (!sws_context_)
         {
             qWarning("Failed to open swscale context");
@@ -115,7 +148,7 @@ LiveStreamSource::LiveStreamSource(QObject *parent)
 
     /* find the audio stream information */
     AVCodec *audio_decoder = nullptr;
-    ret = av_find_best_stream(input_ctx_.Get(), AVMEDIA_TYPE_AUDIO, -1, -1, &audio_decoder, 0);
+    ret = av_find_best_stream(demuxer_ctx_.Get(), AVMEDIA_TYPE_AUDIO, -1, -1, &audio_decoder, 0);
     if (ret < 0)
     {
         qWarning("Cannot find a audio stream in the input file");
@@ -123,7 +156,7 @@ LiveStreamSource::LiveStreamSource(QObject *parent)
     }
     audio_stream_index_ = ret;
 
-    AVStream *audio_stream = input_ctx_->streams[audio_stream_index_];
+    AVStream *audio_stream = demuxer_ctx_->streams[audio_stream_index_];
 
     if (!(audio_decoder_ctx_ = avcodec_alloc_context3(audio_decoder)))
     {
@@ -140,68 +173,21 @@ LiveStreamSource::LiveStreamSource(QObject *parent)
         return;
     }
 
-    video_stream_time_base_ = input_ctx_->streams[video_stream_index_]->time_base;
-    audio_stream_time_base_ = input_ctx_->streams[audio_stream_index_]->time_base;
-}
+    video_stream_time_base_ = demuxer_ctx_->streams[video_stream_index_]->time_base;
+    audio_stream_time_base_ = demuxer_ctx_->streams[audio_stream_index_]->time_base;
 
-void LiveStreamSource::start()
-{
     emit newMedia(video_decoder_ctx_.Get(), audio_decoder_ctx_.Get());
-    Synchronize();
+    InitPlaying();
     StartPushTick();
-    debugSourceTick();
 }
 
-void LiveStreamSource::onPushTick()
-{
-    if (!playing() && IsBufferLongerThan(kFrameBufferStartThreshold))
-    {
-        StartPlaying();
-    }
-    if (playing() && !video_frames_.empty() && !audio_frames_.empty())
-    {
-        pushed_time_ += kFrameBufferPushInterval;
-
-        auto video_itr = video_frames_.begin(), video_itr_end = video_frames_.end();
-        for (; video_itr != video_itr_end; ++video_itr)
-        {
-            VideoFrame &frame = **video_itr;
-            auto duration = AVTimestampToDuration<std::chrono::microseconds>(frame.timestamp, video_stream_time_base_);
-            if (duration >= pushed_time_)
-                break;
-            frame.present_time = base_time_ + duration + kUploadToRenderLatency;
-            emit newVideoFrame(*video_itr);
-        }
-        video_frames_.erase(video_frames_.begin(), video_itr);
-
-        auto audio_itr = audio_frames_.begin(), audio_itr_end = audio_frames_.end();
-        for (; audio_itr != audio_itr_end; ++audio_itr)
-        {
-            AudioFrame &frame = **audio_itr;
-            auto duration = AVTimestampToDuration<std::chrono::microseconds>(frame.timestamp, audio_stream_time_base_);
-            if (duration >= pushed_time_)
-                break;
-            frame.present_time = base_time_ + duration + kUploadToRenderLatency;
-            emit newAudioFrame(*audio_itr);
-        }
-        audio_frames_.erase(audio_frames_.begin(), audio_itr);
-
-        if (video_frames_.empty() || audio_frames_.empty())
-        {
-            qDebug("Frame buffer is empty");
-            StopPlaying();
-        }
-    }
-    SetUpNextPushTick();
-}
-
-void LiveStreamSource::debugSourceTick()
+void LiveStreamSource::OnNewDataDeady()
 {
     int ret = 0;
     AVPacket packet;
     while (!IsBufferLongerThan(kFrameBufferFullThreshold))
     {
-        if ((ret = av_read_frame(input_ctx_.Get(), &packet)) < 0)
+        if ((ret = av_read_frame(demuxer_ctx_.Get(), &packet)) < 0)
             return;
 
         if (packet.stream_index == video_stream_index_)
@@ -245,39 +231,6 @@ void LiveStreamSource::debugSourceTick()
             av_packet_unref(&packet);
         }
     }
-    QTimer::singleShot(20, this, &LiveStreamSource::debugSourceTick);
-}
-
-bool LiveStreamSource::IsBufferLongerThan(PlaybackClock::duration duration)
-{
-    if (video_frames_.empty() || audio_frames_.empty())
-        return false;
-    if (AVTimestampToDuration<std::chrono::microseconds>(video_frames_.back()->timestamp - video_frames_.front()->timestamp, video_stream_time_base_) < duration)
-        return false;
-    if (AVTimestampToDuration<std::chrono::microseconds>(audio_frames_.back()->timestamp - audio_frames_.front()->timestamp, audio_stream_time_base_) < duration)
-        return false;
-    return true;
-}
-
-void LiveStreamSource::StartPlaying()
-{
-    Q_ASSERT(!video_frames_.empty() && !audio_frames_.empty());
-    playing_ = true;
-    auto current_time = PlaybackClock::now();
-    base_time_ = std::min(current_time - AVTimestampToDuration<std::chrono::microseconds>(video_frames_.front()->timestamp, video_stream_time_base_),
-                          current_time - AVTimestampToDuration<std::chrono::microseconds>(audio_frames_.front()->timestamp, audio_stream_time_base_));
-    emit playingChanged();
-}
-
-void LiveStreamSource::StopPlaying()
-{
-    playing_ = false;
-    emit playingChanged();
-}
-
-void LiveStreamSource::Synchronize()
-{
-    pushed_time_ = std::chrono::milliseconds(0);
 }
 
 int LiveStreamSource::ReceiveVideoFrame()
@@ -302,7 +255,8 @@ int LiveStreamSource::ReceiveVideoFrame()
         return ret;
     }
 
-    if (frame->format == kHwPixelFormat) {
+    if (frame->format == kHwPixelFormat)
+    {
         D3D11_TEXTURE2D_DESC texture_desc;
 
         ID3D11Texture2D *decoded_texture = reinterpret_cast<ID3D11Texture2D *>(frame->data[0]);
@@ -376,10 +330,10 @@ int LiveStreamSource::ReceiveVideoFrame()
         texture_init_data[2].pSysMem = frame->data[2];
         texture_init_data[2].SysMemPitch = frame->linesize[2];
 
-        ComPtr<ID3D11Texture2D> yuv444_texture = nullptr;
+        ComPtr<ID3D11Texture2D> yuvj444p_texture = nullptr;
         D3D11SharedResource *shared_resource = D3D11SharedResource::resource;
         HRESULT hr;
-        hr = shared_resource->device->CreateTexture2D(&texture_desc, texture_init_data, &yuv444_texture);
+        hr = shared_resource->device->CreateTexture2D(&texture_desc, texture_init_data, &yuvj444p_texture);
         if (FAILED(hr))
         {
             qWarning("Error while creating rgb_texture");
@@ -389,7 +343,7 @@ int LiveStreamSource::ReceiveVideoFrame()
         QSharedPointer<VideoFrame> video_frame = QSharedPointer<VideoFrame>::create();
         video_frame->timestamp = frame->pts;
         video_frame->size = QSize(width, height);
-        video_frame->texture = std::move(yuv444_texture);
+        video_frame->texture = std::move(yuvj444p_texture);
         video_frame->texture_format = VideoFrame::YUVJ444P;
 
         Q_ASSERT(video_frame->texture);
@@ -498,6 +452,49 @@ void LiveStreamSource::StopPushTick()
     push_tick_enabled_ = false;
 }
 
+void LiveStreamSource::OnPushTick()
+{
+    if (!playing() && IsBufferLongerThan(kFrameBufferStartThreshold))
+    {
+        StartPlaying();
+    }
+    if (playing() && !video_frames_.empty() && !audio_frames_.empty())
+    {
+        pushed_time_ += kFrameBufferPushInterval;
+
+        auto video_itr = video_frames_.begin(), video_itr_end = video_frames_.end();
+        for (; video_itr != video_itr_end; ++video_itr)
+        {
+            VideoFrame &frame = **video_itr;
+            auto duration = AVTimestampToDuration<std::chrono::microseconds>(frame.timestamp, video_stream_time_base_);
+            if (duration >= pushed_time_)
+                break;
+            frame.present_time = base_time_ + duration + kUploadToRenderLatency;
+            emit newVideoFrame(*video_itr);
+        }
+        video_frames_.erase(video_frames_.begin(), video_itr);
+
+        auto audio_itr = audio_frames_.begin(), audio_itr_end = audio_frames_.end();
+        for (; audio_itr != audio_itr_end; ++audio_itr)
+        {
+            AudioFrame &frame = **audio_itr;
+            auto duration = AVTimestampToDuration<std::chrono::microseconds>(frame.timestamp, audio_stream_time_base_);
+            if (duration >= pushed_time_)
+                break;
+            frame.present_time = base_time_ + duration + kUploadToRenderLatency;
+            emit newAudioFrame(*audio_itr);
+        }
+        audio_frames_.erase(audio_frames_.begin(), audio_itr);
+
+        if (video_frames_.empty() || audio_frames_.empty())
+        {
+            qDebug("Frame buffer is empty");
+            StopPlaying();
+        }
+    }
+    SetUpNextPushTick();
+}
+
 void LiveStreamSource::SetUpNextPushTick()
 {
     if (!push_tick_enabled_)
@@ -510,6 +507,38 @@ void LiveStreamSource::SetUpNextPushTick()
     }
     else
     {
-        QTimer::singleShot(next_sleep_time, this, &LiveStreamSource::onPushTick);
+        QTimer::singleShot(next_sleep_time, this, &LiveStreamSource::OnPushTick);
     }
+}
+
+bool LiveStreamSource::IsBufferLongerThan(PlaybackClock::duration duration)
+{
+    if (video_frames_.empty() || audio_frames_.empty())
+        return false;
+    if (AVTimestampToDuration<std::chrono::microseconds>(video_frames_.back()->timestamp - video_frames_.front()->timestamp, video_stream_time_base_) < duration)
+        return false;
+    if (AVTimestampToDuration<std::chrono::microseconds>(audio_frames_.back()->timestamp - audio_frames_.front()->timestamp, audio_stream_time_base_) < duration)
+        return false;
+    return true;
+}
+
+void LiveStreamSource::InitPlaying()
+{
+    pushed_time_ = std::chrono::milliseconds(0);
+}
+
+void LiveStreamSource::StartPlaying()
+{
+    Q_ASSERT(!video_frames_.empty() && !audio_frames_.empty());
+    playing_ = true;
+    auto current_time = PlaybackClock::now();
+    base_time_ = std::min(current_time - AVTimestampToDuration<std::chrono::microseconds>(video_frames_.front()->timestamp, video_stream_time_base_),
+                          current_time - AVTimestampToDuration<std::chrono::microseconds>(audio_frames_.front()->timestamp, audio_stream_time_base_));
+    emit playingChanged();
+}
+
+void LiveStreamSource::StopPlaying()
+{
+    playing_ = false;
+    emit playingChanged();
 }

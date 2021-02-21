@@ -4,12 +4,25 @@
 #include "VideoFrame.h"
 #include "AudioFrame.h"
 
+using SourceInputCallback = int(*)(void *opaque, uint8_t *buf, int buf_size);
+Q_DECLARE_METATYPE(SourceInputCallback);
+
 class LiveStreamView;
 
 class LiveStreamSource : public QObject
 {
     Q_OBJECT
 
+    struct AVAllocatedMemoryReleaseFunctor
+    {
+        void operator()(uint8_t **object) const { av_free(*object); *object = nullptr; }
+    };
+    using AVAllocatedMemory = AVObjectBase<uint8_t, AVAllocatedMemoryReleaseFunctor>;
+    struct AVIOContextReleaseFunctor
+    {
+        void operator()(AVIOContext **object) const { uint8_t *buffer = (*object)->buffer; avio_context_free(object); av_free(buffer); }
+    };
+    using AVIOContextObject = AVObjectBase<AVIOContext, AVIOContextReleaseFunctor>;
     struct AVFormatContextReleaseFunctor
     {
         void operator()(AVFormatContext **object) const { avformat_close_input(object); }
@@ -22,15 +35,14 @@ class LiveStreamSource : public QObject
     using AVCodecContextObject = AVObjectBase<AVCodecContext, AVCodecContextReleaseFunctor>;
     struct SwsContextReleaseFunctor
     {
-        void operator()(SwsContext **object) const { sws_freeContext(*object); }
+        void operator()(SwsContext **object) const { sws_freeContext(*object); *object = nullptr; }
     };
     using SwsContextObject = AVObjectBase<SwsContext, SwsContextReleaseFunctor>;
 public:
     explicit LiveStreamSource(QObject *parent = nullptr);
+    ~LiveStreamSource();
 
     bool playing() const { return playing_; }
-
-    Q_INVOKABLE void start();
 signals:
     void playingChanged();
 
@@ -40,16 +52,11 @@ signals:
 
     void queuePushTick();
 public slots:
-    void onPushTick();
-
-    void debugSourceTick();
+    void OnNewInputStream(void *opaque, SourceInputCallback read_callback);
+    void OnNewDataDeady();
+private slots:
+    void OnPushTick();
 private:
-    bool IsBufferLongerThan(PlaybackClock::duration duration);
-    void StartPlaying();
-    void StopPlaying();
-
-    void Synchronize();
-
     int ReceiveVideoFrame();
     int ReceiveAudioFrame();
 
@@ -57,7 +64,13 @@ private:
     void StopPushTick();
     void SetUpNextPushTick();
 
-    AVFormatContextObject input_ctx_;
+    bool IsBufferLongerThan(PlaybackClock::duration duration);
+    void InitPlaying();
+    void StartPlaying();
+    void StopPlaying();
+
+    AVIOContextObject input_ctx_;
+    AVFormatContextObject demuxer_ctx_;
     int video_stream_index_, audio_stream_index_;
     AVCodecContextObject video_decoder_ctx_, audio_decoder_ctx_;
     SwsContextObject sws_context_;
