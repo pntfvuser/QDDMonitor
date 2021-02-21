@@ -3,6 +3,7 @@
 
 #include "VideoFrame.h"
 #include "AudioFrame.h"
+#include "SubtitleFrame.h"
 
 using SourceInputCallback = int(*)(void *opaque, uint8_t *buf, int buf_size);
 Q_DECLARE_METATYPE(SourceInputCallback);
@@ -42,6 +43,7 @@ public:
     explicit LiveStreamSource(QObject *parent = nullptr);
     ~LiveStreamSource();
 
+    bool open() const { return open_; }
     bool playing() const { return playing_; }
 signals:
     void playingChanged();
@@ -49,11 +51,14 @@ signals:
     void newMedia(const AVCodecContext *video_decoder_context, const AVCodecContext *audio_decoder_context);
     void newVideoFrame(QSharedPointer<VideoFrame> video_frame);
     void newAudioFrame(QSharedPointer<AudioFrame> audio_frame);
+    void newSubtitleFrame(QSharedPointer<SubtitleFrame> subtitle_frame);
+    void deleteMedia();
 
     void queuePushTick();
 public slots:
     void OnNewInputStream(void *opaque, SourceInputCallback read_callback);
     void OnNewDataDeady();
+    void OnNewSubtitle(QSharedPointer<SubtitleFrame> subtitle_frame);
 private slots:
     void OnPushTick();
 private:
@@ -69,11 +74,14 @@ private:
     void StartPlaying();
     void StopPlaying();
 
+    void Close();
+
     AVIOContextObject input_ctx_;
     AVFormatContextObject demuxer_ctx_;
     int video_stream_index_, audio_stream_index_;
     AVCodecContextObject video_decoder_ctx_, audio_decoder_ctx_;
     SwsContextObject sws_context_;
+    bool open_ = false;
 
     bool playing_ = false;
     std::vector<QSharedPointer<VideoFrame>> video_frames_;

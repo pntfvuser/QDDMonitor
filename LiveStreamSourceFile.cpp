@@ -48,6 +48,11 @@ void LiveStreamSourceFile::DoStart()
 
 void LiveStreamSourceFile::FeedTick()
 {
+    if (!open())
+    {
+        feed_timer_->stop();
+        return;
+    }
     emit newDataReady();
 }
 
