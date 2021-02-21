@@ -1,6 +1,7 @@
 #ifndef PCH_H
 #define PCH_H
 
+#include <cmath>
 #include <cstdint>
 #include <type_traits>
 

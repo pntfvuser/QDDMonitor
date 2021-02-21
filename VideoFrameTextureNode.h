@@ -27,7 +27,7 @@ class VideoFrameTextureNode : public QSGTextureProvider, public QSGSimpleTexture
         bool do_not_recycle = false;
     };
 
-    static constexpr size_t kQueueSize = 12, kUsedQueueSize = 6;
+    static constexpr size_t kQueueSize = 12, kUsedQueueSize = 4;
     static constexpr auto kTextureFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 public:
     VideoFrameTextureNode(QQuickItem *item);
@@ -44,7 +44,7 @@ public slots:
     void UpdateScreen();
 private:
     void UpdateWindow(QQuickWindow *new_window);
-    void ResynchronizeTimer();
+    void ResynchronizeTimer(PlaybackClock::time_point current_time = PlaybackClock::now());
 
     void NewTextureItem(int count);
     bool RenderFrame(TextureItem &target);
@@ -59,13 +59,13 @@ private:
 
     std::vector<QSharedPointer<VideoFrame>> video_frames_;
     std::vector<TextureItem> empty_texture_queue_, rendered_texture_queue_, used_texture_queue_;
-    PlaybackClock::duration timing_bad_threshold_ = std::chrono::microseconds(1750), timing_shift_value_ = std::chrono::microseconds(3500);
-    int timing_bad_count_ = 0;
-    bool timing_shift_ = false;
+    PlaybackClock::time_point playback_time_base_;
+    int playback_time_tick_, refresh_rate_;
+    PlaybackClock::duration refresh_interval_;
 
 #ifdef _DEBUG
     PlaybackClock::time_point last_frame_time_, last_texture_change_time_, last_second_;
-    PlaybackClock::duration max_diff_time_, min_diff_time_, max_texture_diff_time_, min_texture_diff_time_, max_latency_, min_timing_diff_;
+    PlaybackClock::duration max_diff_time_, min_diff_time_, max_texture_diff_time_, min_texture_diff_time_, max_latency_, min_latency_, min_timing_diff_;
     int frames_per_second_ = 0, renders_per_second_ = 0, texture_updates_per_second_ = 0;
 #endif
 };
