@@ -18,27 +18,22 @@ class AudioOutput : public QQuickItem
 
     struct AudioSource
     {
-        static constexpr ALsizei kALBufferCount = 8;
+        static constexpr ALsizei kALBufferCount = 4;
 
-        AudioSource() { alGenSources(1, &al_id); }
+        AudioSource();
         AudioSource(const AudioSource &) = delete;
         AudioSource(AudioSource &&) = delete;
-        ~AudioSource()
-        {
-            alSourceStop(al_id);
-            alSourceUnqueueBuffers(al_id, al_buffer_occupied_count, al_buffer_occupied);
-            alDeleteSources(1, &al_id);
-            alDeleteBuffers(al_buffer_occupied_count, al_buffer_occupied);
-            alDeleteBuffers(al_buffer_free_count, al_buffer_free);
-        }
+        ~AudioSource();
 
         uintptr_t id;
+        AVSampleFormat sample_format;
+        int channels, sample_channel_size, sample_rate;
 
         std::vector<QSharedPointer<AudioFrame>> pending_frames;
         SwrContextObject swr_context;
+
         std::vector<uint8_t> buffer_block;
         size_t buffer_block_cap;
-        int buffer_sample_channel_size, buffer_sample_rate;
 
         ALSourceId al_id;
         ALenum al_buffer_format;
@@ -60,11 +55,14 @@ public slots:
 
     void onNewAudioFrame(uintptr_t source_id, QSharedPointer<AudioFrame> audio_frame);
 private:
+    void InitSource(AudioSource &source, int channels, int64_t channel_layout, AVSampleFormat sample_fmt, int sample_rate);
+
     void StartSource(const std::shared_ptr<AudioSource> &source, PlaybackClock::time_point timestamp);
     static void StartSourceTimerCallback(const std::shared_ptr<AudioSource> &source);
-    void AppendFrameToSourceBuffer(const std::shared_ptr<AudioSource> &source, const QSharedPointer<AudioFrame> &audio_frame);
-    void AppendBufferToSource(const std::shared_ptr<AudioSource> &source);
-    void CollectExhaustedBuffer(const std::shared_ptr<AudioSource> &source);
+    void AppendFrameToSourceBuffer(AudioSource &source, const QSharedPointer<AudioFrame> &audio_frame);
+    void AppendBufferToSource(AudioSource &source);
+    void FlushBufferToSource(AudioSource &source);
+    void CollectExhaustedBuffer(AudioSource &source);
 
     ALCdevice *device_ = nullptr;
     ALCcontext *context_ = nullptr;

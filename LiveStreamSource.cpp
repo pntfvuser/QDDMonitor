@@ -42,7 +42,7 @@ LiveStreamSource::LiveStreamSource(QObject *parent)
     constexpr AVHWDeviceType type = AV_HWDEVICE_TYPE_D3D11VA;
     int i, ret;
 
-    if (avformat_open_input(input_ctx_.GetAddressOf(), "E:\\Home\\Documents\\Qt\\QDDMonitor\\testsrc.mp4", NULL, NULL) != 0)
+    if (avformat_open_input(input_ctx_.GetAddressOf(), "E:\\Home\\Documents\\Qt\\QDDMonitor\\testsrc.1.mp4", NULL, NULL) != 0)
     {
         qWarning("Cannot open input file '%s'", "testsrc.mp4");
         return;
@@ -427,6 +427,7 @@ int LiveStreamSource::ReceiveAudioFrame()
     QSharedPointer<AudioFrame> audio_frame = QSharedPointer<AudioFrame>::create();
     audio_frame->timestamp = frame->pts;
     audio_frame->frame = std::move(frame);
+    audio_frame->sample_format = audio_decoder_ctx_->sample_fmt;
     audio_frames_.push_back(std::move(audio_frame));
 
     return 0;

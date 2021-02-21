@@ -9,6 +9,7 @@ struct AudioFrame
     PlaybackClock::time_point present_time;
 
     AVFrameObject frame;
+    AVSampleFormat sample_format;
 };
 Q_DECLARE_METATYPE(QSharedPointer<AudioFrame>);
 
