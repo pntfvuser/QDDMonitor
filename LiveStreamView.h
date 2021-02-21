@@ -18,6 +18,7 @@ class LiveStreamView : public QQuickItem
     Q_PROPERTY(int t READ t WRITE setT NOTIFY tChanged)
 public:
     explicit LiveStreamView(QQuickItem *parent = nullptr);
+    ~LiveStreamView();
 
     LiveStreamSource *source() const { return current_source_; }
     void setSource(LiveStreamSource *source);

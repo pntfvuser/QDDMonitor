@@ -12,6 +12,11 @@ LiveStreamView::LiveStreamView(QQuickItem *parent)
     connect(this, &LiveStreamView::tChanged, this, &LiveStreamView::onTChanged);
 }
 
+LiveStreamView::~LiveStreamView()
+{
+    emit deleteAudioSource(reinterpret_cast<uintptr_t>(this));
+}
+
 void LiveStreamView::setSource(LiveStreamSource *source)
 {
     if (source != current_source_)
@@ -39,6 +44,7 @@ void LiveStreamView::setAudioOut(AudioOutput *audio_out)
     {
         if (audio_out_)
         {
+            emit deleteAudioSource(reinterpret_cast<uintptr_t>(this));
             disconnect(this, &LiveStreamView::newAudioSource, audio_out_, &AudioOutput::onNewAudioSource);
             disconnect(this, &LiveStreamView::deleteAudioSource, audio_out_, &AudioOutput::onDeleteAudioSource);
             disconnect(this, &LiveStreamView::newAudioFrame, audio_out_, &AudioOutput::onNewAudioFrame);
@@ -50,7 +56,7 @@ void LiveStreamView::setAudioOut(AudioOutput *audio_out)
             connect(this, &LiveStreamView::deleteAudioSource, audio_out_, &AudioOutput::onDeleteAudioSource);
             connect(this, &LiveStreamView::newAudioFrame, audio_out_, &AudioOutput::onNewAudioFrame);
         }
-        emit sourceChanged();
+        emit audioOutChanged();
     }
 }
 
@@ -90,8 +96,7 @@ void LiveStreamView::geometryChanged(const QRectF &newGeometry, const QRectF &ol
 void LiveStreamView::onNewMedia(const AVCodecContext *video_decoder_context, const AVCodecContext *audio_decoder_context)
 {
     Q_UNUSED(video_decoder_context);
-    emit deleteAudioSource(reinterpret_cast<uintptr_t>(this));
-    emit newAudioSource(reinterpret_cast<uintptr_t>(this), audio_decoder_context);
+    Q_UNUSED(audio_decoder_context);
 }
 
 void LiveStreamView::onNewVideoFrame(QSharedPointer<VideoFrame> video_frame)
