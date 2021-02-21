@@ -381,7 +381,9 @@ bool VideoFrameTextureNode::RenderFrame(TextureItem &target)
         viewport.MinDepth = 0;
         viewport.MaxDepth = 1;
 
-        if (current_video_frame->is_rgbx)
+        switch (current_video_frame->texture_format)
+        {
+        case VideoFrame::RGBX:
         {
             ComPtr<ID3D11ShaderResourceView> rgbx_view = nullptr;
 
@@ -419,8 +421,91 @@ bool VideoFrameTextureNode::RenderFrame(TextureItem &target)
             device_context->OMSetBlendState(nullptr, blend_factor, 0xffffffff);
             device_context->OMSetRenderTargets(1, render_target_view.GetAddressOf(), nullptr);
             device_context->Draw(num_of_vertices, 0);
+
+            break;
         }
-        else
+        case VideoFrame::YUVJ444P:
+        {
+            ComPtr<ID3D11ShaderResourceView> luminance_view = nullptr;
+            ComPtr<ID3D11ShaderResourceView> chrominance_u_view = nullptr;
+            ComPtr<ID3D11ShaderResourceView> chrominance_v_view = nullptr;
+
+            D3D11_SHADER_RESOURCE_VIEW_DESC const luminance_plane_desc = CD3D11_SHADER_RESOURCE_VIEW_DESC(
+                src_texture,
+                D3D11_SRV_DIMENSION_TEXTURE2DARRAY,
+                DXGI_FORMAT_R8_UNORM,
+                0, -1,
+                0, 1
+            );
+            hr = device->CreateShaderResourceView(
+                src_texture,
+                &luminance_plane_desc,
+                &luminance_view
+            );
+            if (FAILED(hr))
+            {
+                break;
+            }
+
+            D3D11_SHADER_RESOURCE_VIEW_DESC const chrominance_u_plane_desc = CD3D11_SHADER_RESOURCE_VIEW_DESC(
+                src_texture,
+                D3D11_SRV_DIMENSION_TEXTURE2DARRAY,
+                DXGI_FORMAT_R8_UNORM,
+                0, -1,
+                1, 1
+            );
+            hr = device->CreateShaderResourceView(
+                src_texture,
+                &chrominance_u_plane_desc,
+                &chrominance_u_view
+            );
+            if (FAILED(hr))
+            {
+                break;
+            }
+
+            D3D11_SHADER_RESOURCE_VIEW_DESC const chrominance_v_plane_desc = CD3D11_SHADER_RESOURCE_VIEW_DESC(
+                src_texture,
+                D3D11_SRV_DIMENSION_TEXTURE2DARRAY,
+                DXGI_FORMAT_R8_UNORM,
+                0, -1,
+                2, 1
+            );
+            hr = device->CreateShaderResourceView(
+                src_texture,
+                &chrominance_v_plane_desc,
+                &chrominance_v_view
+            );
+            if (FAILED(hr))
+            {
+                break;
+            }
+
+            ID3D11ShaderResourceView *texture_views[] = {
+                luminance_view.Get(),
+                chrominance_u_view.Get(),
+                chrominance_v_view.Get(),
+            };
+
+            ID3D11DeviceContext *device_context = shared_resource->device_context;
+            AVD3D11VADeviceContextLockGuard lock(shared_resource->d3d11_device_ctx);
+
+            device_context->ClearRenderTargetView(render_target_view.Get(), clear_color);
+            device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            device_context->IASetInputLayout(shared_resource->input_layout.Get());
+            device_context->IASetVertexBuffers(0, 1, vertex_buffer.GetAddressOf(), &stride, &offset);
+            device_context->VSSetShader(shared_resource->null_vertex_shader.Get(), nullptr, 0);
+            device_context->PSSetShader(shared_resource->yuvj444p_pixel_shader.Get(), nullptr, 0);
+            device_context->PSSetSamplers(0, 1, shared_resource->sampler_linear.GetAddressOf());
+            device_context->PSSetShaderResources(0, std::extent<decltype(texture_views)>::value, texture_views);
+            device_context->RSSetViewports(1, &viewport);
+            device_context->OMSetBlendState(nullptr, blend_factor, 0xffffffff);
+            device_context->OMSetRenderTargets(1, render_target_view.GetAddressOf(), nullptr);
+            device_context->Draw(num_of_vertices, 0);
+
+            break;
+        }
+        case VideoFrame::NV12:
         {
             ComPtr<ID3D11ShaderResourceView> luminance_view = nullptr;
             ComPtr<ID3D11ShaderResourceView> chrominance_view = nullptr;
@@ -475,6 +560,9 @@ bool VideoFrameTextureNode::RenderFrame(TextureItem &target)
             device_context->OMSetBlendState(nullptr, blend_factor, 0xffffffff);
             device_context->OMSetRenderTargets(1, render_target_view.GetAddressOf(), nullptr);
             device_context->Draw(num_of_vertices, 0);
+
+            break;
+        }
         }
     } while (false);
 

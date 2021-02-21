@@ -42,7 +42,7 @@ LiveStreamSource::LiveStreamSource(QObject *parent)
 
     int i, ret;
 
-    if (avformat_open_input(input_ctx_.GetAddressOf(), "E:\\Home\\Documents\\Qt\\QDDMonitor\\testsrc.1.mp4", NULL, NULL) != 0)
+    if (avformat_open_input(input_ctx_.GetAddressOf(), "E:\\Home\\Documents\\Qt\\QDDMonitor\\testsrc.3.mp4", NULL, NULL) != 0)
     {
         qWarning("Cannot open input file '%s'", "testsrc.mp4");
         return;
@@ -338,7 +338,55 @@ int LiveStreamSource::ReceiveVideoFrame()
         video_frame->timestamp = frame->pts;
         video_frame->size = QSize(width, height);
         video_frame->texture = std::move(nv12_texture);
-        video_frame->is_rgbx = false;
+        video_frame->texture_format = VideoFrame::NV12;
+
+        Q_ASSERT(video_frame->texture);
+        video_frames_.push_back(std::move(video_frame));
+    }
+    else if (frame->format == AV_PIX_FMT_YUVJ444P)
+    {
+        Q_ASSERT(frame->format == video_decoder_ctx_->pix_fmt);
+        Q_ASSERT(frame->width == video_decoder_ctx_->width);
+        Q_ASSERT(frame->height == video_decoder_ctx_->height);
+
+        int width = frame->width, height = frame->height;
+
+        D3D11_TEXTURE2D_DESC texture_desc;
+        ZeroMemory(&texture_desc, sizeof(texture_desc));
+        texture_desc.Format = DXGI_FORMAT_R8_UNORM;          // Pixel format
+        texture_desc.Width = width;                          // Width of the video frames
+        texture_desc.Height = height;                        // Height of the video frames
+        texture_desc.ArraySize = 3;                          // Number of textures in the array
+        texture_desc.MipLevels = 1;                          // Number of miplevels in each texture
+        texture_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE; // We read from this texture in the shader
+        texture_desc.Usage = D3D11_USAGE_IMMUTABLE;
+        texture_desc.MiscFlags = 0;
+        texture_desc.CPUAccessFlags = 0;
+        texture_desc.SampleDesc.Count = 1;
+        D3D11_SUBRESOURCE_DATA texture_init_data[3];
+        ZeroMemory(&texture_init_data, sizeof(texture_init_data));
+        texture_init_data[0].pSysMem = frame->data[0];
+        texture_init_data[0].SysMemPitch = frame->linesize[0];
+        texture_init_data[1].pSysMem = frame->data[1];
+        texture_init_data[1].SysMemPitch = frame->linesize[1];
+        texture_init_data[2].pSysMem = frame->data[2];
+        texture_init_data[2].SysMemPitch = frame->linesize[2];
+
+        ComPtr<ID3D11Texture2D> yuv444_texture = nullptr;
+        D3D11SharedResource *shared_resource = D3D11SharedResource::resource;
+        HRESULT hr;
+        hr = shared_resource->device->CreateTexture2D(&texture_desc, texture_init_data, &yuv444_texture);
+        if (FAILED(hr))
+        {
+            qWarning("Error while creating rgb_texture");
+            return AVERROR(ENOMEM);
+        }
+
+        QSharedPointer<VideoFrame> video_frame = QSharedPointer<VideoFrame>::create();
+        video_frame->timestamp = frame->pts;
+        video_frame->size = QSize(width, height);
+        video_frame->texture = std::move(yuv444_texture);
+        video_frame->texture_format = VideoFrame::YUVJ444P;
 
         Q_ASSERT(video_frame->texture);
         video_frames_.push_back(std::move(video_frame));
@@ -352,8 +400,9 @@ int LiveStreamSource::ReceiveVideoFrame()
         int width = frame->width, height = frame->height;
         int dst_line_size = sizeof(uint32_t) * width;
         int dst_size = dst_line_size * height;
-        std::unique_ptr<uint8_t[]> dst_buffer = std::make_unique<uint8_t[]>(dst_size);
-        uint8_t *dst_data[3] = { dst_buffer.get(), nullptr, nullptr };
+        thread_local std::vector<uint8_t> dst_buffer;
+        dst_buffer.resize(dst_size);
+        uint8_t *dst_data[3] = { dst_buffer.data(), nullptr, nullptr };
         int dst_stride[3] = { dst_line_size, 0, 0 };
         ret = sws_scale(sws_context_.Get(), frame->data, frame->linesize, 0, height, dst_data, dst_stride);
         if (ret < 0)
@@ -376,7 +425,7 @@ int LiveStreamSource::ReceiveVideoFrame()
         texture_desc.SampleDesc.Count = 1;
         D3D11_SUBRESOURCE_DATA texture_init_data;
         ZeroMemory(&texture_init_data, sizeof(texture_init_data));
-        texture_init_data.pSysMem = dst_buffer.get();
+        texture_init_data.pSysMem = dst_buffer.data();
         texture_init_data.SysMemPitch = dst_line_size;
 
         ComPtr<ID3D11Texture2D> rgbx_texture = nullptr;
@@ -393,7 +442,7 @@ int LiveStreamSource::ReceiveVideoFrame()
         video_frame->timestamp = frame->pts;
         video_frame->size = QSize(width, height);
         video_frame->texture = std::move(rgbx_texture);
-        video_frame->is_rgbx = true;
+        video_frame->texture_format = VideoFrame::RGBX;
 
         Q_ASSERT(video_frame->texture);
         video_frames_.push_back(std::move(video_frame));

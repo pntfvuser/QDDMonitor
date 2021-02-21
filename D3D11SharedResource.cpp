@@ -3,6 +3,7 @@
 
 #include "NullVertexShader.h"
 #include "RGBXPixelShader.h"
+#include "YUVJ444PPixelShader.h"
 #include "NV12PixelShader.h"
 
 D3D11SharedResource *D3D11SharedResource::resource = nullptr;
@@ -55,6 +56,13 @@ D3D11SharedResource::D3D11SharedResource()
     if (FAILED(hr))
     {
         throw std::runtime_error("Failed to create null pixel shader, code " + std::to_string(hr));
+    }
+
+    UINT yuvj444pps_size = ARRAYSIZE(g_YUVJ444PPixelShader);
+    hr = device->CreatePixelShader(g_YUVJ444PPixelShader, yuvj444pps_size, nullptr, &yuvj444p_pixel_shader);
+    if (FAILED(hr))
+    {
+        throw std::runtime_error("Failed to create yuv444p pixel shader, code " + std::to_string(hr));
     }
 
     UINT nv12ps_size = ARRAYSIZE(g_NV12PixelShader);

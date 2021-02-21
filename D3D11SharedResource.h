@@ -28,6 +28,7 @@ struct D3D11SharedResource
     ComPtr<ID3D11SamplerState> sampler_linear = nullptr;
     ComPtr<ID3D11VertexShader> null_vertex_shader = nullptr;
     ComPtr<ID3D11PixelShader> rgbx_pixel_shader = nullptr;
+    ComPtr<ID3D11PixelShader> yuvj444p_pixel_shader = nullptr;
     ComPtr<ID3D11PixelShader> nv12_pixel_shader = nullptr;
     ComPtr<ID3D11InputLayout> input_layout = nullptr;
 
