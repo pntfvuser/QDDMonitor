@@ -119,7 +119,7 @@ void VideoFrameTextureNode::Synchronize(QQuickItem *item)
 
     auto present_time_limit = current_time;
     if (timing_shift_)
-        present_time_limit += kTimingShift;
+        present_time_limit += timing_shift_value_;
     QSGTexture *next_texture_qsg = nullptr;
     while (!rendered_texture_queue_.empty() && rendered_texture_queue_.front().present_time <= present_time_limit)
     {
@@ -142,8 +142,8 @@ void VideoFrameTextureNode::Synchronize(QQuickItem *item)
         if (timing_diff < min_timing_diff_)
             min_timing_diff_ = timing_diff;
 #endif
-        if (present_time_limit - used_texture_queue_.back().present_time < kTimingBadThreshold ||
-            (!rendered_texture_queue_.empty() && rendered_texture_queue_.front().present_time - present_time_limit < kTimingBadThreshold))
+        if (present_time_limit - used_texture_queue_.back().present_time < timing_bad_threshold_ ||
+            (!rendered_texture_queue_.empty() && rendered_texture_queue_.front().present_time - present_time_limit < timing_bad_threshold_))
         {
             timing_bad_count_ += 1;
             if (timing_bad_count_ > 5)
@@ -250,6 +250,11 @@ void VideoFrameTextureNode::UpdateWindow(QQuickWindow *new_window)
     if (window_)
     {
         dpr_ = window_->effectiveDevicePixelRatio();
+        QScreen *screen = window_->screen();
+        timing_shift_value_ = PlaybackClock::duration(static_cast<PlaybackClock::duration::rep>(
+                                                          std::chrono::duration_cast<PlaybackClock::duration>(std::chrono::seconds(1)).count() / screen->refreshRate()
+                                                          ) / 2);
+        timing_bad_threshold_ = timing_shift_value_ / 2;
         connect(window_, &QQuickWindow::frameSwapped, this, &VideoFrameTextureNode::Render, Qt::DirectConnection);
         connect(window_, &QQuickWindow::screenChanged, this, &VideoFrameTextureNode::UpdateScreen);
     }

@@ -28,7 +28,7 @@ class LiveStreamSource : public QObject
 
     static constexpr PlaybackClock::duration kFrameBufferStartThreshold = std::chrono::milliseconds(200), kFrameBufferFullThreshold = std::chrono::milliseconds(200);
     static constexpr std::chrono::milliseconds kFrameBufferPushInterval = std::chrono::milliseconds(50);
-    static constexpr PlaybackClock::duration kUploadToRenderLatency = std::chrono::milliseconds(400);
+    static constexpr PlaybackClock::duration kUploadToRenderLatency = std::chrono::milliseconds(300);
 public:
     explicit LiveStreamSource(QObject *parent = nullptr);
 
