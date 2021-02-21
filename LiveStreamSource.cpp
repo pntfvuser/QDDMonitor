@@ -190,7 +190,7 @@ void LiveStreamSource::OnNewInputStream(void *opaque, SourceInputCallback read_c
     StartPushTick();
 }
 
-void LiveStreamSource::OnNewDataDeady()
+void LiveStreamSource::OnNewInputDataDeady()
 {
     if (!open())
         return;
