@@ -10,13 +10,13 @@ struct VideoFrame
 
 #ifdef _WIN32
     ComPtr<ID3D11Texture2D> texture = nullptr;
-#endif
     enum
     {
         RGBX,
         YUVJ444P,
         NV12,
     } texture_format;
+#endif
     QSize size;
 };
 Q_DECLARE_METATYPE(QSharedPointer<VideoFrame>);
