@@ -7,6 +7,10 @@
 static constexpr AVHWDeviceType kHwDeviceType = AV_HWDEVICE_TYPE_D3D11VA;
 static constexpr AVPixelFormat kHwPixelFormat = AV_PIX_FMT_D3D11;
 
+static constexpr PlaybackClock::duration kFrameBufferStartThreshold = std::chrono::milliseconds(200), kFrameBufferFullThreshold = std::chrono::milliseconds(200);
+static constexpr std::chrono::milliseconds kFrameBufferPushInterval = std::chrono::milliseconds(50);
+static constexpr PlaybackClock::duration kUploadToRenderLatency = std::chrono::milliseconds(200);
+
 template <typename ToDuration>
 static inline constexpr PlaybackClock::duration AVTimestampToDuration(int64_t timestamp, AVRational time_base)
 {
@@ -42,7 +46,7 @@ LiveStreamSource::LiveStreamSource(QObject *parent)
 
     int i, ret;
 
-    if (avformat_open_input(input_ctx_.GetAddressOf(), "E:\\Home\\Documents\\Qt\\QDDMonitor\\testsrc.3.mp4", NULL, NULL) != 0)
+    if (avformat_open_input(input_ctx_.GetAddressOf(), "E:\\Home\\Documents\\Qt\\QDDMonitor\\testsrc.2.mp4", NULL, NULL) != 0)
     {
         qWarning("Cannot open input file '%s'", "testsrc.mp4");
         return;

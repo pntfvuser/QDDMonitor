@@ -25,10 +25,6 @@ class LiveStreamSource : public QObject
         void operator()(SwsContext **object) const { sws_freeContext(*object); }
     };
     using SwsContextObject = AVObjectBase<SwsContext, SwsContextReleaseFunctor>;
-
-    static constexpr PlaybackClock::duration kFrameBufferStartThreshold = std::chrono::milliseconds(200), kFrameBufferFullThreshold = std::chrono::milliseconds(200);
-    static constexpr std::chrono::milliseconds kFrameBufferPushInterval = std::chrono::milliseconds(50);
-    static constexpr PlaybackClock::duration kUploadToRenderLatency = std::chrono::milliseconds(300);
 public:
     explicit LiveStreamSource(QObject *parent = nullptr);
 
