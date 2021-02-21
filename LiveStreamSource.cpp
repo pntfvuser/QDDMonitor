@@ -4,7 +4,8 @@
 #include "LiveStreamView.h"
 #include "D3D11SharedResource.h"
 
-static constexpr AVPixelFormat hw_pix_fmt = AV_PIX_FMT_D3D11;
+static constexpr AVHWDeviceType kHwDeviceType = AV_HWDEVICE_TYPE_D3D11VA;
+static constexpr AVPixelFormat kHwPixelFormat = AV_PIX_FMT_D3D11;
 
 template <typename ToDuration>
 static inline constexpr PlaybackClock::duration AVTimestampToDuration(int64_t timestamp, AVRational time_base)
@@ -26,7 +27,7 @@ enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
 
     //See if there is hw pixel format first
     for (p = pix_fmts; *p != -1; p++) {
-        if (*p == hw_pix_fmt)
+        if (*p == kHwPixelFormat)
             return *p;
     }
 
@@ -39,7 +40,6 @@ LiveStreamSource::LiveStreamSource(QObject *parent)
 {
     connect(this, &LiveStreamSource::queuePushTick, this, &LiveStreamSource::onPushTick, Qt::QueuedConnection);
 
-    constexpr AVHWDeviceType type = AV_HWDEVICE_TYPE_D3D11VA;
     int i, ret;
 
     if (avformat_open_input(input_ctx_.GetAddressOf(), "E:\\Home\\Documents\\Qt\\QDDMonitor\\testsrc.1.mp4", NULL, NULL) != 0)
@@ -71,10 +71,10 @@ LiveStreamSource::LiveStreamSource(QObject *parent)
         const AVCodecHWConfig *config = avcodec_get_hw_config(video_decoder, i);
         if (!config)
         {
-            qWarning("Decoder %s does not support device type %s.", video_decoder->name, av_hwdevice_get_type_name(type));
+            qWarning("Decoder %s does not support device type %s.", video_decoder->name, av_hwdevice_get_type_name(kHwDeviceType));
             return;
         }
-        if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == type && hw_pix_fmt == config->pix_fmt)
+        if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == kHwDeviceType && kHwPixelFormat == config->pix_fmt)
         {
             break;
         }
@@ -97,7 +97,7 @@ LiveStreamSource::LiveStreamSource(QObject *parent)
         return;
     }
 
-    if (video_decoder_ctx_->pix_fmt != hw_pix_fmt)
+    if (video_decoder_ctx_->pix_fmt != kHwPixelFormat)
     {
         sws_context_ = sws_getContext(video_decoder_ctx_->width, video_decoder_ctx_->height, video_decoder_ctx_->pix_fmt,
                                       video_decoder_ctx_->width, video_decoder_ctx_->height, AV_PIX_FMT_RGB0,
@@ -298,7 +298,7 @@ int LiveStreamSource::ReceiveVideoFrame()
         return ret;
     }
 
-    if (frame->format == hw_pix_fmt) {
+    if (frame->format == kHwPixelFormat) {
         D3D11_TEXTURE2D_DESC texture_desc;
 
         ID3D11Texture2D *decoded_texture = reinterpret_cast<ID3D11Texture2D *>(frame->data[0]);
