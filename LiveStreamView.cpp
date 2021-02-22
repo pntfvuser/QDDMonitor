@@ -106,6 +106,8 @@ void LiveStreamView::onNewMedia(const AVCodecContext *video_decoder_context, con
 
 void LiveStreamView::onNewVideoFrame(QSharedPointer<VideoFrame> video_frame)
 {
+    if (sender() != current_source_)
+        return;
     bool need_update = next_frames_.empty();
     next_frames_.push_back(std::move(video_frame));
     if (need_update)
@@ -114,11 +116,15 @@ void LiveStreamView::onNewVideoFrame(QSharedPointer<VideoFrame> video_frame)
 
 void LiveStreamView::onNewAudioFrame(QSharedPointer<AudioFrame> audio_frame)
 {
+    if (sender() != current_source_)
+        return;
     emit newAudioFrame(reinterpret_cast<uintptr_t>(this), audio_frame);
 }
 
 void LiveStreamView::onNewSubtitleFrame(QSharedPointer<SubtitleFrame> subtitle_frame)
 {
+    if (sender() != current_source_)
+        return;
     subtitle_out_->AddSubtitle(subtitle_frame);
     subtitle_out_->update();
 }
