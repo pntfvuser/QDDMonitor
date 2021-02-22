@@ -17,6 +17,7 @@ int main(int argc, char *argv[])
     qRegisterMetaType<const AVCodecContext *>();
     qRegisterMetaType<QSharedPointer<AudioFrame>>();
     qRegisterMetaType<QSharedPointer<VideoFrame>>();
+    qRegisterMetaType<QSharedPointer<SubtitleFrame>>();
 
     qmlRegisterType<LiveStreamSource>("org.anon.QDDMonitor", 1, 0, "LiveStreamSource");
     qmlRegisterType<LiveStreamSourceFile>("org.anon.QDDMonitor", 1, 0, "LiveStreamSourceFile");

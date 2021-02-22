@@ -44,6 +44,17 @@ void LiveStreamSourceFile::DoStart()
 
     emit newInputStream(this, &LiveStreamSourceFile::AVIOReadCallback);
     feed_timer_->start(50);
+
+    QSharedPointer<SubtitleFrame> dmk = QSharedPointer<SubtitleFrame>::create();
+    dmk->content = "test";
+    dmk->style = SubtitleStyle::TOP;
+    dmk->color = QColor(128, 128, 0);
+    emit newSubtitleFrame(dmk);
+    dmk = QSharedPointer<SubtitleFrame>::create();
+    dmk->content = "test";
+    dmk->style = SubtitleStyle::BOTTOM;
+    dmk->color = QColor(128, 128, 0);
+    emit newSubtitleFrame(dmk);
 }
 
 void LiveStreamSourceFile::FeedTick()
@@ -54,6 +65,12 @@ void LiveStreamSourceFile::FeedTick()
         return;
     }
     emit newDataReady();
+
+    QSharedPointer<SubtitleFrame> dmk = QSharedPointer<SubtitleFrame>::create();
+    dmk->content = "test";
+    dmk->style = SubtitleStyle::NORMAL;
+    dmk->color = QColor(128, 0, 128);
+    emit newSubtitleFrame(dmk);
 }
 
 int LiveStreamSourceFile::AVIOReadCallback(void *opaque, uint8_t *buf, int buf_size)

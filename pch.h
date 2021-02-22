@@ -29,10 +29,13 @@
 #include <QFile>
 #include <QLoggingCategory>
 #include <QTimer>
+#include <QPainter>
 #include <QScreen>
+#include <QStaticText>
 
 #include <QQuickWindow>
 #include <QQuickItem>
+#include <QQuickPaintedItem>
 #include <QtQuick/QQuickView>
 #include <QSGTextureProvider>
 #include <QSGSimpleTextureNode>

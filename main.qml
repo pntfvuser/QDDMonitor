@@ -19,7 +19,8 @@ Window {
         audioOut: mainAudioOut
         NumberAnimation on t {
             from: 0
-            to: 100
+            to: 10000
+            duration: 10000
             running: true
             loops: Animation.Infinite
         }

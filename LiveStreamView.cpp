@@ -4,12 +4,15 @@
 #include "LiveStreamSource.h"
 #include "VideoFrameTextureNode.h"
 #include "AudioOutput.h"
+#include "LiveStreamViewSubtitleOverlay.h"
 
 LiveStreamView::LiveStreamView(QQuickItem *parent)
     :QQuickItem(parent)
 {
     setFlag(ItemHasContents, true);
     connect(this, &LiveStreamView::tChanged, this, &LiveStreamView::onTChanged);
+
+    subtitle_out_ = new LiveStreamViewSubtitleOverlay(this);
 }
 
 LiveStreamView::~LiveStreamView()
@@ -26,6 +29,7 @@ void LiveStreamView::setSource(LiveStreamSource *source)
             disconnect(current_source_, &LiveStreamSource::newMedia, this, &LiveStreamView::onNewMedia);
             disconnect(current_source_, &LiveStreamSource::newVideoFrame, this, &LiveStreamView::onNewVideoFrame);
             disconnect(current_source_, &LiveStreamSource::newAudioFrame, this, &LiveStreamView::onNewAudioFrame);
+            disconnect(current_source_, &LiveStreamSource::newSubtitleFrame, this, &LiveStreamView::onNewSubtitleFrame);
         }
         current_source_ = source;
         if (current_source_)
@@ -33,6 +37,7 @@ void LiveStreamView::setSource(LiveStreamSource *source)
             connect(current_source_, &LiveStreamSource::newMedia, this, &LiveStreamView::onNewMedia);
             connect(current_source_, &LiveStreamSource::newVideoFrame, this, &LiveStreamView::onNewVideoFrame);
             connect(current_source_, &LiveStreamSource::newAudioFrame, this, &LiveStreamView::onNewAudioFrame);
+            connect(current_source_, &LiveStreamSource::newSubtitleFrame, this, &LiveStreamView::onNewSubtitleFrame);
         }
         emit sourceChanged();
     }
@@ -112,9 +117,16 @@ void LiveStreamView::onNewAudioFrame(QSharedPointer<AudioFrame> audio_frame)
     emit newAudioFrame(reinterpret_cast<uintptr_t>(this), audio_frame);
 }
 
+void LiveStreamView::onNewSubtitleFrame(QSharedPointer<SubtitleFrame> subtitle_frame)
+{
+    subtitle_out_->AddSubtitle(subtitle_frame);
+    subtitle_out_->update();
+}
+
 void LiveStreamView::onTChanged()
 {
     update();
+    subtitle_out_->Update(t_);
 }
 
 void LiveStreamView::releaseResources()
