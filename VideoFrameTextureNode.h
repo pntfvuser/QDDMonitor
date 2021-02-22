@@ -41,7 +41,7 @@ public:
     void Synchronize(QQuickItem *item);
 public slots:
     void Render();
-    void UpdateScreen();
+    void UpdateScreen(QScreen *screen);
 private:
     void UpdateWindow(QQuickWindow *new_window);
     void ResynchronizeTimer(PlaybackClock::time_point current_time = PlaybackClock::now());

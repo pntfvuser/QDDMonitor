@@ -236,10 +236,19 @@ void VideoFrameTextureNode::Render()
     }
 }
 
-void VideoFrameTextureNode::UpdateScreen()
+void VideoFrameTextureNode::UpdateScreen(QScreen *screen)
 {
+    int new_refresh_rate = round(screen->refreshRate());
+    if (new_refresh_rate != refresh_rate_)
+    {
+        static constexpr auto kTickPerSecond = std::chrono::duration_cast<PlaybackClock::duration>(std::chrono::seconds(1)).count();
+        refresh_rate_ = new_refresh_rate;
+        refresh_interval_ = PlaybackClock::duration(static_cast<PlaybackClock::duration::rep>(
+                                                        round(kTickPerSecond / screen->refreshRate())
+                                                        ));
+    }
     if (window_->effectiveDevicePixelRatio() != dpr_)
-        item_->update();
+        dpr_ = window_->effectiveDevicePixelRatio();
 }
 
 void VideoFrameTextureNode::UpdateWindow(QQuickWindow *new_window)
@@ -274,17 +283,17 @@ void VideoFrameTextureNode::ResynchronizeTimer(PlaybackClock::time_point current
 
 void VideoFrameTextureNode::NewTextureItem(int count)
 {
-    D3D11_TEXTURE2D_DESC desc;
-    ZeroMemory(&desc, sizeof(desc));
-    desc.Width = size_.width();
-    desc.Height = size_.height();
-    desc.MipLevels = desc.ArraySize = 1;
-    desc.Format = kTextureFormat;
-    desc.SampleDesc.Count = 1;
-    desc.MiscFlags = D3D11_RESOURCE_MISC_SHARED; // D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX
-    desc.Usage = D3D11_USAGE_DEFAULT;
-    desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-    desc.CPUAccessFlags = 0;
+    D3D11_TEXTURE2D_DESC desc = CD3D11_TEXTURE2D_DESC(
+        kTextureFormat,
+        size_.width(),
+        size_.height(),
+        1, 1,
+        D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE,
+        D3D11_USAGE_DEFAULT,
+        0,
+        1, 0,
+        D3D11_RESOURCE_MISC_SHARED
+    );
 
     for (int i = 0; i < count; ++i)
     {
