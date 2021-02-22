@@ -9,9 +9,9 @@ static constexpr int kInputBufferSize = 0x1000;
 static constexpr AVHWDeviceType kHwDeviceType = AV_HWDEVICE_TYPE_D3D11VA;
 static constexpr AVPixelFormat kHwPixelFormat = AV_PIX_FMT_D3D11;
 
-static constexpr PlaybackClock::duration kFrameBufferStartThreshold = std::chrono::milliseconds(250), kFrameBufferFullThreshold = std::chrono::milliseconds(250);
-static constexpr std::chrono::milliseconds kFrameBufferPushInterval = std::chrono::milliseconds(50);
-static constexpr PlaybackClock::duration kUploadToRenderLatency = std::chrono::milliseconds(250);
+static constexpr PlaybackClock::duration kFrameBufferStartThreshold = std::chrono::milliseconds(200), kFrameBufferFullThreshold = std::chrono::milliseconds(200);
+static constexpr std::chrono::milliseconds kFrameBufferPushInterval = std::chrono::milliseconds(50), kFrameBufferPushInitial = std::chrono::milliseconds(50);
+static constexpr PlaybackClock::duration kUploadToRenderLatency = std::chrono::milliseconds(200);
 
 template <typename ToDuration>
 static inline constexpr PlaybackClock::duration AVTimestampToDuration(int64_t timestamp, AVRational time_base)
@@ -554,7 +554,7 @@ bool LiveStreamSource::IsBufferLongerThan(PlaybackClock::duration duration)
 
 void LiveStreamSource::InitPlaying()
 {
-    pushed_time_ = std::chrono::milliseconds(0);
+    pushed_time_ = kFrameBufferPushInitial;
 }
 
 void LiveStreamSource::StartPlaying()
