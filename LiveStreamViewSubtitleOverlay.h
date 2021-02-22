@@ -17,10 +17,12 @@ class LiveStreamViewSubtitleOverlay : public QQuickPaintedItem
 
     struct SubtitleItem
     {
+        static constexpr int kProgressDen = 4096;
+
         QStaticText text;
         QColor color;
         SubtitleStyle style;
-        int width = 0, slot = -1, progress = 0;
+        int width = 0, slot = -1, progress_num = 0;
         bool occupies_slot = false;
     };
 public:

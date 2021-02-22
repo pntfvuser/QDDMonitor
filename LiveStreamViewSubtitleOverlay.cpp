@@ -66,15 +66,15 @@ void LiveStreamViewSubtitleOverlay::Update(qreal t)
         if (item.slot != -1)
         {
             int item_width = item.width;
-            item.progress += (item_width + 800) * t_diff / 4096;
-            int item_max_progress = IsStyleFixedPosition(item.style) ? 8192 : item_width + overlay_width;
-            if (item.progress > item_max_progress)
+            item.progress_num += (item_width + 800) * t_diff;
+            int item_max_progress = IsStyleFixedPosition(item.style) ? 800 : item_width + overlay_width;
+            if (item.progress_num > item_max_progress * SubtitleItem::kProgressDen)
             {
                 if (item.occupies_slot && item.slot < slot_count)
                     subtitle_slot_busy_[item.slot] &= ~GetSlotBit(item.style);
                 item.slot = -1;
             }
-            else if (!IsStyleFixedPosition(item.style) && item.occupies_slot && item.progress > item_width)
+            else if (!IsStyleFixedPosition(item.style) && item.occupies_slot && item.progress_num > item_width * SubtitleItem::kProgressDen)
             {
                 if (item.slot < slot_count)
                     subtitle_slot_busy_[item.slot] &= ~GetSlotBit(item.style);
@@ -115,9 +115,9 @@ void LiveStreamViewSubtitleOverlay::paint(QPainter *painter)
                 y = item.slot * subtitle_slot_height_;
 
             if (item.style == SubtitleStyle::NORMAL)
-                x = overlay_width - item.progress;
+                x = overlay_width - item.progress_num / SubtitleItem::kProgressDen;
             else if (item.style == SubtitleStyle::REVERSE)
-                x = item.progress - item_width;
+                x = item.progress_num / SubtitleItem::kProgressDen - item_width;
             else
                 x = (overlay_width - item_width) / 2;
 
