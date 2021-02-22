@@ -3,6 +3,8 @@
 
 #include "LiveStreamView.h"
 
+static constexpr int kSubtitleSameSlotMargin = 10;
+
 LiveStreamViewSubtitleOverlay::LiveStreamViewSubtitleOverlay(QQuickItem *parent)
     :QQuickPaintedItem(parent), subtitle_font_(QGuiApplication::font())
 {
@@ -66,19 +68,33 @@ void LiveStreamViewSubtitleOverlay::Update(qreal t)
         if (item.slot != -1)
         {
             int item_width = item.width;
-            item.progress_num += (item_width + 800) * t_diff;
-            int item_max_progress = IsStyleFixedPosition(item.style) ? 800 : item_width + overlay_width;
-            if (item.progress_num > item_max_progress * SubtitleItem::kProgressDen)
+            if (IsStyleFixedPosition(item.style)) //Fixed position style, progress_num is ms
             {
-                if (item.occupies_slot && item.slot < slot_count)
-                    subtitle_slot_busy_[item.slot] &= ~GetSlotBit(item.style);
-                item.slot = -1;
+                item.progress_num += t_diff;
+                constexpr int item_max_progress = 8000;
+                if (item.progress_num > item_max_progress)
+                {
+                    if (item.occupies_slot && item.slot < slot_count)
+                        subtitle_slot_busy_[item.slot] &= ~GetSlotBit(item.style);
+                    item.slot = -1;
+                }
             }
-            else if (!IsStyleFixedPosition(item.style) && item.occupies_slot && item.progress_num > item_width * SubtitleItem::kProgressDen)
+            else //Variable position style, progress_num/kProgressDen is position
             {
-                if (item.slot < slot_count)
-                    subtitle_slot_busy_[item.slot] &= ~GetSlotBit(item.style);
-                item.occupies_slot = false;
+                item.progress_num += (item_width + 800) * t_diff;
+                int item_max_progress = item_width + overlay_width;
+                if (item.progress_num > item_max_progress * SubtitleItem::kProgressDen)
+                {
+                    if (item.occupies_slot && item.slot < slot_count)
+                        subtitle_slot_busy_[item.slot] &= ~GetSlotBit(item.style);
+                    item.slot = -1;
+                }
+                else if (item.occupies_slot && item.progress_num > (item_width + kSubtitleSameSlotMargin) * SubtitleItem::kProgressDen)
+                {
+                    if (item.slot < slot_count)
+                        subtitle_slot_busy_[item.slot] &= ~GetSlotBit(item.style);
+                    item.occupies_slot = false;
+                }
             }
         }
     }
