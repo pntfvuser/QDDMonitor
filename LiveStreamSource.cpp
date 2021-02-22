@@ -9,9 +9,9 @@ static constexpr int kInputBufferSize = 0x1000;
 static constexpr AVHWDeviceType kHwDeviceType = AV_HWDEVICE_TYPE_D3D11VA;
 static constexpr AVPixelFormat kHwPixelFormat = AV_PIX_FMT_D3D11;
 
-static constexpr PlaybackClock::duration kFrameBufferStartThreshold = std::chrono::milliseconds(200), kFrameBufferFullThreshold = std::chrono::milliseconds(200);
+static constexpr PlaybackClock::duration kFrameBufferStartThreshold = std::chrono::milliseconds(250), kFrameBufferFullThreshold = std::chrono::milliseconds(250);
 static constexpr std::chrono::milliseconds kFrameBufferPushInterval = std::chrono::milliseconds(50);
-static constexpr PlaybackClock::duration kUploadToRenderLatency = std::chrono::milliseconds(200);
+static constexpr PlaybackClock::duration kUploadToRenderLatency = std::chrono::milliseconds(250);
 
 template <typename ToDuration>
 static inline constexpr PlaybackClock::duration AVTimestampToDuration(int64_t timestamp, AVRational time_base)
@@ -261,11 +261,6 @@ void LiveStreamSource::OnNewInputDataDeady()
             av_packet_unref(&packet);
         }
     }
-}
-
-void LiveStreamSource::OnNewSubtitle(QSharedPointer<SubtitleFrame> subtitle_frame)
-{
-    emit newSubtitleFrame(subtitle_frame);
 }
 
 int LiveStreamSource::ReceiveVideoFrame()

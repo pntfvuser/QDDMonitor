@@ -20,7 +20,7 @@ class LiveStreamViewSubtitleOverlay : public QQuickPaintedItem
         QStaticText text;
         QColor color;
         SubtitleStyle style;
-        int slot = -1, progress = 0;
+        int width = 0, slot = -1, progress = 0;
         bool occupies_slot = false;
     };
 public:
@@ -36,6 +36,7 @@ private slots:
     void OnParentWidthChanged() { setWidth(parentItem()->width()); }
     void OnParentHeightChanged();
 private:
+    static bool IsStyleFixedPosition(SubtitleStyle style);
     static unsigned char GetSlotBit(SubtitleStyle style);
 
     std::vector<SubtitleItem> active_subtitles_;

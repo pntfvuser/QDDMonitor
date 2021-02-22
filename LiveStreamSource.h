@@ -58,7 +58,6 @@ signals:
 public slots:
     void OnNewInputStream(void *opaque, SourceInputCallback read_callback);
     void OnNewInputDataDeady();
-    void OnNewSubtitle(QSharedPointer<SubtitleFrame> subtitle_frame);
 private slots:
     void OnPushTick();
 private:

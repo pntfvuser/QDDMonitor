@@ -33,8 +33,9 @@ void LiveStreamViewSubtitleOverlay::AddSubtitle(const QSharedPointer<SubtitleFra
     SubtitleItem &item = active_subtitles_.back();
     item.text.setText(frame->content);
     item.text.prepare(QTransform(), subtitle_font_);
-    item.style = frame->style;
     item.color = frame->color;
+    item.style = frame->style;
+    item.width = (int)round(item.text.size().width());;
 }
 
 void LiveStreamViewSubtitleOverlay::Update(qreal t)
@@ -44,7 +45,7 @@ void LiveStreamViewSubtitleOverlay::Update(qreal t)
         t_diff += LiveStreamView::kAnimationTimeSourcePeriod;
     t_ = t;
 
-    int overlay_width = (int)round(width());
+    int overlay_width = (int)width();
     int slot_count = (int)subtitle_slot_busy_.size();
     for (SubtitleItem &item : active_subtitles_)
     {
@@ -64,22 +65,20 @@ void LiveStreamViewSubtitleOverlay::Update(qreal t)
         }
         if (item.slot != -1)
         {
-            int item_width = (int)round(item.text.size().width());
-            item.progress += (item_width + 1000) * t_diff / 5000;
-            if (item.progress > overlay_width + item_width)
+            int item_width = item.width;
+            item.progress += (item_width + 800) * t_diff / 4096;
+            int item_max_progress = IsStyleFixedPosition(item.style) ? 8192 : item_width + overlay_width;
+            if (item.progress > item_max_progress)
             {
                 if (item.occupies_slot && item.slot < slot_count)
                     subtitle_slot_busy_[item.slot] &= ~GetSlotBit(item.style);
                 item.slot = -1;
             }
-            else if (item.progress > item_width)
+            else if (!IsStyleFixedPosition(item.style) && item.occupies_slot && item.progress > item_width)
             {
-                if (item.occupies_slot && (item.style == SubtitleStyle::NORMAL || item.style == SubtitleStyle::REVERSE))
-                {
-                    if (item.slot < slot_count)
-                        subtitle_slot_busy_[item.slot] &= ~GetSlotBit(item.style);
-                    item.occupies_slot = false;
-                }
+                if (item.slot < slot_count)
+                    subtitle_slot_busy_[item.slot] &= ~GetSlotBit(item.style);
+                item.occupies_slot = false;
             }
         }
     }
@@ -101,13 +100,13 @@ void LiveStreamViewSubtitleOverlay::paint(QPainter *painter)
     painter->setClipRect(0, 0, width(), height());
     painter->setClipping(true);
 
-    int overlay_height = (int)round(height());
-    int overlay_width = (int)round(width());
+    int overlay_height = (int)height();
+    int overlay_width = (int)width();
     for (const SubtitleItem &item : active_subtitles_)
     {
         if (item.slot != -1)
         {
-            int item_width = (int)round(item.text.size().width());
+            int item_width = item.width;
             int x, y;
 
             if (item.style == SubtitleStyle::BOTTOM)
@@ -142,6 +141,20 @@ void LiveStreamViewSubtitleOverlay::OnParentHeightChanged()
                 item.occupies_slot = false;
         }
     }
+}
+
+bool LiveStreamViewSubtitleOverlay::IsStyleFixedPosition(SubtitleStyle style)
+{
+    switch (style)
+    {
+    case SubtitleStyle::TOP:
+    case SubtitleStyle::BOTTOM:
+        return true;
+    case SubtitleStyle::NORMAL:
+    case SubtitleStyle::REVERSE:
+        return false;
+    }
+    return false;
 }
 
 unsigned char LiveStreamViewSubtitleOverlay::GetSlotBit(SubtitleStyle style)

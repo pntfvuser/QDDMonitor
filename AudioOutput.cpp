@@ -238,7 +238,7 @@ void AudioOutput::StartSource(const std::shared_ptr<AudioSource> &source, Playba
         latency = std::chrono::nanoseconds(offset_latency & 0xFFFFFFFF);
     }
 
-    std::chrono::milliseconds sleep_time = std::chrono::duration_cast<std::chrono::milliseconds>(timestamp - PlaybackClock::now() - latency);
+    std::chrono::milliseconds sleep_time = std::chrono::duration_cast<std::chrono::milliseconds>(timestamp - PlaybackClock::now() - latency) - std::chrono::milliseconds(60); //Manual tweak
     qDebug("Starting audio playback after %lldms", sleep_time.count());
     if (sleep_time.count() <= 0)
     {

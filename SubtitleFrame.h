@@ -1,7 +1,7 @@
 #ifndef SUBTITLEFRAME_H
 #define SUBTITLEFRAME_H
 
-enum class SubtitleStyle
+enum class SubtitleStyle : unsigned char
 {
     NORMAL,
     TOP,
