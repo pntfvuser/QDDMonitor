@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "AudioOutput.h"
 
+static constexpr auto kFallbackLatencyAssumption = std::chrono::milliseconds(60);
+
 AudioOutput::AudioSource::AudioSource()
 {
     ALenum ret;
@@ -111,9 +113,12 @@ void AudioOutput::onNewAudioFrame(uintptr_t source_id, QSharedPointer<AudioFrame
         source = itr->second.get();
         if (source->channels != audio_frame->frame->channels || source->sample_format != audio_frame->sample_format || source->sample_rate != audio_frame->frame->sample_rate)
         {
-            if (!source->buffer_block.empty())
-                FlushBufferToSource(*source);
             InitSource(*source, audio_frame->frame->channels, audio_frame->frame->channel_layout, audio_frame->sample_format, audio_frame->frame->sample_rate);
+            //Resynchronize
+            source->pending_frames.clear();
+            source->buffer_block.clear();
+            alSourceStop(source->al_id);
+            CollectExhaustedBuffer(*source);
         }
     }
 
@@ -131,21 +136,27 @@ void AudioOutput::onNewAudioFrame(uintptr_t source_id, QSharedPointer<AudioFrame
         need_start_time = audio_frame->present_time;
     }
 
+    CollectExhaustedBuffer(*source);
     while (source->buffer_block.size() < source->buffer_block_cap && !source->pending_frames.empty())
     {
         AppendFrameToSourceBuffer(*source, source->pending_frames.front());
+        if (source->buffer_block.size() >= source->buffer_block_cap)
+        {
+            AppendBufferToSource(*source);
+        }
         source->pending_frames.erase(source->pending_frames.begin());
     }
-
     if (source->buffer_block.size() < source->buffer_block_cap)
-        AppendFrameToSourceBuffer(*source, audio_frame);
-    else
-        source->pending_frames.push_back(std::move(audio_frame));
-
-    if (source->buffer_block.size() >= source->buffer_block_cap)
     {
-        CollectExhaustedBuffer(*source);
-        AppendBufferToSource(*source);
+        AppendFrameToSourceBuffer(*source, audio_frame);
+        if (source->buffer_block.size() >= source->buffer_block_cap)
+        {
+            AppendBufferToSource(*source);
+        }
+    }
+    else
+    {
+        source->pending_frames.push_back(std::move(audio_frame));
     }
 
     if (need_start)
@@ -154,13 +165,55 @@ void AudioOutput::onNewAudioFrame(uintptr_t source_id, QSharedPointer<AudioFrame
     }
 }
 
+void AudioOutput::onSetAudioSourceVolume(uintptr_t source_id, qreal volume)
+{
+    AudioSource *source;
+
+    auto itr = sources_.find(source_id);
+    if (itr == sources_.end())
+    {
+        std::shared_ptr<AudioSource> new_source;
+        try
+        {
+            new_source = std::make_shared<AudioSource>();
+        }
+        catch (...)
+        {
+            qWarning("Failed to create new AudioSource");
+            return;
+        }
+        itr = sources_.emplace(source_id, std::move(new_source)).first;
+        source = itr->second.get();
+        source->id = source_id;
+        InitSource(*source);
+    }
+    else
+    {
+        source = itr->second.get();
+    }
+
+    if (volume < 0)
+        volume = 0;
+    else if (volume > 1)
+        volume = 1;
+    alSourcef(source->al_id, AL_GAIN, (ALfloat)volume);
+}
+
+void AudioOutput::InitSource(AudioOutput::AudioSource &source)
+{
+    source.channels = 0;
+    source.sample_format = AV_SAMPLE_FMT_NONE;
+    source.sample_rate = 0;
+    source.buffer_block_cap = 0;
+}
+
 void AudioOutput::InitSource(AudioSource &source, int channels, int64_t channel_layout, AVSampleFormat sample_fmt, int sample_rate)
 {
     static constexpr int kBufferBlockSizeMS = 100;
 
     source.channels = channels;
-    source.sample_rate = sample_rate;
     source.sample_format = sample_fmt;
+    source.sample_rate = sample_rate;
 
     int out_channels = 0;
     AVSampleFormat out_sample_format = AV_SAMPLE_FMT_NONE;
@@ -217,71 +270,52 @@ void AudioOutput::InitSource(AudioSource &source, int channels, int64_t channel_
         else //Q_ASSERT(out_channels == 1)
             source.al_buffer_format = AL_FORMAT_MONO16;
     }
-    source.sample_rate = sample_rate;
 
     source.buffer_block_cap = source.sample_rate * kBufferBlockSizeMS / 1000 * source.sample_channel_size;
 }
 
 void AudioOutput::StartSource(const std::shared_ptr<AudioSource> &source, PlaybackClock::time_point timestamp)
 {
-    std::chrono::nanoseconds latency = std::chrono::nanoseconds(0);
+    std::chrono::nanoseconds latency = kFallbackLatencyAssumption;
 
     ALenum ret = AL_NO_ERROR;
-    ALint64SOFT offset_latency;
-    alGetSourcei64vSOFT(source->al_id, AL_SAMPLE_OFFSET_LATENCY_SOFT, &offset_latency);
+    ALint64SOFT offset_latency[2];
+    alGetSourcei64vSOFT(source->al_id, AL_SAMPLE_OFFSET_LATENCY_SOFT, offset_latency);
     if ((ret = alGetError()) != AL_NO_ERROR)
     {
         qWarning("Can't get precise latency #%d", ret);
     }
     else
     {
-        latency = std::chrono::nanoseconds(offset_latency & 0xFFFFFFFF);
+        qDebug("Latency: %lldns", offset_latency[1]);
+        latency = std::chrono::nanoseconds(offset_latency[1]);
     }
 
-    std::chrono::milliseconds sleep_time = std::chrono::duration_cast<std::chrono::milliseconds>(timestamp - PlaybackClock::now() - latency) - std::chrono::milliseconds(60); //Manual tweak
+    std::chrono::milliseconds sleep_time = std::chrono::duration_cast<std::chrono::milliseconds>(timestamp - PlaybackClock::now() - latency);
     qDebug("Starting audio playback after %lldms", sleep_time.count());
     if (sleep_time.count() <= 0)
     {
-        StartSourceTimerCallback(source);
+        alSourcePlay(source->al_id);
     }
     else
     {
         QTimer::singleShot(sleep_time, this, [source_weak = std::weak_ptr<AudioSource>(source)]()
         {
-            StartSourceTimerCallback(source_weak.lock());
+            auto source = source_weak.lock();
+            if (!source)
+                return;
+            if (!source->stopping)
+            {
+                source->starting = false;
+                alSourcePlay(source->al_id);
+                ALenum ret = AL_NO_ERROR;
+                if ((ret = alGetError()) != AL_NO_ERROR)
+                {
+                    qWarning("Can't start playback #%d", ret);
+                }
+            }
         });
         source->starting = true;
-    }
-}
-
-void AudioOutput::StartSourceTimerCallback(const std::shared_ptr<AudioOutput::AudioSource> &source)
-{
-    if (!source)
-        return;
-    if (!source->stopping)
-    {
-        source->starting = false;
-        alSourcePlay(source->al_id);
-        ALenum ret = AL_NO_ERROR;
-        if ((ret = alGetError()) != AL_NO_ERROR)
-        {
-            qWarning("Can't start playback #%d", ret);
-        }
-        else
-        {
-#ifdef _DEBUG
-            ALint source_state = AL_STOPPED;
-            alGetSourcei(source->al_id, AL_SOURCE_STATE, &source_state);
-            if ((ret = alGetError()) != AL_NO_ERROR)
-            {
-                qWarning("Can't get source state #%d", ret);
-            }
-            if (source_state != AL_PLAYING)
-            {
-                qWarning("Source is still not playing after alSourcePlay");
-            }
-#endif
-        }
     }
 }
 
@@ -295,6 +329,7 @@ void AudioOutput::AppendFrameToSourceBuffer(AudioSource &source, const QSharedPo
         source.buffer_block.resize(out_offset + out_size_est * source.sample_channel_size);
         uint8_t *out[1] = { source.buffer_block.data() + out_offset };
         int out_size = swr_convert(source.swr_context.Get(), out, out_size_est, (const uint8_t **)audio_frame->frame->data, in_size);
+        Q_ASSERT(out_size >= 0);
         source.buffer_block.resize(out_offset + out_size * source.sample_channel_size);
     }
     else
@@ -325,24 +360,6 @@ void AudioOutput::AppendBufferToSource(AudioSource &source)
         source.al_buffer_occupied[source.al_buffer_occupied_count++] = buffer_id;
         source.buffer_block.erase(source.buffer_block.begin(), source.buffer_block.begin() + source.buffer_block_cap);
     }
-}
-
-void AudioOutput::FlushBufferToSource(AudioOutput::AudioSource &source)
-{
-    ALenum ret = AL_NO_ERROR;
-    ALBufferId buffer_id = source.al_buffer_free[--source.al_buffer_free_count];
-    alBufferData(buffer_id, source.al_buffer_format, source.buffer_block.data(), source.buffer_block.size(), source.sample_rate);
-    if ((ret = alGetError()) != AL_NO_ERROR)
-    {
-        qWarning("Can't specify OpenAL buffer content #%d", ret);
-    }
-    alSourceQueueBuffers(source.al_id, 1, &buffer_id);
-    if ((ret = alGetError()) != AL_NO_ERROR)
-    {
-        qWarning("Can't append buffer to queue #%d", ret);
-    }
-    source.al_buffer_occupied[source.al_buffer_occupied_count++] = buffer_id;
-    source.buffer_block.clear();
 }
 
 void AudioOutput::CollectExhaustedBuffer(AudioSource &source)

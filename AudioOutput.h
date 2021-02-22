@@ -54,15 +54,15 @@ public slots:
     void onDeleteAudioSource(uintptr_t source_id);
 
     void onNewAudioFrame(uintptr_t source_id, QSharedPointer<AudioFrame> audio_frame);
+    void onSetAudioSourceVolume(uintptr_t source_id, qreal volume);
 private:
+    void InitSource(AudioSource &source);
     void InitSource(AudioSource &source, int channels, int64_t channel_layout, AVSampleFormat sample_fmt, int sample_rate);
 
     void StartSource(const std::shared_ptr<AudioSource> &source, PlaybackClock::time_point timestamp);
-    static void StartSourceTimerCallback(const std::shared_ptr<AudioSource> &source);
-    void AppendFrameToSourceBuffer(AudioSource &source, const QSharedPointer<AudioFrame> &audio_frame);
-    void AppendBufferToSource(AudioSource &source);
-    void FlushBufferToSource(AudioSource &source);
-    void CollectExhaustedBuffer(AudioSource &source);
+    static void AppendFrameToSourceBuffer(AudioSource &source, const QSharedPointer<AudioFrame> &audio_frame);
+    static void AppendBufferToSource(AudioSource &source);
+    static void CollectExhaustedBuffer(AudioSource &source);
 
     ALCdevice *device_ = nullptr;
     ALCcontext *context_ = nullptr;
