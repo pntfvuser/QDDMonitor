@@ -118,8 +118,9 @@ signals:
     void newAudioFrame(QSharedPointer<AudioFrame> audio_frame);
     void newSubtitleFrame(QSharedPointer<SubtitleFrame> subtitle_frame);
     void deleteMedia();
-public slots:
+protected slots:
     void OnNewInputStream(void *opaque, SourceInputCallback read_callback);
+    void OnDeleteInputStream();
 private slots:
     void OnPushTick();
 private:

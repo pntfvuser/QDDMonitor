@@ -198,6 +198,11 @@ void LiveStreamSource::OnNewInputStream(void *opaque, SourceInputCallback read_c
     StartPushTick();
 }
 
+void LiveStreamSource::OnDeleteInputStream()
+{
+    Close();
+}
+
 static inline constexpr void InitializeBorderTimestamp(int64_t front, int64_t &frame_full, int64_t &packet_full, AVRational time_base)
 {
     frame_full = front + DurationToAVTimestamp(kFrameBufferFullThreshold, time_base);

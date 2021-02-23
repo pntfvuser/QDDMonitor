@@ -4,7 +4,7 @@
 LiveStreamSourceFile::LiveStreamSourceFile(QObject *parent)
     :LiveStreamSource(parent), feed_timer_(new QTimer(this))
 {
-    connect(this, &LiveStreamSourceFile::newInputStream, this, &LiveStreamSource::OnNewInputStream);
+    connect(this, &LiveStreamSourceFile::newInputStream, this, &LiveStreamSourceFile::OnNewInputStream);
     connect(feed_timer_, &QTimer::timeout, this, &LiveStreamSourceFile::FeedTick);
 }
 
