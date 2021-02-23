@@ -190,7 +190,7 @@ void LiveStreamSource::OnNewInputStream(void *opaque, SourceInputCallback read_c
     StartPushTick();
 }
 
-void LiveStreamSource::OnNewInputDataDeady()
+void LiveStreamSource::Decode()
 {
     if (!open())
         return;
@@ -522,6 +522,8 @@ void LiveStreamSource::OnPushTick()
             StopPlaying();
         }
     }
+
+    Decode();
     SetUpNextPushTick();
 }
 

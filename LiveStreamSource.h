@@ -57,10 +57,10 @@ signals:
     void queuePushTick();
 public slots:
     void OnNewInputStream(void *opaque, SourceInputCallback read_callback);
-    void OnNewInputDataDeady();
 private slots:
     void OnPushTick();
 private:
+    void Decode();
     int ReceiveVideoFrame();
     int ReceiveAudioFrame();
 

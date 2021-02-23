@@ -20,7 +20,6 @@ signals:
     void filePathChanged();
 
     void newInputStream(void *opaque, SourceInputCallback read_callback);
-    void newDataReady();
 private slots:
     void DoStart();
     void FeedTick();

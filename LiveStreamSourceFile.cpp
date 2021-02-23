@@ -5,7 +5,6 @@ LiveStreamSourceFile::LiveStreamSourceFile(QObject *parent)
     :LiveStreamSource(parent), feed_timer_(new QTimer(this))
 {
     connect(this, &LiveStreamSourceFile::newInputStream, this, &LiveStreamSource::OnNewInputStream);
-    connect(this, &LiveStreamSourceFile::newDataReady, this, &LiveStreamSource::OnNewInputDataDeady);
     connect(feed_timer_, &QTimer::timeout, this, &LiveStreamSourceFile::FeedTick);
 }
 
@@ -64,7 +63,6 @@ void LiveStreamSourceFile::FeedTick()
         feed_timer_->stop();
         return;
     }
-    emit newDataReady();
 
     QSharedPointer<SubtitleFrame> dmk = QSharedPointer<SubtitleFrame>::create();
     dmk->content = "test";
