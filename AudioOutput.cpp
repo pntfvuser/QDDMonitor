@@ -129,14 +129,15 @@ void AudioOutput::onNewAudioFrame(uintptr_t source_id, QSharedPointer<AudioFrame
     {
         qWarning("Can't get source state #%d", ret);
     }
-    const bool need_start = source_state != AL_PLAYING && !source->starting;
-    PlaybackClock::time_point need_start_time;
-    if (need_start)
+    if (source_state != AL_PLAYING && !source->starting)
     {
-        need_start_time = audio_frame->present_time;
+        StartSource(itr->second, audio_frame->present_time);
     }
 
-    CollectExhaustedBuffer(*source);
+    if (!source->starting)
+        CollectExhaustedBuffer(*source); //All buffers are available to be freed on a stopped source
+
+    AppendBufferToSource(*source);
     while (source->buffer_block.size() < source->buffer_block_cap && !source->pending_frames.empty())
     {
         AppendFrameToSourceBuffer(*source, source->pending_frames.front());
@@ -157,11 +158,6 @@ void AudioOutput::onNewAudioFrame(uintptr_t source_id, QSharedPointer<AudioFrame
     else
     {
         source->pending_frames.push_back(std::move(audio_frame));
-    }
-
-    if (need_start)
-    {
-        StartSource(itr->second, need_start_time);
     }
 }
 
@@ -293,9 +289,25 @@ void AudioOutput::StartSource(const std::shared_ptr<AudioSource> &source, Playba
 
     std::chrono::milliseconds sleep_time = std::chrono::duration_cast<std::chrono::milliseconds>(timestamp - PlaybackClock::now() - latency);
     qDebug("Starting audio playback after %lldms", sleep_time.count());
-    if (sleep_time.count() <= 0)
+    if (Q_UNLIKELY(sleep_time.count() <= 0))
     {
-        alSourcePlay(source->al_id);
+        QTimer::singleShot(0, this, [source_weak = std::weak_ptr<AudioSource>(source)]()
+        {
+            auto source = source_weak.lock();
+            if (!source)
+                return;
+            if (!source->stopping)
+            {
+                source->starting = false;
+                alSourcePlay(source->al_id);
+                ALenum ret = AL_NO_ERROR;
+                if ((ret = alGetError()) != AL_NO_ERROR)
+                {
+                    qWarning("Can't start playback #%d", ret);
+                }
+            }
+        });
+        source->starting = true;
     }
     else
     {
