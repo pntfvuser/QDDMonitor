@@ -14,6 +14,71 @@ class LiveStreamSource : public QObject
 {
     Q_OBJECT
 
+    struct AVPacketObject
+    {
+    public:
+        AVPacketObject() = default;
+        AVPacketObject(const AVPacketObject &obj) = delete;
+        AVPacketObject(AVPacketObject &&obj)
+        {
+            if (!obj.owns_object)
+                return;
+            av_packet_move_ref(&object, &obj.object);
+            obj.owns_object = false;
+            owns_object = true;
+        }
+        AVPacketObject &operator=(const AVPacketObject &obj) = delete;
+        AVPacketObject &operator=(AVPacketObject &&obj)
+        {
+            if (owns_object)
+            {
+                av_packet_unref(&object);
+                owns_object = false;
+            }
+            if (!obj.owns_object)
+                return *this;
+            av_packet_move_ref(&object, &obj.object);
+            obj.owns_object = false;
+            owns_object = true;
+            return *this;
+        }
+        ~AVPacketObject()
+        {
+            if (owns_object)
+                av_packet_unref(&object);
+        }
+
+        //AVPacket *Get() { return &object; }
+        AVPacket *ReleaseAndGet()
+        {
+            if (owns_object)
+            {
+                av_packet_unref(&object);
+                owns_object = false;
+            }
+            return &object;
+        }
+        void SetOwn() { owns_object = true; }
+        void Release()
+        {
+            if (owns_object)
+            {
+                av_packet_unref(&object);
+                owns_object = false;
+            }
+        }
+
+        const AVPacket &operator*() const { return object; }
+        AVPacket &operator*() { return object; }
+        const AVPacket *operator->() const { return &object; }
+        AVPacket *operator->() { return &object; }
+        operator bool() const { return owns_object; }
+        bool operator!() const { return !owns_object; }
+    private:
+        AVPacket object;
+        bool owns_object = false;
+    };
+
     struct AVAllocatedMemoryReleaseFunctor
     {
         void operator()(uint8_t **object) const { av_free(*object); *object = nullptr; }
@@ -53,14 +118,14 @@ signals:
     void newAudioFrame(QSharedPointer<AudioFrame> audio_frame);
     void newSubtitleFrame(QSharedPointer<SubtitleFrame> subtitle_frame);
     void deleteMedia();
-
-    void queuePushTick();
 public slots:
     void OnNewInputStream(void *opaque, SourceInputCallback read_callback);
 private slots:
     void OnPushTick();
 private:
     void Decode();
+    int SendVideoPacket(AVPacket &packet);
+    int SendAudioPacket(AVPacket &packet);
     int ReceiveVideoFrame();
     int ReceiveAudioFrame();
 
@@ -68,7 +133,8 @@ private:
     void StopPushTick();
     void SetUpNextPushTick();
 
-    bool IsBufferLongerThan(PlaybackClock::duration duration);
+    bool IsPacketBufferLongerThan(PlaybackClock::duration duration);
+    bool IsFrameBufferLongerThan(PlaybackClock::duration duration);
     void InitPlaying();
     void StartPlaying();
     void StopPlaying();
@@ -78,11 +144,12 @@ private:
     AVIOContextObject input_ctx_;
     AVFormatContextObject demuxer_ctx_;
     int video_stream_index_, audio_stream_index_;
+    std::vector<AVPacketObject> video_packets_, audio_packets_;
     AVCodecContextObject video_decoder_ctx_, audio_decoder_ctx_;
     SwsContextObject sws_context_;
     bool open_ = false;
 
-    bool playing_ = false;
+    bool playing_ = false, demux_eof_met_ = false, video_eof_met_ = false, audio_eof_met_ = false;
     std::vector<QSharedPointer<VideoFrame>> video_frames_;
     std::vector<QSharedPointer<AudioFrame>> audio_frames_;
 
@@ -90,11 +157,9 @@ private:
     PlaybackClock::time_point base_time_;
     std::chrono::milliseconds pushed_time_;
 
+    QTimer *push_timer_ = nullptr;
     PlaybackClock::time_point push_tick_time_;
     bool push_tick_enabled_ = false;
-#ifdef _DEBUG
-    int video_frames_per_second_ = 0;
-#endif
 };
 
 #endif // LIVESTREAMSOURCE_H

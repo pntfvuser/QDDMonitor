@@ -73,12 +73,6 @@ struct AVFrameReleaseFunctor
 };
 using AVFrameObject = AVObjectBase<AVFrame, AVFrameReleaseFunctor>;
 
-struct AVPacketReleaseFunctor
-{
-    void operator()(AVPacket **object) const { av_packet_free(object); }
-};
-using AVPacketObject = AVObjectBase<AVPacket, AVPacketReleaseFunctor>;
-
 Q_DECLARE_METATYPE(const AVCodecContext *);
 
 #endif // AVOBJECTWRAPPER_H
