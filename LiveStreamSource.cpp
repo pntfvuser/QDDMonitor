@@ -10,10 +10,10 @@ static constexpr int kInputBufferSize = 0x1000;
 static constexpr AVHWDeviceType kHwDeviceType = AV_HWDEVICE_TYPE_D3D11VA;
 static constexpr AVPixelFormat kHwPixelFormat = AV_PIX_FMT_D3D11;
 
-static constexpr PlaybackClock::duration kPacketBufferStartThreshold = std::chrono::milliseconds(2500), kPacketBufferFullThreshold = std::chrono::milliseconds(5000);
-static constexpr PlaybackClock::duration kFrameBufferStartThreshold = std::chrono::milliseconds(200), kFrameBufferFullThreshold = std::chrono::milliseconds(200);
-static constexpr std::chrono::milliseconds kFrameBufferPushInterval = std::chrono::milliseconds(50);
-static constexpr PlaybackClock::duration kUploadToRenderLatency = std::chrono::milliseconds(200);
+static constexpr PlaybackClock::duration kPacketBufferStartThreshold = 2500ms, kPacketBufferFullThreshold = 5000ms;
+static constexpr PlaybackClock::duration kFrameBufferStartThreshold = 200ms, kFrameBufferFullThreshold = 200ms;
+static constexpr std::chrono::milliseconds kFrameBufferPushInterval = 50ms;
+static constexpr PlaybackClock::duration kUploadToRenderLatency = 200ms;
 
 template <typename ToDuration>
 static inline constexpr ToDuration AVTimestampToDuration(int64_t timestamp, AVRational time_base)
@@ -99,6 +99,7 @@ void LiveStreamSource::OnNewInputStream(const char *url_hint, QIODevice *source,
 
     if (probe_size > 0)
         demuxer_ctx_->probesize = probe_size;
+    demuxer_ctx_->max_analyze_duration = AV_TIME_BASE / 10;
     if (avformat_find_stream_info(demuxer_ctx_.Get(), NULL) < 0)
     {
         qCWarning(CategoryStreamDecoding, "Cannot find input stream information.");
@@ -241,8 +242,13 @@ int LiveStreamSource::AVIOReadCallback(void *opaque, uint8_t *buf, int buf_size)
         if (Q_UNLIKELY(self->demuxer_input_ == nullptr))
             return AVERROR_EOF;
         qint64 read_size = self->demuxer_input_->read(reinterpret_cast<char *>(buf), buf_size);
-        if (read_size == 0)
-            return AVERROR(EAGAIN);
+        while (read_size == 0)
+        {
+            bool wait_success = self->demuxer_input_->waitForReadyRead(-1);
+            if (!wait_success)
+                return AVERROR(EAGAIN);
+            read_size = self->demuxer_input_->read(reinterpret_cast<char *>(buf), buf_size);
+        }
         if (read_size < 0)
             return AVERROR_EOF;
         return (int)read_size;
@@ -330,11 +336,14 @@ void LiveStreamSourceDemuxWorker::Work()
 
 void LiveStreamSource::NotifyAndWaitDemuxer()
 {
-    demuxer_io_lock_.unlock();
-    demuxer_io_condition_.notify_all();
-    demuxer_io_lock_.relock();
-    while (demuxer_input_ != nullptr && demuxer_input_->bytesAvailable() > 0 && !IsPacketBufferLongerThan(kPacketBufferFullThreshold))
-        demuxer_io_condition_.wait(demuxer_io_lock_.mutex());
+    if (demuxer_input_ != nullptr && demuxer_input_->bytesAvailable() > 0 && !IsPacketBufferLongerThan(kPacketBufferFullThreshold))
+    {
+        demuxer_io_lock_.unlock();
+        demuxer_io_condition_.notify_all();
+        demuxer_io_lock_.relock();
+        while (demuxer_input_ != nullptr && demuxer_input_->bytesAvailable() > 0 && !IsPacketBufferLongerThan(kPacketBufferFullThreshold))
+            demuxer_io_condition_.wait(demuxer_io_lock_.mutex());
+    }
 }
 
 void LiveStreamSource::Decode()

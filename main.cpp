@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
 
     QLoggingCategory::setFilterRules("qddm.video=false\n"
-                                     "qddm.decode=false\n"
+                                     //"qddm.decode=false\n"
                                      "qt.scenegraph.general=true");
 
 #ifdef _WIN32
@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
     QQmlApplicationEngine engine;
 
     //LiveStreamSourceFile *source = new LiveStreamSourceFile(nullptr);
-    LiveStreamSourceBilibili *source = new LiveStreamSourceBilibili(21603945);
+    LiveStreamSourceBilibili *source = new LiveStreamSourceBilibili(21685677);
     QThread source_thread;
     source->moveToThread(&source_thread);
     QObject::connect(&source_thread, &QThread::finished, source, &QObject::deleteLater);

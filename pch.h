@@ -10,6 +10,7 @@
 #include <chrono>
 #include <memory>
 #include <stdexcept>
+using namespace std::chrono_literals;
 
 #include <vector>
 #include <unordered_map>
