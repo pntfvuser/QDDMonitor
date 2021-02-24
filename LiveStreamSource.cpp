@@ -10,13 +10,13 @@ static constexpr int kInputBufferSize = 0x1000;
 static constexpr AVHWDeviceType kHwDeviceType = AV_HWDEVICE_TYPE_D3D11VA;
 static constexpr AVPixelFormat kHwPixelFormat = AV_PIX_FMT_D3D11;
 
-static constexpr PlaybackClock::duration kPacketBufferStartThreshold = std::chrono::milliseconds(5000), kPacketBufferFullThreshold = std::chrono::milliseconds(5000);
+static constexpr PlaybackClock::duration kPacketBufferStartThreshold = std::chrono::milliseconds(2500), kPacketBufferFullThreshold = std::chrono::milliseconds(5000);
 static constexpr PlaybackClock::duration kFrameBufferStartThreshold = std::chrono::milliseconds(200), kFrameBufferFullThreshold = std::chrono::milliseconds(200);
 static constexpr std::chrono::milliseconds kFrameBufferPushInterval = std::chrono::milliseconds(50);
 static constexpr PlaybackClock::duration kUploadToRenderLatency = std::chrono::milliseconds(200);
 
 template <typename ToDuration>
-static inline constexpr PlaybackClock::duration AVTimestampToDuration(int64_t timestamp, AVRational time_base)
+static inline constexpr ToDuration AVTimestampToDuration(int64_t timestamp, AVRational time_base)
 {
     return ToDuration((timestamp * time_base.num * ToDuration::period::den) / (time_base.den * ToDuration::period::num));
 }
@@ -743,9 +743,10 @@ void LiveStreamSource::OnPushTick()
     }
 
 #ifdef _DEBUG
-    if (last_debug_report_ - PlaybackClock::now() > std::chrono::seconds(1))
+    if (PlaybackClock::now() - last_debug_report_ > std::chrono::seconds(1))
     {
         last_debug_report_ += std::chrono::seconds(1);
+        qCDebug(CategoryStreamDecoding, "Input buffer: %fkiB", demuxer_input_ ? (double)demuxer_input_->bytesAvailable() / 1024 : 0.0);
         qCDebug(CategoryStreamDecoding, "Video packet buffer: %lldms", video_packets_.empty() ? 0ll : AVTimestampToDuration<std::chrono::milliseconds>(video_packets_.back()->pts - video_packets_.front()->pts, video_stream_time_base_).count());
         qCDebug(CategoryStreamDecoding, "Audio packet buffer: %lldms", audio_packets_.empty() ? 0ll : AVTimestampToDuration<std::chrono::milliseconds>(audio_packets_.back()->pts - audio_packets_.front()->pts, audio_stream_time_base_).count());
         qCDebug(CategoryStreamDecoding, "Video frame buffer: %lldms", video_frames_.empty() ? 0ll : AVTimestampToDuration<std::chrono::milliseconds>(video_frames_.back()->timestamp - video_frames_.front()->timestamp, video_stream_time_base_).count());

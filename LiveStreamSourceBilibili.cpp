@@ -263,9 +263,9 @@ void LiveStreamSourceBilibili::OnAVStreamProgress()
     //TODO: detect failure
     if (!open())
     {
-        if (av_reply_->bytesAvailable() > 0xC0000)
+        if (av_reply_->bytesAvailable() > 0x80000)
         {
-            OnNewInputStream("stream.flv", av_reply_, 0xB0000);
+            OnNewInputStream("stream.flv", av_reply_, 0x70000);
             if (!open())
             {
                 av_reply_->close();
