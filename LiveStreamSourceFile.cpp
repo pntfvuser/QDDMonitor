@@ -42,37 +42,32 @@ void LiveStreamSourceFile::DoStart()
     fin_->open(QIODevice::ReadOnly);
     if (!fin_->isOpen())
     {
-        emit invalidMedia();
+        emit InvalidSourceArgument();
         return;
     }
 
-    auto file_path_local_encoding = file_path_.toLocal8Bit();
-    OnNewInputStream(file_path_local_encoding.data(), fin_);
+    emit RequestNewInputStream(file_path_);
     feed_timer_->start(50);
 
     QSharedPointer<SubtitleFrame> dmk = QSharedPointer<SubtitleFrame>::create();
     dmk->content = "test";
     dmk->style = SubtitleStyle::TOP;
     dmk->color = QColor(128, 128, 0);
-    emit newSubtitleFrame(dmk);
+    emit NewSubtitleFrame(dmk);
     dmk = QSharedPointer<SubtitleFrame>::create();
     dmk->content = "test";
     dmk->style = SubtitleStyle::BOTTOM;
     dmk->color = QColor(128, 128, 0);
-    emit newSubtitleFrame(dmk);
+    emit NewSubtitleFrame(dmk);
 }
 
 void LiveStreamSourceFile::FeedTick()
 {
-    if (!open())
-    {
-        feed_timer_->stop();
-        return;
-    }
+    PushData(fin_);
 
     QSharedPointer<SubtitleFrame> dmk = QSharedPointer<SubtitleFrame>::create();
     dmk->content = "test";
     dmk->style = SubtitleStyle::NORMAL;
     dmk->color = QColor(128, 0, 128);
-    emit newSubtitleFrame(dmk);
+    emit NewSubtitleFrame(dmk);
 }

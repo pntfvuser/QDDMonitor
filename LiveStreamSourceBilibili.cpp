@@ -6,6 +6,8 @@ LiveStreamSourceBilibili::LiveStreamSourceBilibili(QObject *parent)
 {
     network_manager_ = new QNetworkAccessManager(this);
     connect(this, &LiveStreamSourceBilibili::debugStartSignal, this, &LiveStreamSourceBilibili::onRequestUpdateInfo);
+    push_timer_ = new QTimer(this);
+    connect(push_timer_, &QTimer::timeout, this, &LiveStreamSourceBilibili::OnAVStreamPush);
 }
 
 LiveStreamSourceBilibili::LiveStreamSourceBilibili(int room_display_id, QObject *parent)
@@ -13,6 +15,8 @@ LiveStreamSourceBilibili::LiveStreamSourceBilibili(int room_display_id, QObject 
 {
     network_manager_ = new QNetworkAccessManager(this);
     connect(this, &LiveStreamSourceBilibili::debugStartSignal, this, &LiveStreamSourceBilibili::onRequestUpdateInfo);
+    push_timer_ = new QTimer(this);
+    connect(push_timer_, &QTimer::timeout, this, &LiveStreamSourceBilibili::OnAVStreamPush);
 }
 
 LiveStreamSourceBilibili::~LiveStreamSourceBilibili()
@@ -54,7 +58,7 @@ void LiveStreamSourceBilibili::onRequestActivate(const QString &quality_name)
     int quality_chosen = quality_.value(quality_name, -1);
     if (quality_chosen == -1)
     {
-        emit invalidMedia();
+        emit InvalidSourceArgument();
         return;
     }
 
@@ -68,13 +72,14 @@ void LiveStreamSourceBilibili::onRequestActivateQn(int qn)
 
     if (room_id_ == -1)
     {
-        emit invalidMedia();
+        emit InvalidSourceArgument();
         return;
     }
 
     if (av_reply_)
     {
-        OnDeleteInputStream();
+        EndData();
+        emit RequestDeleteInputStream();
         av_reply_->deleteLater();
         av_reply_ = nullptr;
     }
@@ -96,7 +101,8 @@ void LiveStreamSourceBilibili::onRequestActivateQn(int qn)
 
 void LiveStreamSourceBilibili::onRequestDeactivate()
 {
-    OnDeleteInputStream();
+    EndData();
+    emit RequestDeleteInputStream();
     if (av_reply_)
     {
         av_reply_->deleteLater();
@@ -194,7 +200,7 @@ void LiveStreamSourceBilibili::OnRequestStreamInfoProgress()
     {
         stream_info_reply_->deleteLater();
         stream_info_reply_ = nullptr;
-        emit invalidMedia();
+        emit InvalidSourceArgument();
         return;
     }
 }
@@ -209,20 +215,20 @@ void LiveStreamSourceBilibili::OnRequestStreamInfoComplete()
 
     if (!json_doc.isObject())
     {
-        emit invalidMedia();
+        emit InvalidSourceArgument();
         return;
     }
     QJsonObject json_object = json_doc.object();
     int code = (int)json_object.value("code").toDouble(-1);
     if (code != 0)
     {
-        emit invalidMedia();
+        emit InvalidSourceArgument();
         return;
     }
     QJsonValue data_value = json_object.value("data");
     if (!data_value.isObject())
     {
-        emit invalidMedia();
+        emit InvalidSourceArgument();
         return;
     }
     QJsonObject data_object = data_value.toObject();
@@ -230,13 +236,13 @@ void LiveStreamSourceBilibili::OnRequestStreamInfoComplete()
     QJsonValue durl_value = data_object.value("durl");
     if (!durl_value.isArray())
     {
-        emit invalidMedia();
+        emit InvalidSourceArgument();
         return;
     }
     QJsonArray durl = durl_value.toArray();
     if (durl.empty())
     {
-        emit invalidMedia();
+        emit InvalidSourceArgument();
         return;
     }
 
@@ -244,7 +250,7 @@ void LiveStreamSourceBilibili::OnRequestStreamInfoComplete()
     QJsonValue first_url = durl[0].toObject().value("url");
     if (!first_url.isString())
     {
-        emit invalidMedia();
+        emit InvalidSourceArgument();
         return;
     }
 
@@ -252,51 +258,59 @@ void LiveStreamSourceBilibili::OnRequestStreamInfoComplete()
     QNetworkRequest request(request_url);
     av_reply_ = network_manager_->get(request);
 
-    //Delay open until any data has arrived so that libavformat can read header
+    //TODO: handle openChanged
+    emit RequestNewInputStream("stream.flv");
     connect(av_reply_, &QNetworkReply::readyRead, this, &LiveStreamSourceBilibili::OnAVStreamProgress);
+    connect(av_reply_, &QNetworkReply::finished, this, &LiveStreamSourceBilibili::OnAVStreamComplete);
+    push_timer_->start(50);
 }
 
 void LiveStreamSourceBilibili::OnAVStreamProgress()
 {
     if (!av_reply_)
+    {
+        push_timer_->stop();
         return;
+    }
+    if (!av_reply_->isOpen())
+    {
+        av_reply_->deleteLater();
+        av_reply_ = nullptr;
+        push_timer_->stop();
+        return;
+    }
     //TODO: detect failure
-    if (!open())
-    {
-        if (av_reply_->bytesAvailable() > 0x80000)
-        {
-            OnNewInputStream("stream.flv", av_reply_, 0x70000);
-            if (!open())
-            {
-                av_reply_->close();
-                av_reply_->deleteLater();
-                av_reply_ = nullptr;
-            }
-        }
-    }
-    else
-    {
-        OnNewInputData();
-    }
+    PushData(av_reply_);
 }
 
-int LiveStreamSourceBilibili::AVIOReadCallback(void *opaque, uint8_t *buf, int buf_size)
+void LiveStreamSourceBilibili::OnAVStreamPush()
 {
-    LiveStreamSourceBilibili *self = reinterpret_cast<LiveStreamSourceBilibili *>(opaque);
-    QNetworkReply *stream = self->av_reply_;
-    if (!stream || !stream->isOpen())
-        return AVERROR_EOF;
-    if (stream->bytesAvailable() <= 0)
-        return AVERROR(EAGAIN);
-    qint64 read_size = stream->read(reinterpret_cast<char *>(buf), buf_size);
-    if (Q_UNLIKELY(read_size < 0))
+    if (!av_reply_)
     {
-        self->av_reply_ = nullptr;
-        return AVERROR_EOF;
+        push_timer_->stop();
+        return;
     }
-    if (read_size == 0)
+    if (!av_reply_->isOpen())
     {
-        return AVERROR(EAGAIN);
+        av_reply_->deleteLater();
+        av_reply_ = nullptr;
+        push_timer_->stop();
+        return;
     }
-    return (int)read_size;
+    if (av_reply_->bytesAvailable() > 0)
+        PushData(av_reply_);
+}
+
+void LiveStreamSourceBilibili::OnAVStreamComplete()
+{
+    if (!av_reply_)
+    {
+        push_timer_->stop();
+        return;
+    }
+    qDebug() << av_reply_->errorString();
+    av_reply_->deleteLater();
+    av_reply_ = nullptr;
+    push_timer_->stop();
+    EndData();
 }

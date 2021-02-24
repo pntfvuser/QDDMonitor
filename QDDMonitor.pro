@@ -11,10 +11,12 @@ HEADERS += \
     AVObjectWrapper.h \
     AudioFrame.h \
     AudioOutput.h \
+    BlockingFIFOBuffer.h \
     D3D11FlushHelper.h \
     D3D11SharedResource.h \
     LiveStreamSource.h \
     LiveStreamSourceBilibili.h \
+    LiveStreamSourceDecoder.h \
     LiveStreamSourceFile.h \
     LiveStreamSourceModel.h \
     LiveStreamView.h \
@@ -32,6 +34,7 @@ SOURCES += \
         D3D11SharedResource.cpp \
         LiveStreamSource.cpp \
         LiveStreamSourceBilibili.cpp \
+        LiveStreamSourceDecoder.cpp \
         LiveStreamSourceFile.cpp \
         LiveStreamSourceModel.cpp \
         LiveStreamView.cpp \

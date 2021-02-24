@@ -14,7 +14,6 @@
 
 int main(int argc, char *argv[])
 {
-    qRegisterMetaType<SourceInputCallback>();
     qRegisterMetaType<const AVCodecContext *>();
     qRegisterMetaType<QSharedPointer<AudioFrame>>();
     qRegisterMetaType<QSharedPointer<VideoFrame>>();
@@ -44,7 +43,7 @@ int main(int argc, char *argv[])
     QQmlApplicationEngine engine;
 
     //LiveStreamSourceFile *source = new LiveStreamSourceFile(nullptr);
-    LiveStreamSourceBilibili *source = new LiveStreamSourceBilibili(21685677);
+    LiveStreamSourceBilibili *source = new LiveStreamSourceBilibili(6655);
     QThread source_thread;
     source->moveToThread(&source_thread);
     QObject::connect(&source_thread, &QThread::finished, source, &QObject::deleteLater);
@@ -59,8 +58,8 @@ int main(int argc, char *argv[])
     }, Qt::QueuedConnection);
     engine.load(url);
 
-    source->connect(source, &LiveStreamSourceBilibili::infoUpdated, source, [source](int status, const QList<QString> &) { if (status >= 0) source->onRequestActivateQn(10000); });
     //source->setFilePath("E:\\Home\\Documents\\Qt\\QDDMonitor\\testsrc.mkv");
+    source->connect(source, &LiveStreamSourceBilibili::infoUpdated, source, [source](int status, const QList<QString> &) { if (status >= 0) source->onRequestActivateQn(10000); });
     source->start();
 
     int retcode = app.exec();

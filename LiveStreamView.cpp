@@ -2,6 +2,7 @@
 #include "LiveStreamView.h"
 
 #include "LiveStreamSource.h"
+#include "LiveStreamSourceDecoder.h"
 #include "VideoFrameTextureNode.h"
 #include "AudioOutput.h"
 #include "LiveStreamViewSubtitleOverlay.h"
@@ -26,18 +27,18 @@ void LiveStreamView::setSource(LiveStreamSource *source)
     {
         if (current_source_)
         {
-            disconnect(current_source_, &LiveStreamSource::newMedia, this, &LiveStreamView::onNewMedia);
-            disconnect(current_source_, &LiveStreamSource::newVideoFrame, this, &LiveStreamView::onNewVideoFrame);
-            disconnect(current_source_, &LiveStreamSource::newAudioFrame, this, &LiveStreamView::onNewAudioFrame);
-            disconnect(current_source_, &LiveStreamSource::newSubtitleFrame, this, &LiveStreamView::onNewSubtitleFrame);
+            disconnect(current_source_->decoder(), &LiveStreamSourceDecoder::NewMedia, this, &LiveStreamView::onNewMedia);
+            disconnect(current_source_->decoder(), &LiveStreamSourceDecoder::NewVideoFrame, this, &LiveStreamView::onNewVideoFrame);
+            disconnect(current_source_->decoder(), &LiveStreamSourceDecoder::NewAudioFrame, this, &LiveStreamView::onNewAudioFrame);
+            disconnect(current_source_, &LiveStreamSource::NewSubtitleFrame, this, &LiveStreamView::onNewSubtitleFrame);
         }
         current_source_ = source;
         if (current_source_)
         {
-            connect(current_source_, &LiveStreamSource::newMedia, this, &LiveStreamView::onNewMedia);
-            connect(current_source_, &LiveStreamSource::newVideoFrame, this, &LiveStreamView::onNewVideoFrame);
-            connect(current_source_, &LiveStreamSource::newAudioFrame, this, &LiveStreamView::onNewAudioFrame);
-            connect(current_source_, &LiveStreamSource::newSubtitleFrame, this, &LiveStreamView::onNewSubtitleFrame);
+            connect(current_source_->decoder(), &LiveStreamSourceDecoder::NewMedia, this, &LiveStreamView::onNewMedia);
+            connect(current_source_->decoder(), &LiveStreamSourceDecoder::NewVideoFrame, this, &LiveStreamView::onNewVideoFrame);
+            connect(current_source_->decoder(), &LiveStreamSourceDecoder::NewAudioFrame, this, &LiveStreamView::onNewAudioFrame);
+            connect(current_source_, &LiveStreamSource::NewSubtitleFrame, this, &LiveStreamView::onNewSubtitleFrame);
         }
         emit sourceChanged();
     }
@@ -106,7 +107,7 @@ void LiveStreamView::onNewMedia(const AVCodecContext *video_decoder_context, con
 
 void LiveStreamView::onNewVideoFrame(QSharedPointer<VideoFrame> video_frame)
 {
-    if (sender() != current_source_)
+    if (sender() != current_source_->decoder())
         return;
     bool need_update = next_frames_.empty();
     next_frames_.push_back(std::move(video_frame));
@@ -116,7 +117,7 @@ void LiveStreamView::onNewVideoFrame(QSharedPointer<VideoFrame> video_frame)
 
 void LiveStreamView::onNewAudioFrame(QSharedPointer<AudioFrame> audio_frame)
 {
-    if (sender() != current_source_)
+    if (sender() != current_source_->decoder())
         return;
     emit newAudioFrame(reinterpret_cast<uintptr_t>(this), audio_frame);
 }

@@ -3,8 +3,6 @@
 
 #include "LiveStreamSource.h"
 
-class QueueBuffer;
-
 class LiveStreamSourceBilibili : public LiveStreamSource
 {
     Q_OBJECT
@@ -32,16 +30,16 @@ private slots:
     void OnRequestStreamInfoProgress();
     void OnRequestStreamInfoComplete();
     void OnAVStreamProgress();
-    //void OnAVStreamComplete();
+    void OnAVStreamPush();
+    void OnAVStreamComplete();
 private:
-    static int AVIOReadCallback(void *opaque, uint8_t *buf, int buf_size);
-
     int room_display_id_ = -1, room_id_ = -1;
     QHash<QString, int> quality_;
 
     bool active_ = false;
     QNetworkAccessManager *network_manager_ = nullptr;
     QNetworkReply *info_reply_ = nullptr, *stream_info_reply_ = nullptr, *av_reply_ = nullptr;
+    QTimer *push_timer_ = nullptr;
 };
 
 #endif // LIVESTREAMSOURCEBILIBILI_H
