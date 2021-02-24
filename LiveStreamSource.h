@@ -8,7 +8,19 @@
 using SourceInputCallback = int(*)(void *opaque, uint8_t *buf, int buf_size);
 Q_DECLARE_METATYPE(SourceInputCallback);
 
-class LiveStreamView;
+class LiveStreamSource;
+
+class LiveStreamSourceDemuxWorker : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit LiveStreamSourceDemuxWorker(LiveStreamSource *parent) :QObject(nullptr), parent_(parent) {}
+public slots:
+    void Work();
+private:
+    LiveStreamSource *parent_ = nullptr;
+};
 
 class LiveStreamSource : public QObject
 {
@@ -104,6 +116,7 @@ class LiveStreamSource : public QObject
         void operator()(SwsContext **object) const { sws_freeContext(*object); *object = nullptr; }
     };
     using SwsContextObject = AVObjectBase<SwsContext, SwsContextReleaseFunctor>;
+
 public:
     explicit LiveStreamSource(QObject *parent = nullptr);
     ~LiveStreamSource();
@@ -113,17 +126,23 @@ public:
 signals:
     void playingChanged();
 
+    void invalidMedia();
     void newMedia(const AVCodecContext *video_decoder_context, const AVCodecContext *audio_decoder_context);
     void newVideoFrame(QSharedPointer<VideoFrame> video_frame);
     void newAudioFrame(QSharedPointer<AudioFrame> audio_frame);
     void newSubtitleFrame(QSharedPointer<SubtitleFrame> subtitle_frame);
     void deleteMedia();
 protected slots:
-    void OnNewInputStream(void *opaque, SourceInputCallback read_callback);
+    void OnNewInputStream(const char *url_hint, QIODevice *source, int64_t probe_size = -1);
+    void OnNewInputData();
     void OnDeleteInputStream();
 private slots:
     void OnPushTick();
 private:
+    friend class LiveStreamSourceDemuxWorker;
+    static int AVIOReadCallback(void *opaque, uint8_t *buf, int buf_size);
+
+    void NotifyAndWaitDemuxer();
     void Decode();
     int SendVideoPacket(AVPacket &packet);
     int SendAudioPacket(AVPacket &packet);
@@ -143,14 +162,22 @@ private:
     void Close();
 
     AVIOContextObject input_ctx_;
+
+    QThread demuxer_thread_;
+    QMutex demuxer_io_mutex_;
+    QWaitCondition demuxer_io_condition_;
+    QIODevice *demuxer_input_ = nullptr;
     AVFormatContextObject demuxer_ctx_;
-    int video_stream_index_, audio_stream_index_;
     std::vector<AVPacketObject> video_packets_, audio_packets_;
+    QMutexLocker demuxer_io_lock_;
+
+    int video_stream_index_, audio_stream_index_;
+
     AVCodecContextObject video_decoder_ctx_, audio_decoder_ctx_;
     SwsContextObject sws_context_;
     bool open_ = false;
 
-    bool playing_ = false, demux_eof_met_ = false, video_eof_met_ = false, audio_eof_met_ = false;
+    bool playing_ = false, video_eof_met_ = false, audio_eof_met_ = false;
     std::vector<QSharedPointer<VideoFrame>> video_frames_;
     std::vector<QSharedPointer<AudioFrame>> audio_frames_;
 
@@ -161,6 +188,10 @@ private:
     QTimer *push_timer_ = nullptr;
     PlaybackClock::time_point push_tick_time_;
     bool push_tick_enabled_ = false;
+
+#ifdef _DEBUG
+    PlaybackClock::time_point last_debug_report_;
+#endif
 };
 
 #endif // LIVESTREAMSOURCE_H
