@@ -17,14 +17,11 @@ public:
 
     Q_INVOKABLE void start();
 signals:
+    void startSignal();
     void filePathChanged();
-
-    void newInputStream(void *opaque, SourceInputCallback read_callback);
-private slots:
+private:
     void DoStart();
     void FeedTick();
-private:
-    static int AVIOReadCallback(void *opaque, uint8_t *buf, int buf_size);
 
     QString file_path_;
     QFile *fin_ = nullptr;

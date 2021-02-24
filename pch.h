@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <type_traits>
 
 #include <atomic>
@@ -19,15 +20,25 @@
 #include <QMetaMethod>
 
 #include <QtEndian>
+#include <QWaitCondition>
 #include <QIODevice>
+#include <QHash>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QThread>
 #include <QSharedPointer>
+#include <QUrl>
+#include <QUrlQuery>
 
 #include <QAbstractItemModel>
 #include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
 #include <QLoggingCategory>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QTimer>
 #include <QPainter>
 #include <QScreen>

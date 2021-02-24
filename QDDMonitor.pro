@@ -1,4 +1,4 @@
-QT += quick
+QT += quick network
 
 CONFIG += c++17 metatypes
 CONFIG(release, debug|release): CONFIG += ltcg
@@ -14,6 +14,7 @@ HEADERS += \
     D3D11FlushHelper.h \
     D3D11SharedResource.h \
     LiveStreamSource.h \
+    LiveStreamSourceBilibili.h \
     LiveStreamSourceFile.h \
     LiveStreamSourceModel.h \
     LiveStreamView.h \
@@ -30,6 +31,7 @@ SOURCES += \
         D3D11FlushHelper.cpp \
         D3D11SharedResource.cpp \
         LiveStreamSource.cpp \
+        LiveStreamSourceBilibili.cpp \
         LiveStreamSourceFile.cpp \
         LiveStreamSourceModel.cpp \
         LiveStreamView.cpp \
@@ -53,12 +55,19 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 DEFINES += AL_LIBTYPE_STATIC
 
 win32: {
-    CONFIG(release, debug|release): LIBS += -LC:/usr/lib/Release
-    else:CONFIG(debug, debug|release): LIBS += -LC:/usr/lib/Debug
-    LIBS += libavcodec.lib libavformat.lib libavutil.lib libswresample.lib libswscale.lib libx264.lib x265.lib OpenAL32.lib evr.lib mf.lib strmiids.lib mfplat.lib mfplay.lib mfreadwrite.lib mfuuid.lib ws2_32.lib bcrypt.lib secur32.lib d3d11.lib
-
     INCLUDEPATH += C:/usr/include
     DEPENDPATH += C:/usr/include
+
+    CONFIG(release, debug|release): {
+        INCLUDEPATH += C:/usr/lib/Win32/Release/include
+        LIBS += -LC:/usr/lib/Win32/Release
+    }
+    else:CONFIG(debug, debug|release): {
+        INCLUDEPATH += C:/usr/lib/Win32/Debug/include
+        LIBS += -LC:/usr/lib/Win32/Debug
+    }
+
+    LIBS += libavcodec.lib libavformat.lib libavutil.lib libswresample.lib libswscale.lib libx264.lib x265.lib OpenAL32.lib libssl.lib libcrypto.lib evr.lib mf.lib strmiids.lib mfplat.lib mfplay.lib mfreadwrite.lib mfuuid.lib ws2_32.lib bcrypt.lib secur32.lib d3d11.lib
 }
 else:unix: {
     LIBS += -lavcodec -lavformat -lavutil

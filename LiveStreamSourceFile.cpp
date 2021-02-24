@@ -4,7 +4,7 @@
 LiveStreamSourceFile::LiveStreamSourceFile(QObject *parent)
     :LiveStreamSource(parent), feed_timer_(new QTimer(this))
 {
-    connect(this, &LiveStreamSourceFile::newInputStream, this, &LiveStreamSourceFile::OnNewInputStream);
+    connect(this, &LiveStreamSourceFile::startSignal, this, &LiveStreamSourceFile::DoStart);
     connect(feed_timer_, &QTimer::timeout, this, &LiveStreamSourceFile::FeedTick);
 }
 
@@ -29,7 +29,7 @@ void LiveStreamSourceFile::setFilePath(const QString &file_path)
 
 void LiveStreamSourceFile::start()
 {
-    QMetaObject::invokeMethod(this, "DoStart");
+    emit startSignal();
 }
 
 void LiveStreamSourceFile::DoStart()
@@ -40,8 +40,14 @@ void LiveStreamSourceFile::DoStart()
     }
     fin_ = new QFile(file_path_, this);
     fin_->open(QIODevice::ReadOnly);
+    if (!fin_->isOpen())
+    {
+        emit invalidMedia();
+        return;
+    }
 
-    emit newInputStream(this, &LiveStreamSourceFile::AVIOReadCallback);
+    auto file_path_local_encoding = file_path_.toLocal8Bit();
+    OnNewInputStream(file_path_local_encoding.data(), fin_);
     feed_timer_->start(50);
 
     QSharedPointer<SubtitleFrame> dmk = QSharedPointer<SubtitleFrame>::create();
@@ -69,13 +75,4 @@ void LiveStreamSourceFile::FeedTick()
     dmk->style = SubtitleStyle::NORMAL;
     dmk->color = QColor(128, 0, 128);
     emit newSubtitleFrame(dmk);
-}
-
-int LiveStreamSourceFile::AVIOReadCallback(void *opaque, uint8_t *buf, int buf_size)
-{
-    LiveStreamSourceFile *self = reinterpret_cast<LiveStreamSourceFile *>(opaque);
-    qint64 read_size = self->fin_->read(reinterpret_cast<char *>(buf), buf_size);
-    if (read_size <= 0)
-        return AVERROR_EOF;
-    return (int)read_size;
 }
