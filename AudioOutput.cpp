@@ -86,7 +86,7 @@ void AudioOutput::onDeleteAudioSource(int source_id)
     sources_.erase(itr);
 }
 
-void AudioOutput::onNewAudioFrame(int source_id, QSharedPointer<AudioFrame> audio_frame)
+void AudioOutput::onNewAudioFrame(int source_id, const QSharedPointer<AudioFrame> &audio_frame)
 {
     AudioSource *source;
 

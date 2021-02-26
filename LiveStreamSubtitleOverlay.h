@@ -3,7 +3,7 @@
 
 #include "SubtitleFrame.h"
 
-class LiveStreamViewSubtitleOverlay : public QQuickPaintedItem
+class LiveStreamSubtitleOverlay : public QQuickPaintedItem
 {
     Q_OBJECT
 
@@ -25,19 +25,25 @@ class LiveStreamViewSubtitleOverlay : public QQuickPaintedItem
         int width = 0, slot = -1, progress_num = 0;
         bool occupies_slot = false;
     };
-public:
-    LiveStreamViewSubtitleOverlay(QQuickItem *parent = nullptr);
 
-    void AddSubtitle(const QSharedPointer<SubtitleFrame> &frame);
-    void Update(qreal t);
+    Q_PROPERTY(qreal t READ t WRITE setT NOTIFY tChanged)
+public:
+    LiveStreamSubtitleOverlay(QQuickItem *parent = nullptr);
+
+    qreal t() const { return t_; }
+    void setT(qreal new_t) { if (t_ != new_t) { Update(new_t); emit tChanged(); } }
 
     void paint(QPainter *painter) override;
 signals:
-
+    void tChanged();
+public slots:
+    void onNewSubtitleFrame(const QSharedPointer<SubtitleFrame> &subtitle_frame);
 private slots:
     void OnParentWidthChanged() { setWidth(parentItem()->width()); }
     void OnParentHeightChanged();
 private:
+    void Update(qreal t);
+
     static bool IsStyleFixedPosition(SubtitleStyle style);
     static unsigned char GetSlotBit(SubtitleStyle style);
 

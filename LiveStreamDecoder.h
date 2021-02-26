@@ -1,5 +1,5 @@
-#ifndef LIVESTREAMSOURCEDECODER_H
-#define LIVESTREAMSOURCEDECODER_H
+#ifndef LIVESTREAMDECODER_H
+#define LIVESTREAMDECODER_H
 
 #include "VideoFrame.h"
 #include "AudioFrame.h"
@@ -7,21 +7,21 @@
 
 #include "BlockingFIFOBuffer.h"
 
-class LiveStreamSourceDecoder;
+class LiveStreamDecoder;
 
 class LiveStreamSourceDemuxWorker : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit LiveStreamSourceDemuxWorker(LiveStreamSourceDecoder *parent) :QObject(nullptr), parent_(parent) {}
+    explicit LiveStreamSourceDemuxWorker(LiveStreamDecoder *parent) :QObject(nullptr), parent_(parent) {}
 public slots:
     void Work();
 private:
-    LiveStreamSourceDecoder *parent_ = nullptr;
+    LiveStreamDecoder *parent_ = nullptr;
 };
 
-class LiveStreamSourceDecoder : public QObject
+class LiveStreamDecoder : public QObject
 {
     Q_OBJECT
 
@@ -117,8 +117,8 @@ class LiveStreamSourceDecoder : public QObject
     using SwsContextObject = AVObjectBase<SwsContext, SwsContextReleaseFunctor>;
 
 public:
-    explicit LiveStreamSourceDecoder(QObject *parent = nullptr);
-    ~LiveStreamSourceDecoder();
+    explicit LiveStreamDecoder(QObject *parent = nullptr);
+    ~LiveStreamDecoder();
 
     bool open() const { return open_; }
     bool playing() const { return playing_; }
@@ -129,14 +129,14 @@ public:
 signals:
     void playingChanged(bool new_playing);
 
-    void InvalidMedia();
-    void NewMedia(const AVCodecContext *video_decoder_context, const AVCodecContext *audio_decoder_context);
-    void NewVideoFrame(QSharedPointer<VideoFrame> video_frame);
-    void NewAudioFrame(QSharedPointer<AudioFrame> audio_frame);
-    void DeleteMedia();
+    void invalidMedia();
+    void newMedia(const AVCodecContext *video_decoder_context, const AVCodecContext *audio_decoder_context);
+    void newVideoFrame(QSharedPointer<VideoFrame> video_frame);
+    void newAudioFrame(QSharedPointer<AudioFrame> audio_frame);
+    void deleteMedia();
 public slots:
-    void OnNewInputStream(const QString &url_hint);
-    void OnDeleteInputStream();
+    void onNewInputStream(const QString &url_hint);
+    void onDeleteInputStream();
 private slots:
     void OnPushTick();
 private:
@@ -194,4 +194,4 @@ private:
 #endif
 };
 
-#endif // LIVESTREAMSOURCEDECODER_H
+#endif // LIVESTREAMDECODER_H

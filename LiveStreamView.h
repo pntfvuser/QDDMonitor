@@ -8,7 +8,7 @@
 class LiveStreamSource;
 class VideoFrameTextureNode;
 class AudioOutput;
-class LiveStreamViewSubtitleOverlay;
+class LiveStreamSubtitleOverlay;
 
 class LiveStreamView : public QQuickItem
 {
@@ -46,11 +46,11 @@ signals:
     void tChanged();
 public slots:
     void onNewMedia(const AVCodecContext *video_decoder_context, const AVCodecContext *audio_decoder_context);
-    void onNewVideoFrame(QSharedPointer<VideoFrame> video_frame);
-    void onNewAudioFrame(QSharedPointer<AudioFrame> audio_frame);
-    void onNewSubtitleFrame(QSharedPointer<SubtitleFrame> subtitle_frame);
+    void onNewVideoFrame(const QSharedPointer<VideoFrame> &video_frame);
+    void onNewAudioFrame(const QSharedPointer<AudioFrame> &audio_frame);
+    void onNewSubtitleFrame(const QSharedPointer<SubtitleFrame> &subtitle_frame);
 private slots:
-    void onTChanged();
+    void OnTChanged();
 private:
     void releaseResources() override;
 
@@ -58,7 +58,7 @@ private:
     LiveStreamSource *current_source_ = nullptr;
     std::vector<QSharedPointer<VideoFrame>> next_frames_;
     AudioOutput *audio_out_ = nullptr;
-    LiveStreamViewSubtitleOverlay *subtitle_out_ = nullptr;
+    LiveStreamSubtitleOverlay *subtitle_out_ = nullptr;
 };
 
 #endif // LIVESTREAMVIEW_H

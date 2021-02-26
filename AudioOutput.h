@@ -53,7 +53,7 @@ public slots:
     void onNewAudioSource(int source_id, const AVCodecContext *context);
     void onDeleteAudioSource(int source_id);
 
-    void onNewAudioFrame(int source_id, QSharedPointer<AudioFrame> audio_frame);
+    void onNewAudioFrame(int source_id, const QSharedPointer<AudioFrame> &audio_frame);
     void onSetAudioSourceVolume(int source_id, qreal volume);
 private:
     void InitSource(AudioSource &source);

@@ -58,7 +58,7 @@ void LiveStreamSourceBilibili::onRequestActivate(const QString &quality_name)
     int quality_chosen = quality_.value(quality_name, -1);
     if (quality_chosen == -1)
     {
-        emit InvalidSourceArgument();
+        emit invalidSourceArgument();
         return;
     }
 
@@ -72,14 +72,14 @@ void LiveStreamSourceBilibili::onRequestActivateQn(int qn)
 
     if (room_id_ == -1)
     {
-        emit InvalidSourceArgument();
+        emit invalidSourceArgument();
         return;
     }
 
     if (av_reply_)
     {
         EndData();
-        emit RequestDeleteInputStream();
+        emit requestDeleteInputStream();
         av_reply_->deleteLater();
         av_reply_ = nullptr;
     }
@@ -102,7 +102,7 @@ void LiveStreamSourceBilibili::onRequestActivateQn(int qn)
 void LiveStreamSourceBilibili::onRequestDeactivate()
 {
     EndData();
-    emit RequestDeleteInputStream();
+    emit requestDeleteInputStream();
     if (av_reply_)
     {
         av_reply_->deleteLater();
@@ -200,7 +200,7 @@ void LiveStreamSourceBilibili::OnRequestStreamInfoProgress()
     {
         stream_info_reply_->deleteLater();
         stream_info_reply_ = nullptr;
-        emit InvalidSourceArgument();
+        emit invalidSourceArgument();
         return;
     }
 }
@@ -215,20 +215,20 @@ void LiveStreamSourceBilibili::OnRequestStreamInfoComplete()
 
     if (!json_doc.isObject())
     {
-        emit InvalidSourceArgument();
+        emit invalidSourceArgument();
         return;
     }
     QJsonObject json_object = json_doc.object();
     int code = (int)json_object.value("code").toDouble(-1);
     if (code != 0)
     {
-        emit InvalidSourceArgument();
+        emit invalidSourceArgument();
         return;
     }
     QJsonValue data_value = json_object.value("data");
     if (!data_value.isObject())
     {
-        emit InvalidSourceArgument();
+        emit invalidSourceArgument();
         return;
     }
     QJsonObject data_object = data_value.toObject();
@@ -236,13 +236,13 @@ void LiveStreamSourceBilibili::OnRequestStreamInfoComplete()
     QJsonValue durl_value = data_object.value("durl");
     if (!durl_value.isArray())
     {
-        emit InvalidSourceArgument();
+        emit invalidSourceArgument();
         return;
     }
     QJsonArray durl = durl_value.toArray();
     if (durl.empty())
     {
-        emit InvalidSourceArgument();
+        emit invalidSourceArgument();
         return;
     }
 
@@ -250,7 +250,7 @@ void LiveStreamSourceBilibili::OnRequestStreamInfoComplete()
     QJsonValue first_url = durl[0].toObject().value("url");
     if (!first_url.isString())
     {
-        emit InvalidSourceArgument();
+        emit invalidSourceArgument();
         return;
     }
 
@@ -259,7 +259,7 @@ void LiveStreamSourceBilibili::OnRequestStreamInfoComplete()
     av_reply_ = network_manager_->get(request);
 
     //TODO: handle openChanged
-    emit RequestNewInputStream("stream.flv");
+    emit requestNewInputStream("stream.flv");
     connect(av_reply_, &QNetworkReply::readyRead, this, &LiveStreamSourceBilibili::OnAVStreamProgress);
     connect(av_reply_, &QNetworkReply::finished, this, &LiveStreamSourceBilibili::OnAVStreamComplete);
     push_timer_->start(50);

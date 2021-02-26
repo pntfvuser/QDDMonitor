@@ -2,18 +2,18 @@
 #include "LiveStreamView.h"
 
 #include "LiveStreamSource.h"
-#include "LiveStreamSourceDecoder.h"
+#include "LiveStreamDecoder.h"
 #include "VideoFrameTextureNode.h"
 #include "AudioOutput.h"
-#include "LiveStreamViewSubtitleOverlay.h"
+#include "LiveStreamSubtitleOverlay.h"
 
 LiveStreamView::LiveStreamView(QQuickItem *parent)
     :QQuickItem(parent)
 {
     setFlag(ItemHasContents, true);
-    connect(this, &LiveStreamView::tChanged, this, &LiveStreamView::onTChanged);
+    connect(this, &LiveStreamView::tChanged, this, &LiveStreamView::OnTChanged);
 
-    subtitle_out_ = new LiveStreamViewSubtitleOverlay(this);
+    subtitle_out_ = new LiveStreamSubtitleOverlay(this);
 }
 
 LiveStreamView::~LiveStreamView()
@@ -27,18 +27,18 @@ void LiveStreamView::setSource(LiveStreamSource *source)
     {
         if (current_source_)
         {
-            disconnect(current_source_->decoder(), &LiveStreamSourceDecoder::NewMedia, this, &LiveStreamView::onNewMedia);
-            disconnect(current_source_->decoder(), &LiveStreamSourceDecoder::NewVideoFrame, this, &LiveStreamView::onNewVideoFrame);
-            disconnect(current_source_->decoder(), &LiveStreamSourceDecoder::NewAudioFrame, this, &LiveStreamView::onNewAudioFrame);
-            disconnect(current_source_, &LiveStreamSource::NewSubtitleFrame, this, &LiveStreamView::onNewSubtitleFrame);
+            disconnect(current_source_->decoder(), &LiveStreamDecoder::newMedia, this, &LiveStreamView::onNewMedia);
+            disconnect(current_source_->decoder(), &LiveStreamDecoder::newVideoFrame, this, &LiveStreamView::onNewVideoFrame);
+            disconnect(current_source_->decoder(), &LiveStreamDecoder::newAudioFrame, this, &LiveStreamView::onNewAudioFrame);
+            disconnect(current_source_, &LiveStreamSource::newSubtitleFrame, this, &LiveStreamView::onNewSubtitleFrame);
         }
         current_source_ = source;
         if (current_source_)
         {
-            connect(current_source_->decoder(), &LiveStreamSourceDecoder::NewMedia, this, &LiveStreamView::onNewMedia);
-            connect(current_source_->decoder(), &LiveStreamSourceDecoder::NewVideoFrame, this, &LiveStreamView::onNewVideoFrame);
-            connect(current_source_->decoder(), &LiveStreamSourceDecoder::NewAudioFrame, this, &LiveStreamView::onNewAudioFrame);
-            connect(current_source_, &LiveStreamSource::NewSubtitleFrame, this, &LiveStreamView::onNewSubtitleFrame);
+            connect(current_source_->decoder(), &LiveStreamDecoder::newMedia, this, &LiveStreamView::onNewMedia);
+            connect(current_source_->decoder(), &LiveStreamDecoder::newVideoFrame, this, &LiveStreamView::onNewVideoFrame);
+            connect(current_source_->decoder(), &LiveStreamDecoder::newAudioFrame, this, &LiveStreamView::onNewAudioFrame);
+            connect(current_source_, &LiveStreamSource::newSubtitleFrame, this, &LiveStreamView::onNewSubtitleFrame);
         }
         emit sourceChanged();
     }
@@ -105,7 +105,7 @@ void LiveStreamView::onNewMedia(const AVCodecContext *video_decoder_context, con
     Q_UNUSED(audio_decoder_context);
 }
 
-void LiveStreamView::onNewVideoFrame(QSharedPointer<VideoFrame> video_frame)
+void LiveStreamView::onNewVideoFrame(const QSharedPointer<VideoFrame> &video_frame)
 {
     if (sender() != current_source_->decoder())
         return;
@@ -115,24 +115,24 @@ void LiveStreamView::onNewVideoFrame(QSharedPointer<VideoFrame> video_frame)
         update();
 }
 
-void LiveStreamView::onNewAudioFrame(QSharedPointer<AudioFrame> audio_frame)
+void LiveStreamView::onNewAudioFrame(const QSharedPointer<AudioFrame> &audio_frame)
 {
     if (sender() != current_source_->decoder())
         return;
     emit newAudioFrame(0, audio_frame);
 }
 
-void LiveStreamView::onNewSubtitleFrame(QSharedPointer<SubtitleFrame> subtitle_frame)
+void LiveStreamView::onNewSubtitleFrame(const QSharedPointer<SubtitleFrame> &subtitle_frame)
 {
     if (sender() != current_source_)
         return;
-    subtitle_out_->AddSubtitle(subtitle_frame);
+    subtitle_out_->onNewSubtitleFrame(subtitle_frame);
 }
 
-void LiveStreamView::onTChanged()
+void LiveStreamView::OnTChanged()
 {
     update();
-    subtitle_out_->Update(t_);
+    subtitle_out_->setT(t_);
 }
 
 void LiveStreamView::releaseResources()

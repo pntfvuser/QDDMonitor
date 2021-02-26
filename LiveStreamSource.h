@@ -3,7 +3,7 @@
 
 #include "SubtitleFrame.h"
 
-class LiveStreamSourceDecoder;
+class LiveStreamDecoder;
 
 class LiveStreamSource : public QObject
 {
@@ -14,15 +14,15 @@ public:
     ~LiveStreamSource();
 
     bool open() const { return open_; }
-    LiveStreamSourceDecoder *decoder() { return decoder_; }
+    LiveStreamDecoder *decoder() { return decoder_; }
 signals:
     void openChanged(bool new_open);
 
-    void RequestNewInputStream(QString url_hint);
-    void RequestDeleteInputStream();
+    void requestNewInputStream(QString url_hint);
+    void requestDeleteInputStream();
 
-    void InvalidSourceArgument();
-    void NewSubtitleFrame(QSharedPointer<SubtitleFrame> audio_frame);
+    void invalidSourceArgument();
+    void newSubtitleFrame(QSharedPointer<SubtitleFrame> audio_frame);
 private slots:
     void OnInvalidMedia();
     void OnNewMedia(const AVCodecContext *video_decoder_context, const AVCodecContext *audio_decoder_context);
@@ -33,7 +33,7 @@ protected:
     void EndData();
 private:
     QThread decoder_thread_;
-    LiveStreamSourceDecoder *decoder_ = nullptr;
+    LiveStreamDecoder *decoder_ = nullptr;
     bool open_ = false;
 };
 

@@ -1,18 +1,18 @@
 #include "pch.h"
 #include "LiveStreamSource.h"
 
-#include "LiveStreamSourceDecoder.h"
+#include "LiveStreamDecoder.h"
 
 LiveStreamSource::LiveStreamSource(QObject *parent)
     :QObject(parent)
 {
-    decoder_ = new LiveStreamSourceDecoder;
+    decoder_ = new LiveStreamDecoder;
     decoder_->moveToThread(&decoder_thread_);
-    connect(this, &LiveStreamSource::RequestNewInputStream, decoder_, &LiveStreamSourceDecoder::OnNewInputStream);
-    connect(this, &LiveStreamSource::RequestDeleteInputStream, decoder_, &LiveStreamSourceDecoder::OnDeleteInputStream);
-    connect(decoder_, &LiveStreamSourceDecoder::InvalidMedia, this, &LiveStreamSource::OnInvalidMedia);
-    connect(decoder_, &LiveStreamSourceDecoder::NewMedia, this, &LiveStreamSource::OnNewMedia);
-    connect(decoder_, &LiveStreamSourceDecoder::DeleteMedia, this, &LiveStreamSource::OnDeleteMedia);
+    connect(this, &LiveStreamSource::requestNewInputStream, decoder_, &LiveStreamDecoder::onNewInputStream);
+    connect(this, &LiveStreamSource::requestDeleteInputStream, decoder_, &LiveStreamDecoder::onDeleteInputStream);
+    connect(decoder_, &LiveStreamDecoder::invalidMedia, this, &LiveStreamSource::OnInvalidMedia);
+    connect(decoder_, &LiveStreamDecoder::newMedia, this, &LiveStreamSource::OnNewMedia);
+    connect(decoder_, &LiveStreamDecoder::deleteMedia, this, &LiveStreamSource::OnDeleteMedia);
     connect(&decoder_thread_, &QThread::finished, decoder_, &QObject::deleteLater);
     decoder_thread_.start();
 }
@@ -20,7 +20,7 @@ LiveStreamSource::LiveStreamSource(QObject *parent)
 LiveStreamSource::~LiveStreamSource()
 {
     decoder_->EndData();
-    emit RequestDeleteInputStream();
+    emit requestDeleteInputStream();
     decoder_thread_.exit();
     decoder_thread_.wait();
 }

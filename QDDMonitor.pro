@@ -14,13 +14,13 @@ HEADERS += \
     BlockingFIFOBuffer.h \
     D3D11FlushHelper.h \
     D3D11SharedResource.h \
+    LiveStreamDecoder.h \
     LiveStreamSource.h \
     LiveStreamSourceBilibili.h \
-    LiveStreamSourceDecoder.h \
     LiveStreamSourceFile.h \
     LiveStreamSourceModel.h \
+    LiveStreamSubtitleOverlay.h \
     LiveStreamView.h \
-    LiveStreamViewSubtitleOverlay.h \
     SubtitleFrame.h \
     VideoFrame.h \
     VideoFrameTextureNode.h \
@@ -32,13 +32,13 @@ SOURCES += \
         AudioOutput.cpp \
         D3D11FlushHelper.cpp \
         D3D11SharedResource.cpp \
+        LiveStreamDecoder.cpp \
         LiveStreamSource.cpp \
         LiveStreamSourceBilibili.cpp \
-        LiveStreamSourceDecoder.cpp \
         LiveStreamSourceFile.cpp \
         LiveStreamSourceModel.cpp \
+        LiveStreamSubtitleOverlay.cpp \
         LiveStreamView.cpp \
-        LiveStreamViewSubtitleOverlay.cpp \
         VideoFrameTextureNode.cpp \
         main.cpp
 

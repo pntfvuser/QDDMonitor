@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "LiveStreamSourceDecoder.h"
+#include "LiveStreamDecoder.h"
 
 #include "D3D11SharedResource.h"
 
@@ -43,16 +43,16 @@ enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
     return *pix_fmts;
 }
 
-LiveStreamSourceDecoder::LiveStreamSourceDecoder(QObject *parent)
+LiveStreamDecoder::LiveStreamDecoder(QObject *parent)
     :QObject(parent)
 {
     push_timer_ = new QTimer(this);
     push_timer_->setSingleShot(true);
 
-    connect(push_timer_, &QTimer::timeout, this, &LiveStreamSourceDecoder::OnPushTick);
+    connect(push_timer_, &QTimer::timeout, this, &LiveStreamDecoder::OnPushTick);
 }
 
-LiveStreamSourceDecoder::~LiveStreamSourceDecoder()
+LiveStreamDecoder::~LiveStreamDecoder()
 {
     {
         QMutexLocker lock(&demuxer_out_mutex_);
@@ -68,22 +68,22 @@ LiveStreamSourceDecoder::~LiveStreamSourceDecoder()
     push_timer_->stop();
 }
 
-size_t LiveStreamSourceDecoder::PushData(const char *data, size_t size)
+size_t LiveStreamDecoder::PushData(const char *data, size_t size)
 {
     return demuxer_in_.Write(reinterpret_cast<const uint8_t *>(data), size);
 }
 
-void LiveStreamSourceDecoder::PushData(QIODevice *device)
+void LiveStreamDecoder::PushData(QIODevice *device)
 {
     demuxer_in_.Fill(device, std::min<qint64>(kInputBufferSizeLimit, device->bytesAvailable()));
 }
 
-void LiveStreamSourceDecoder::EndData()
+void LiveStreamDecoder::EndData()
 {
     demuxer_in_.Close();
 }
 
-void LiveStreamSourceDecoder::OnNewInputStream(const QString &url_hint)
+void LiveStreamDecoder::onNewInputStream(const QString &url_hint)
 {
     if (open_)
         Close();
@@ -231,20 +231,20 @@ void LiveStreamSourceDecoder::OnNewInputStream(const QString &url_hint)
     demuxer_thread_.start();
     QMetaObject::invokeMethod(worker, "Work");
 
-    emit NewMedia(video_decoder_ctx_.Get(), audio_decoder_ctx_.Get());
+    emit newMedia(video_decoder_ctx_.Get(), audio_decoder_ctx_.Get());
     InitPlaying();
     StartPushTick();
 }
 
-void LiveStreamSourceDecoder::OnDeleteInputStream()
+void LiveStreamDecoder::onDeleteInputStream()
 {
     if (!open_)
         Close();
 }
 
-int LiveStreamSourceDecoder::AVIOReadCallback(void *opaque, uint8_t *buf, int buf_size)
+int LiveStreamDecoder::AVIOReadCallback(void *opaque, uint8_t *buf, int buf_size)
 {
-    LiveStreamSourceDecoder *self = static_cast<LiveStreamSourceDecoder *>(opaque);
+    LiveStreamDecoder *self = static_cast<LiveStreamDecoder *>(opaque);
 
     size_t read_size = self->demuxer_in_.Read(buf, buf_size);
     if (read_size == 0)
@@ -258,7 +258,7 @@ int LiveStreamSourceDecoder::AVIOReadCallback(void *opaque, uint8_t *buf, int bu
 void LiveStreamSourceDemuxWorker::Work()
 {
     int ret;
-    LiveStreamSourceDecoder::AVPacketObject packet;
+    LiveStreamDecoder::AVPacketObject packet;
 
     while (true)
     {
@@ -275,7 +275,7 @@ void LiveStreamSourceDemuxWorker::Work()
             return;
         }
         packet.SetOwn();
-        (void)sizeof(LiveStreamSourceDecoder);
+        (void)sizeof(LiveStreamDecoder);
 
         if (packet->stream_index == parent_->video_stream_index_)
         {
@@ -298,7 +298,7 @@ void LiveStreamSourceDemuxWorker::Work()
     }
 }
 
-void LiveStreamSourceDecoder::Decode()
+void LiveStreamDecoder::Decode()
 {
     if (Q_UNLIKELY(!open()))
         return;
@@ -393,7 +393,7 @@ void LiveStreamSourceDecoder::Decode()
     demuxer_out_condition_.notify_all();
 }
 
-int LiveStreamSourceDecoder::SendVideoPacket(AVPacket &packet)
+int LiveStreamDecoder::SendVideoPacket(AVPacket &packet)
 {
     if (video_eof_)
         return AVERROR_EOF;
@@ -414,7 +414,7 @@ int LiveStreamSourceDecoder::SendVideoPacket(AVPacket &packet)
     return ret == AVERROR(EAGAIN) ? 0 : ret;
 }
 
-int LiveStreamSourceDecoder::SendAudioPacket(AVPacket &packet)
+int LiveStreamDecoder::SendAudioPacket(AVPacket &packet)
 {
     if (audio_eof_)
         return AVERROR_EOF;
@@ -435,7 +435,7 @@ int LiveStreamSourceDecoder::SendAudioPacket(AVPacket &packet)
     return ret == AVERROR(EAGAIN) ? 0 : ret;
 }
 
-int LiveStreamSourceDecoder::ReceiveVideoFrame()
+int LiveStreamDecoder::ReceiveVideoFrame()
 {
     AVFrameObject frame;
     int ret = 0;
@@ -616,7 +616,7 @@ int LiveStreamSourceDecoder::ReceiveVideoFrame()
     return 0;
 }
 
-int LiveStreamSourceDecoder::ReceiveAudioFrame()
+int LiveStreamDecoder::ReceiveAudioFrame()
 {
     AVFrameObject frame;
     int ret = 0;
@@ -652,7 +652,7 @@ int LiveStreamSourceDecoder::ReceiveAudioFrame()
     return 0;
 }
 
-void LiveStreamSourceDecoder::StartPushTick()
+void LiveStreamDecoder::StartPushTick()
 {
     push_tick_time_ = PlaybackClock::now();
     push_tick_enabled_ = true;
@@ -662,13 +662,13 @@ void LiveStreamSourceDecoder::StartPushTick()
     SetUpNextPushTick();
 }
 
-void LiveStreamSourceDecoder::StopPushTick()
+void LiveStreamDecoder::StopPushTick()
 {
     push_tick_enabled_ = false;
     push_timer_->stop();
 }
 
-void LiveStreamSourceDecoder::OnPushTick()
+void LiveStreamDecoder::OnPushTick()
 {
     if (!playing() && IsFrameBufferLongerThan(kFrameBufferStartThreshold))
     {
@@ -691,7 +691,7 @@ void LiveStreamSourceDecoder::OnPushTick()
             if (duration >= pushed_time_)
                 break;
             frame.present_time = base_time_ + duration + kUploadToRenderLatency;
-            emit NewVideoFrame(*video_itr);
+            emit newVideoFrame(*video_itr);
         }
         video_frames_.erase(video_frames_.begin(), video_itr);
 
@@ -703,7 +703,7 @@ void LiveStreamSourceDecoder::OnPushTick()
             if (duration >= pushed_time_)
                 break;
             frame.present_time = base_time_ + duration + kUploadToRenderLatency;
-            emit NewAudioFrame(*audio_itr);
+            emit newAudioFrame(*audio_itr);
         }
         audio_frames_.erase(audio_frames_.begin(), audio_itr);
 
@@ -742,7 +742,7 @@ void LiveStreamSourceDecoder::OnPushTick()
     SetUpNextPushTick();
 }
 
-void LiveStreamSourceDecoder::SetUpNextPushTick()
+void LiveStreamDecoder::SetUpNextPushTick()
 {
     if (!push_tick_enabled_)
         return;
@@ -758,7 +758,7 @@ void LiveStreamSourceDecoder::SetUpNextPushTick()
     }
 }
 
-bool LiveStreamSourceDecoder::IsPacketBufferLongerThan(PlaybackClock::duration duration)
+bool LiveStreamDecoder::IsPacketBufferLongerThan(PlaybackClock::duration duration)
 {
     if (video_packets_.empty() || audio_packets_.empty())
         return false;
@@ -769,7 +769,7 @@ bool LiveStreamSourceDecoder::IsPacketBufferLongerThan(PlaybackClock::duration d
     return true;
 }
 
-bool LiveStreamSourceDecoder::IsFrameBufferLongerThan(PlaybackClock::duration duration)
+bool LiveStreamDecoder::IsFrameBufferLongerThan(PlaybackClock::duration duration)
 {
     if (video_frames_.empty() || audio_frames_.empty())
         return false;
@@ -780,12 +780,12 @@ bool LiveStreamSourceDecoder::IsFrameBufferLongerThan(PlaybackClock::duration du
     return true;
 }
 
-void LiveStreamSourceDecoder::InitPlaying()
+void LiveStreamDecoder::InitPlaying()
 {
     video_eof_ = audio_eof_ = false;
 }
 
-void LiveStreamSourceDecoder::StartPlaying()
+void LiveStreamDecoder::StartPlaying()
 {
     Q_ASSERT(!video_frames_.empty() && !audio_frames_.empty());
     playing_ = true;
@@ -798,13 +798,13 @@ void LiveStreamSourceDecoder::StartPlaying()
     emit playingChanged(true);
 }
 
-void LiveStreamSourceDecoder::StopPlaying()
+void LiveStreamDecoder::StopPlaying()
 {
     playing_ = false;
     emit playingChanged(false);
 }
 
-void LiveStreamSourceDecoder::Close()
+void LiveStreamDecoder::Close()
 {
     demuxer_in_.Close();
     {
@@ -834,10 +834,10 @@ void LiveStreamSourceDecoder::Close()
     if (open_)
     {
         open_ = false;
-        emit DeleteMedia();
+        emit deleteMedia();
     }
     else
     {
-        emit InvalidMedia();
+        emit invalidMedia();
     }
 }
