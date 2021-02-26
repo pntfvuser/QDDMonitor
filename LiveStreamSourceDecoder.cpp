@@ -339,39 +339,54 @@ void LiveStreamSourceDecoder::Decode()
         timestamp_audio_front = -1;
     }
 
-    if (!video_packets_.empty())
+    if (video_eof_)
     {
-        while (!video_packets_.empty() && (video_frames_.empty() || video_frames_.back()->timestamp < timestamp_video_frame_full))
-        {
-            ret = SendVideoPacket(*video_packets_.front());
-            video_packets_.erase(video_packets_.begin());
-            if (ret == AVERROR_EOF)
-            {
-                break;
-            }
-            else if (ret < 0)
-            {
-                Close();
-                return;
-            }
-        }
+        video_packets_.clear();
     }
-    if (!audio_packets_.empty())
+    else
     {
-        while (!audio_packets_.empty() && (audio_frames_.empty() || audio_frames_.back()->timestamp < timestamp_audio_frame_full))
+        auto video_packet_itr = video_packets_.begin(), video_packet_itr_end = video_packets_.end();
+        while (video_packet_itr != video_packet_itr_end && (video_frames_.empty() || video_frames_.back()->timestamp < timestamp_video_frame_full))
         {
-            ret = SendAudioPacket(*audio_packets_.front());
-            audio_packets_.erase(audio_packets_.begin());
+            ret = SendVideoPacket(**video_packet_itr);
+            ++video_packet_itr;
             if (ret == AVERROR_EOF)
             {
                 break;
             }
             else if (ret < 0)
             {
+                lock.unlock();
                 Close();
                 return;
             }
         }
+        video_packets_.erase(video_packets_.begin(), video_packet_itr);
+    }
+
+    if (audio_eof_)
+    {
+        audio_packets_.clear();
+    }
+    else
+    {
+        auto audio_packet_itr = audio_packets_.begin(), audio_packet_itr_end = audio_packets_.end();
+        while (audio_packet_itr != audio_packet_itr_end && (audio_frames_.empty() || audio_frames_.back()->timestamp < timestamp_audio_frame_full))
+        {
+            ret = SendAudioPacket(**audio_packet_itr);
+            ++audio_packet_itr;
+            if (ret == AVERROR_EOF)
+            {
+                break;
+            }
+            else if (ret < 0)
+            {
+                lock.unlock();
+                Close();
+                return;
+            }
+        }
+        audio_packets_.erase(audio_packets_.begin(), audio_packet_itr);
     }
 
     lock.unlock();
@@ -452,7 +467,7 @@ int LiveStreamSourceDecoder::ReceiveVideoFrame()
         D3D11_TEXTURE2D_DESC texture_desc;
 
         ID3D11Texture2D *decoded_texture = reinterpret_cast<ID3D11Texture2D *>(frame->data[0]);
-        const int decoded_texture_index = reinterpret_cast<uintptr_t>(frame->data[1]);
+        const UINT decoded_texture_index = reinterpret_cast<intptr_t>(frame->data[1]);
         decoded_texture->GetDesc(&texture_desc);
         int width = texture_desc.Width;
         int height = texture_desc.Height;
@@ -655,9 +670,14 @@ void LiveStreamSourceDecoder::StopPushTick()
 
 void LiveStreamSourceDecoder::OnPushTick()
 {
-    if (!playing() && IsFrameBufferLongerThan(kFrameBufferStartThreshold) && IsPacketBufferLongerThan(kPacketBufferStartThreshold))
+    if (!playing() && IsFrameBufferLongerThan(kFrameBufferStartThreshold))
     {
-        StartPlaying();
+        QMutexLocker lock(&demuxer_out_mutex_);
+        if (IsPacketBufferLongerThan(kPacketBufferStartThreshold))
+        {
+            lock.unlock();
+            StartPlaying();
+        }
     }
     if (playing())
     {
@@ -807,6 +827,7 @@ void LiveStreamSourceDecoder::Close()
     audio_decoder_ctx_ = nullptr;
     video_packets_.clear();
     audio_packets_.clear();
+    demuxer_eof_ = false;
     demuxer_ctx_ = nullptr;
     input_ctx_ = nullptr;
 
