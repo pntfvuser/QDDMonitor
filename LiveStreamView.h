@@ -39,9 +39,9 @@ signals:
     void sourceChanged();
     void audioOutChanged();
 
-    void newAudioSource(uintptr_t source_id, const AVCodecContext *context);
-    void deleteAudioSource(uintptr_t source_id);
-    void newAudioFrame(uintptr_t source_id, QSharedPointer<AudioFrame> audio_frame);
+    void newAudioSource(int source_id, const AVCodecContext *context);
+    void deleteAudioSource(int source_id);
+    void newAudioFrame(int source_id, QSharedPointer<AudioFrame> audio_frame);
 
     void tChanged();
 public slots:

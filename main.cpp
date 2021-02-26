@@ -42,8 +42,15 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
 
+    AudioOutput *audio_out = new AudioOutput;
+    QThread audio_thread;
+    audio_out->moveToThread(&audio_thread);
+    QObject::connect(&audio_thread, &QThread::finished, audio_out, &QObject::deleteLater);
+    audio_thread.start();
+    engine.rootContext()->setContextProperty("debugAudioOut", audio_out);
+
     //LiveStreamSourceFile *source = new LiveStreamSourceFile(nullptr);
-    LiveStreamSourceBilibili *source = new LiveStreamSourceBilibili(6655);
+    LiveStreamSourceBilibili *source = new LiveStreamSourceBilibili(22348429);
     QThread source_thread;
     source->moveToThread(&source_thread);
     QObject::connect(&source_thread, &QThread::finished, source, &QObject::deleteLater);
@@ -67,6 +74,8 @@ int main(int argc, char *argv[])
     //Join threads here
     source_thread.quit();
     source_thread.wait();
+    audio_thread.quit();
+    audio_thread.wait();
 
     return retcode;
 }

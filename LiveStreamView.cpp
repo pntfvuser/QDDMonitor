@@ -18,7 +18,7 @@ LiveStreamView::LiveStreamView(QQuickItem *parent)
 
 LiveStreamView::~LiveStreamView()
 {
-    emit deleteAudioSource(reinterpret_cast<uintptr_t>(this));
+    emit deleteAudioSource(0);
 }
 
 void LiveStreamView::setSource(LiveStreamSource *source)
@@ -50,7 +50,7 @@ void LiveStreamView::setAudioOut(AudioOutput *audio_out)
     {
         if (audio_out_)
         {
-            emit deleteAudioSource(reinterpret_cast<uintptr_t>(this));
+            emit deleteAudioSource(0);
             disconnect(this, &LiveStreamView::newAudioSource, audio_out_, &AudioOutput::onNewAudioSource);
             disconnect(this, &LiveStreamView::deleteAudioSource, audio_out_, &AudioOutput::onDeleteAudioSource);
             disconnect(this, &LiveStreamView::newAudioFrame, audio_out_, &AudioOutput::onNewAudioFrame);
@@ -119,7 +119,7 @@ void LiveStreamView::onNewAudioFrame(QSharedPointer<AudioFrame> audio_frame)
 {
     if (sender() != current_source_->decoder())
         return;
-    emit newAudioFrame(reinterpret_cast<uintptr_t>(this), audio_frame);
+    emit newAudioFrame(0, audio_frame);
 }
 
 void LiveStreamView::onNewSubtitleFrame(QSharedPointer<SubtitleFrame> subtitle_frame)

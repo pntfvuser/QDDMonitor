@@ -25,7 +25,7 @@ class AudioOutput : public QQuickItem
         AudioSource(AudioSource &&) = delete;
         ~AudioSource();
 
-        uintptr_t id;
+        int id;
         AVSampleFormat sample_format;
         int channels, sample_channel_size, sample_rate;
 
@@ -50,11 +50,11 @@ public:
 signals:
 
 public slots:
-    void onNewAudioSource(uintptr_t source_id, const AVCodecContext *context);
-    void onDeleteAudioSource(uintptr_t source_id);
+    void onNewAudioSource(int source_id, const AVCodecContext *context);
+    void onDeleteAudioSource(int source_id);
 
-    void onNewAudioFrame(uintptr_t source_id, QSharedPointer<AudioFrame> audio_frame);
-    void onSetAudioSourceVolume(uintptr_t source_id, qreal volume);
+    void onNewAudioFrame(int source_id, QSharedPointer<AudioFrame> audio_frame);
+    void onSetAudioSourceVolume(int source_id, qreal volume);
 private:
     void InitSource(AudioSource &source);
     void InitSource(AudioSource &source, int channels, int64_t channel_layout, AVSampleFormat sample_fmt, int sample_rate);
@@ -67,7 +67,7 @@ private:
     ALCdevice *device_ = nullptr;
     ALCcontext *context_ = nullptr;
     LPALGETSOURCEI64VSOFT alGetSourcei64vSOFT;
-    std::unordered_map<uintptr_t, std::shared_ptr<AudioSource>> sources_;
+    std::unordered_map<int, std::shared_ptr<AudioSource>> sources_;
 };
 
 #endif // AUDIOOUTPUT_H

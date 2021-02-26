@@ -10,22 +10,16 @@ Window {
 
     D3D11FlushHelper {}
 
-    AudioOutput {
-        id: mainAudioOut
-    }
-
     LiveStreamView {
         anchors.fill: parent
-        audioOut: mainAudioOut
+        source: debugSource
+        audioOut: debugAudioOut
         NumberAnimation on t {
             from: 0
             to: 10000
             duration: 10000
             running: true
             loops: Animation.Infinite
-        }
-        Component.onCompleted: {
-            source = debugSource
         }
     }
 }

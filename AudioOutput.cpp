@@ -59,7 +59,7 @@ AudioOutput::~AudioOutput()
     }
 }
 
-void AudioOutput::onNewAudioSource(uintptr_t source_id, const AVCodecContext *context)
+void AudioOutput::onNewAudioSource(int source_id, const AVCodecContext *context)
 {
     std::shared_ptr<AudioSource> new_source;
     try
@@ -77,7 +77,7 @@ void AudioOutput::onNewAudioSource(uintptr_t source_id, const AVCodecContext *co
     InitSource(source, context->channels, context->channel_layout, context->sample_fmt, context->sample_rate);
 }
 
-void AudioOutput::onDeleteAudioSource(uintptr_t source_id)
+void AudioOutput::onDeleteAudioSource(int source_id)
 {
     auto itr = sources_.find(source_id);
     if (itr == sources_.end())
@@ -86,7 +86,7 @@ void AudioOutput::onDeleteAudioSource(uintptr_t source_id)
     sources_.erase(itr);
 }
 
-void AudioOutput::onNewAudioFrame(uintptr_t source_id, QSharedPointer<AudioFrame> audio_frame)
+void AudioOutput::onNewAudioFrame(int source_id, QSharedPointer<AudioFrame> audio_frame)
 {
     AudioSource *source;
 
@@ -161,7 +161,7 @@ void AudioOutput::onNewAudioFrame(uintptr_t source_id, QSharedPointer<AudioFrame
     }
 }
 
-void AudioOutput::onSetAudioSourceVolume(uintptr_t source_id, qreal volume)
+void AudioOutput::onSetAudioSourceVolume(int source_id, qreal volume)
 {
     AudioSource *source;
 
@@ -311,7 +311,7 @@ void AudioOutput::StartSource(const std::shared_ptr<AudioSource> &source, Playba
     }
     else
     {
-        QTimer::singleShot(sleep_time, this, [source_weak = std::weak_ptr<AudioSource>(source)]()
+        QTimer::singleShot(sleep_time, Qt::PreciseTimer, this, [source_weak = std::weak_ptr<AudioSource>(source)]()
         {
             auto source = source_weak.lock();
             if (!source)
