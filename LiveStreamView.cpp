@@ -127,7 +127,6 @@ void LiveStreamView::onNewSubtitleFrame(QSharedPointer<SubtitleFrame> subtitle_f
     if (sender() != current_source_)
         return;
     subtitle_out_->AddSubtitle(subtitle_frame);
-    subtitle_out_->update();
 }
 
 void LiveStreamView::onTChanged()

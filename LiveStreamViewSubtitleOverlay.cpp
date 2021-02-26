@@ -37,7 +37,9 @@ void LiveStreamViewSubtitleOverlay::AddSubtitle(const QSharedPointer<SubtitleFra
     item.text.prepare(QTransform(), subtitle_font_);
     item.color = frame->color;
     item.style = frame->style;
-    item.width = (int)round(item.text.size().width());;
+    item.width = (int)round(item.text.size().width());
+
+    update();
 }
 
 void LiveStreamViewSubtitleOverlay::Update(qreal t)
