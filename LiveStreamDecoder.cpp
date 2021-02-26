@@ -68,6 +68,11 @@ LiveStreamDecoder::~LiveStreamDecoder()
     push_timer_->stop();
 }
 
+void LiveStreamDecoder::BeginData()
+{
+    demuxer_in_.Open();
+}
+
 size_t LiveStreamDecoder::PushData(const char *data, size_t size)
 {
     return demuxer_in_.Write(reinterpret_cast<const uint8_t *>(data), size);
@@ -79,6 +84,11 @@ void LiveStreamDecoder::PushData(QIODevice *device)
 }
 
 void LiveStreamDecoder::EndData()
+{
+    demuxer_in_.End();
+}
+
+void LiveStreamDecoder::CloseData()
 {
     demuxer_in_.Close();
 }
@@ -98,8 +108,6 @@ void LiveStreamDecoder::onNewInputStream(const QString &url_hint)
         return;
     }
     input_buffer_.DetachObject();
-
-    demuxer_in_.Open();
 
     if (!(demuxer_ctx_ = avformat_alloc_context()))
     {
@@ -244,12 +252,12 @@ void LiveStreamDecoder::onDeleteInputStream()
 
 int LiveStreamDecoder::AVIOReadCallback(void *opaque, uint8_t *buf, int buf_size)
 {
+    Q_ASSERT(buf_size != 0);
     LiveStreamDecoder *self = static_cast<LiveStreamDecoder *>(opaque);
 
     size_t read_size = self->demuxer_in_.Read(buf, buf_size);
-    if (read_size == 0)
+    if (read_size == 0) //Closed
     {
-        self->demuxer_in_.Close();
         return AVERROR_EOF;
     }
     return (int)read_size;
@@ -707,7 +715,7 @@ void LiveStreamDecoder::OnPushTick()
         }
         audio_frames_.erase(audio_frames_.begin(), audio_itr);
 
-        if (Q_LIKELY(!demuxer_eof_))
+        if (Q_LIKELY(!demuxer_eof_)) //No need to lock here, since lock in Decode() should be able to sync this before frame buffer is empty
         {
             if (video_frames_.empty() || audio_frames_.empty())
             {

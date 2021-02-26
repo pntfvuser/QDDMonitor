@@ -4,7 +4,6 @@
 LiveStreamSourceFile::LiveStreamSourceFile(QObject *parent)
     :LiveStreamSource(parent), feed_timer_(new QTimer(this))
 {
-    connect(this, &LiveStreamSourceFile::startSignal, this, &LiveStreamSourceFile::DoStart);
     connect(feed_timer_, &QTimer::timeout, this, &LiveStreamSourceFile::FeedTick);
 }
 
@@ -27,12 +26,12 @@ void LiveStreamSourceFile::setFilePath(const QString &file_path)
     }
 }
 
-void LiveStreamSourceFile::start()
+void LiveStreamSourceFile::updateInfo()
 {
-    emit startSignal();
+    emit infoUpdated(STATUS_ONLINE, file_path_, QList<QString>());
 }
 
-void LiveStreamSourceFile::DoStart()
+void LiveStreamSourceFile::activate(const QString &)
 {
     if (fin_)
     {
@@ -46,7 +45,8 @@ void LiveStreamSourceFile::DoStart()
         return;
     }
 
-    emit requestNewInputStream(file_path_);
+    BeginData();
+    emit newInputStream(file_path_);
     feed_timer_->start(50);
 
     QSharedPointer<SubtitleFrame> dmk = QSharedPointer<SubtitleFrame>::create();
@@ -61,9 +61,24 @@ void LiveStreamSourceFile::DoStart()
     emit newSubtitleFrame(dmk);
 }
 
+void LiveStreamSourceFile::deactivate()
+{
+    if (!fin_)
+        return;
+    fin_->deleteLater();
+    fin_ = nullptr;
+    CloseData();
+    emit deleteInputStream();
+}
+
 void LiveStreamSourceFile::FeedTick()
 {
+    if (!fin_)
+        return;
+
     PushData(fin_);
+    if (fin_->atEnd())
+        EndData();
 
     QSharedPointer<SubtitleFrame> dmk = QSharedPointer<SubtitleFrame>::create();
     dmk->content = "test";

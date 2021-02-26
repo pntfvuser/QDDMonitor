@@ -123,9 +123,11 @@ public:
     bool open() const { return open_; }
     bool playing() const { return playing_; }
 
+    void BeginData();
     size_t PushData(const char *data, size_t size);
     void PushData(QIODevice *device);
     void EndData();
+    void CloseData();
 signals:
     void playingChanged(bool new_playing);
 

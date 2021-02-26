@@ -3,7 +3,7 @@
 
 class BlockingFIFOBuffer
 {
-    static constexpr uint64_t kBufferBlockSize = 0x40000;
+    static constexpr size_t kBufferBlockSize = 0x40000;
     struct BufferBlock
     {
         uint8_t block_data[kBufferBlockSize];
@@ -14,13 +14,13 @@ public:
     {
     }
 
-    uint64_t SizeLocked()
+    size_t SizeLocked()
     {
         QMutexLocker lock(&mutex_);
         return active_chunks_.size() * kBufferBlockSize - front_pos_ + back_pos_ - kBufferBlockSize;
     }
 
-    uint64_t Size()
+    size_t Size()
     {
         return active_chunks_.size() * kBufferBlockSize - front_pos_ + back_pos_ - kBufferBlockSize;
     }
@@ -31,9 +31,10 @@ public:
         front_pos_ = 0;
         back_pos_ = kBufferBlockSize;
         open_ = true;
+        eof_ = false;
     }
 
-    uint64_t Read(uint8_t *data, uint64_t max_size)
+    size_t Read(uint8_t *data, size_t max_size)
     {
         QMutexLocker lock(&mutex_);
         while (open_ && active_chunks_.empty())
@@ -41,10 +42,10 @@ public:
         if (!open_)
             return 0;
 
-        uint64_t size_read = 0;
+        size_t size_read = 0;
         while (active_chunks_.size() > 1)
         {
-            uint64_t front_size = kBufferBlockSize - front_pos_;
+            size_t front_size = kBufferBlockSize - front_pos_;
             if (front_size <= max_size)
             {
                 memcpy(data, active_chunks_.front().block_data + front_pos_, front_size);
@@ -65,13 +66,21 @@ public:
         }
         if (!active_chunks_.empty())
         {
-            uint64_t front_size = back_pos_ - front_pos_;
+            size_t front_size = back_pos_ - front_pos_;
             if (front_size <= max_size)
             {
                 memcpy(data, active_chunks_.front().block_data + front_pos_, front_size);
                 size_read += front_size;
                 //Don't need to update data and max_size since it's last memcpy
                 free_chunks_.splice(free_chunks_.end(), active_chunks_, active_chunks_.begin());
+                //This should be last chunk, check eof
+                if (eof_)
+                {
+                    open_ = false;
+                    lock.unlock();
+                    condition_.notify_all();
+                    return size_read;
+                }
                 front_pos_ = 0;
                 back_pos_ = kBufferBlockSize;
             }
@@ -86,15 +95,15 @@ public:
         return size_read;
     }
 
-    uint64_t Write(const uint8_t *data, uint64_t max_size)
+    size_t Write(const uint8_t *data, size_t max_size)
     {
         QMutexLocker lock(&mutex_);
         if (!open_)
             return 0;
-        const uint64_t size_written = max_size; //Will always write all data
+        const size_t size_written = max_size; //Will always write all data
         if (back_pos_ != kBufferBlockSize) //back_pos_ == kBufferChunkSize when active_chunks_.empty()
         {
-            uint64_t back_size = kBufferBlockSize - back_pos_;
+            size_t back_size = kBufferBlockSize - back_pos_;
             if (back_size >= max_size)
             {
                 memcpy(active_chunks_.back().block_data + back_pos_, data, max_size);
@@ -141,19 +150,19 @@ public:
         return size_written;
     }
 
-    uint64_t Fill(QIODevice *source, uint64_t fill_to)
+    size_t Fill(QIODevice *source, size_t fill_to)
     {
         QMutexLocker lock(&mutex_);
         if (!open_)
             return 0;
-        uint64_t current_size = Size();
+        size_t current_size = Size();
         if (current_size >= fill_to)
             return 0;
-        uint64_t max_size = fill_to - current_size;
-        const uint64_t size_written = max_size; //Will always write all data
+        size_t max_size = fill_to - current_size;
+        const size_t size_written = max_size; //Will always write all data
         if (back_pos_ != kBufferBlockSize) //back_pos_ == kBufferChunkSize when active_chunks_.empty()
         {
-            uint64_t back_size = kBufferBlockSize - back_pos_;
+            size_t back_size = kBufferBlockSize - back_pos_;
             if (back_size >= max_size)
             {
                 source->read(reinterpret_cast<char *>(active_chunks_.back().block_data + back_pos_), max_size);
@@ -198,6 +207,21 @@ public:
         return size_written;
     }
 
+    void End()
+    {
+        QMutexLocker lock(&mutex_);
+        if (!active_chunks_.empty())
+        {
+            eof_ = true;
+        }
+        else
+        {
+            open_ = false;
+            lock.unlock();
+            condition_.notify_all();
+        }
+    }
+
     void Close()
     {
         QMutexLocker lock(&mutex_);
@@ -209,9 +233,9 @@ private:
     QMutex mutex_;
     QWaitCondition condition_;
 
-    bool open_ = false;
+    bool open_ = false, eof_ = false;
     std::list<BufferBlock> active_chunks_, free_chunks_;
-    uint64_t front_pos_ = 0, back_pos_ = kBufferBlockSize;
+    size_t front_pos_ = 0, back_pos_ = kBufferBlockSize;
 };
 
 #endif // BLOCKQUEUEBUFFER_H

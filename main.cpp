@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
     qRegisterMetaType<QSharedPointer<VideoFrame>>();
     qRegisterMetaType<QSharedPointer<SubtitleFrame>>();
 
-    qmlRegisterType<LiveStreamSource>("org.anon.QDDMonitor", 1, 0, "LiveStreamSource");
+    qmlRegisterUncreatableType<LiveStreamSource>("org.anon.QDDMonitor", 1, 0, "LiveStreamSource", "LiveStreamSource is a interface");
     qmlRegisterType<LiveStreamSourceFile>("org.anon.QDDMonitor", 1, 0, "LiveStreamSourceFile");
     qmlRegisterType<LiveStreamSourceBilibili>("org.anon.QDDMonitor", 1, 0, "LiveStreamSourceBilibili");
     qmlRegisterType<LiveStreamView>("org.anon.QDDMonitor", 1, 0, "LiveStreamView");
@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("debugAudioOut", audio_out);
 
     //LiveStreamSourceFile *source = new LiveStreamSourceFile(nullptr);
-    LiveStreamSourceBilibili *source = new LiveStreamSourceBilibili(22348429);
+    LiveStreamSourceBilibili *source = new LiveStreamSourceBilibili(6655);
     QThread source_thread;
     source->moveToThread(&source_thread);
     QObject::connect(&source_thread, &QThread::finished, source, &QObject::deleteLater);
@@ -66,8 +66,8 @@ int main(int argc, char *argv[])
     engine.load(url);
 
     //source->setFilePath("E:\\Home\\Documents\\Qt\\QDDMonitor\\testsrc.mkv");
-    source->connect(source, &LiveStreamSourceBilibili::infoUpdated, source, [source](int status, const QList<QString> &) { if (status >= 0) source->onRequestActivateQn(10000); });
-    source->start();
+    source->connect(source, &LiveStreamSourceBilibili::infoUpdated, source, [source](int status, const QString &, const QList<QString> &options) { if (status >= 0) source->onRequestActivate(options.empty() ? "" : options.front()); });
+    QMetaObject::invokeMethod(source, "onRequestUpdateInfo");
 
     int retcode = app.exec();
 

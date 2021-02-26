@@ -14,13 +14,13 @@ public:
 
     QString filePath() const;
     void setFilePath(const QString &file_path);
-
-    Q_INVOKABLE void start();
 signals:
-    void startSignal();
     void filePathChanged();
 private:
-    void DoStart();
+    virtual void updateInfo() override;
+    virtual void activate(const QString &option) override;
+    virtual void deactivate() override;
+
     void FeedTick();
 
     QString file_path_;
