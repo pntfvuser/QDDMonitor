@@ -50,6 +50,9 @@ public slots:
     void onNewAudioFrame(const QSharedPointer<AudioFrame> &audio_frame);
     void onNewSubtitleFrame(const QSharedPointer<SubtitleFrame> &subtitle_frame);
 private slots:
+    void OnWidthChanged();
+    void OnHeightChanged();
+
     void OnTChanged();
 private:
     void releaseResources() override;

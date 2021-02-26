@@ -8,25 +8,14 @@ static constexpr int kSubtitleSameSlotMargin = 10;
 LiveStreamSubtitleOverlay::LiveStreamSubtitleOverlay(QQuickItem *parent)
     :QQuickPaintedItem(parent), subtitle_font_(QGuiApplication::font())
 {
-    setX(0);
-    setY(0);
-    if (parent != nullptr)
-    {
-        connect(parent, &QQuickItem::widthChanged, this, &LiveStreamSubtitleOverlay::OnParentWidthChanged);
-        connect(parent, &QQuickItem::heightChanged, this, &LiveStreamSubtitleOverlay::OnParentHeightChanged);
-        setWidth(parent->width());
-        setHeight(parent->height());
-    }
-    else
-    {
-        qWarning("LiveStreamViewSubtitleOverlay constructed without parent");
-    }
+    connect(this, &QQuickItem::heightChanged, this, &LiveStreamSubtitleOverlay::onHeightChanged);
 
     subtitle_font_.setPixelSize(20);
     QStaticText height_test_text("Ip");
     height_test_text.prepare(QTransform(), subtitle_font_);
     subtitle_slot_height_ = round(height_test_text.size().height());
-    subtitle_slot_busy_.resize((int)(height() / subtitle_slot_height_), 0);
+    if (height() >= subtitle_slot_height_)
+        subtitle_slot_busy_.resize((int)(height() / subtitle_slot_height_), 0);
 }
 
 void LiveStreamSubtitleOverlay::paint(QPainter *painter)
@@ -62,6 +51,20 @@ void LiveStreamSubtitleOverlay::paint(QPainter *painter)
     }
 }
 
+void LiveStreamSubtitleOverlay::onHeightChanged()
+{
+    size_t old_slot_count = subtitle_slot_busy_.size();
+    subtitle_slot_busy_.resize((int)(height() / subtitle_slot_height_));
+    if (subtitle_slot_busy_.size() < old_slot_count)
+    {
+        for (SubtitleItem &item : active_subtitles_)
+        {
+            if (item.occupies_slot && item.slot >= (int)subtitle_slot_busy_.size())
+                item.occupies_slot = false;
+        }
+    }
+}
+
 void LiveStreamSubtitleOverlay::onNewSubtitleFrame(const QSharedPointer<SubtitleFrame> &frame)
 {
     active_subtitles_.emplace_back();
@@ -73,22 +76,6 @@ void LiveStreamSubtitleOverlay::onNewSubtitleFrame(const QSharedPointer<Subtitle
     item.width = (int)round(item.text.size().width());
 
     update();
-}
-
-void LiveStreamSubtitleOverlay::OnParentHeightChanged()
-{
-    qreal new_height = parentItem()->height();
-    setHeight(new_height);
-    size_t old_slot_count = subtitle_slot_busy_.size();
-    subtitle_slot_busy_.resize((int)(new_height / subtitle_slot_height_));
-    if (subtitle_slot_busy_.size() < old_slot_count)
-    {
-        for (SubtitleItem &item : active_subtitles_)
-        {
-            if (item.occupies_slot && item.slot >= (int)subtitle_slot_busy_.size())
-                item.occupies_slot = false;
-        }
-    }
 }
 
 void LiveStreamSubtitleOverlay::Update(qreal t)

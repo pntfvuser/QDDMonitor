@@ -37,10 +37,8 @@ public:
 signals:
     void tChanged();
 public slots:
+    void onHeightChanged();
     void onNewSubtitleFrame(const QSharedPointer<SubtitleFrame> &subtitle_frame);
-private slots:
-    void OnParentWidthChanged() { setWidth(parentItem()->width()); }
-    void OnParentHeightChanged();
 private:
     void Update(qreal t);
 

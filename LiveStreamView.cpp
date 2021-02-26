@@ -11,9 +11,13 @@ LiveStreamView::LiveStreamView(QQuickItem *parent)
     :QQuickItem(parent)
 {
     setFlag(ItemHasContents, true);
+    connect(this, &QQuickItem::widthChanged, this, &LiveStreamView::OnWidthChanged);
+    connect(this, &QQuickItem::heightChanged, this, &LiveStreamView::OnHeightChanged);
     connect(this, &LiveStreamView::tChanged, this, &LiveStreamView::OnTChanged);
 
     subtitle_out_ = new LiveStreamSubtitleOverlay(this);
+    subtitle_out_->setPosition(QPointF(0, 0));
+    subtitle_out_->setSize(size());
 }
 
 LiveStreamView::~LiveStreamView()
@@ -127,6 +131,16 @@ void LiveStreamView::onNewSubtitleFrame(const QSharedPointer<SubtitleFrame> &sub
     if (sender() != current_source_)
         return;
     subtitle_out_->onNewSubtitleFrame(subtitle_frame);
+}
+
+void LiveStreamView::OnWidthChanged()
+{
+    subtitle_out_->setWidth(width());
+}
+
+void LiveStreamView::OnHeightChanged()
+{
+    subtitle_out_->setHeight(width());
 }
 
 void LiveStreamView::OnTChanged()
