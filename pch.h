@@ -31,7 +31,7 @@ using namespace std::chrono_literals;
 #include <QUrl>
 #include <QUrlQuery>
 
-#include <QAbstractItemModel>
+#include <QAbstractListModel>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
