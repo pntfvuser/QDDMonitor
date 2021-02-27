@@ -25,9 +25,9 @@ signals:
     void infoUpdated(int status, QString description, QList<QString> options);
 
     void invalidSourceArgument();
-    void invalidMedia();
+    void activated();
     void newSubtitleFrame(QSharedPointer<SubtitleFrame> audio_frame);
-    void deleteMedia();
+    void deactivated();
 
     void newInputStream(QString url_hint);
     void deleteInputStream();
@@ -36,8 +36,8 @@ public slots:
     void onRequestActivate(const QString &option);
     void onRequestDeactivate();
 private slots:
-    void OnInvalidMedia();
-    void OnDeleteMedia();
+    void OnInvalidMediaRedirector();
+    void OnDeleteMediaRedirector();
 protected:
     void BeginData();
     size_t PushData(const char *data, size_t size);
@@ -45,9 +45,11 @@ protected:
     void EndData();
     void CloseData();
 private:
-    virtual void updateInfo() = 0;
-    virtual void activate(const QString &option) = 0;
-    virtual void deactivate() = 0;
+    virtual void UpdateInfo() = 0;
+    virtual void Activate(const QString &option) = 0;
+    virtual void Deactivate() = 0;
+    virtual void OnInvalidMedia() {}
+    virtual void OnDeleteMedia() {}
 
     QThread decoder_thread_;
     LiveStreamDecoder *decoder_ = nullptr;

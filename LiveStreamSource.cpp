@@ -10,8 +10,8 @@ LiveStreamSource::LiveStreamSource(QObject *parent)
     decoder_->moveToThread(&decoder_thread_);
     connect(this, &LiveStreamSource::newInputStream, decoder_, &LiveStreamDecoder::onNewInputStream);
     connect(this, &LiveStreamSource::deleteInputStream, decoder_, &LiveStreamDecoder::onDeleteInputStream);
-    connect(decoder_, &LiveStreamDecoder::invalidMedia, this, &LiveStreamSource::OnInvalidMedia);
-    connect(decoder_, &LiveStreamDecoder::deleteMedia, this, &LiveStreamSource::OnDeleteMedia);
+    connect(decoder_, &LiveStreamDecoder::invalidMedia, this, &LiveStreamSource::OnInvalidMediaRedirector);
+    connect(decoder_, &LiveStreamDecoder::deleteMedia, this, &LiveStreamSource::OnDeleteMediaRedirector);
     connect(&decoder_thread_, &QThread::finished, decoder_, &QObject::deleteLater);
     decoder_thread_.start();
 }
@@ -26,27 +26,27 @@ LiveStreamSource::~LiveStreamSource()
 
 void LiveStreamSource::onRequestUpdateInfo()
 {
-    updateInfo();
+    UpdateInfo();
 }
 
 void LiveStreamSource::onRequestActivate(const QString &option)
 {
-    activate(option);
+    Activate(option);
 }
 
 void LiveStreamSource::onRequestDeactivate()
 {
-    deactivate();
+    Deactivate();
 }
 
-void LiveStreamSource::OnInvalidMedia()
+void LiveStreamSource::OnInvalidMediaRedirector()
 {
-    emit invalidMedia();
+    OnInvalidMedia();
 }
 
-void LiveStreamSource::OnDeleteMedia()
+void LiveStreamSource::OnDeleteMediaRedirector()
 {
-    emit deleteMedia();
+    OnDeleteMedia();
 }
 
 void LiveStreamSource::BeginData()

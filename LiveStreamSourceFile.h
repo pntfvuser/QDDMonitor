@@ -17,9 +17,9 @@ public:
 signals:
     void filePathChanged();
 private:
-    virtual void updateInfo() override;
-    virtual void activate(const QString &option) override;
-    virtual void deactivate() override;
+    virtual void UpdateInfo() override;
+    virtual void Activate(const QString &option) override;
+    virtual void Deactivate() override;
 
     void FeedTick();
 

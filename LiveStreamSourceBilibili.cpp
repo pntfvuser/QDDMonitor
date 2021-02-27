@@ -1,23 +1,9 @@
 #include "pch.h"
 #include "LiveStreamSourceBilibili.h"
 
-LiveStreamSourceBilibili::LiveStreamSourceBilibili(QObject *parent)
-    :LiveStreamSource(parent)
+LiveStreamSourceBilibili::LiveStreamSourceBilibili(int room_display_id, QNetworkAccessManager *network_manager, QObject *parent)
+    :LiveStreamSource(parent), room_display_id_(room_display_id), network_manager_(network_manager)
 {
-    connect(this, &LiveStreamSource::invalidMedia, this, &LiveStreamSourceBilibili::OnDeleteMedia);
-    connect(this, &LiveStreamSource::deleteMedia, this, &LiveStreamSourceBilibili::OnDeleteMedia);
-    network_manager_ = new QNetworkAccessManager(this);
-    push_timer_ = new QTimer(this);
-    connect(push_timer_, &QTimer::timeout, this, &LiveStreamSourceBilibili::OnAVStreamPush);
-    description_ = tr("bilibili live room");
-}
-
-LiveStreamSourceBilibili::LiveStreamSourceBilibili(int room_display_id, QObject *parent)
-    :LiveStreamSource(parent), room_display_id_(room_display_id)
-{
-    connect(this, &LiveStreamSource::invalidMedia, this, &LiveStreamSourceBilibili::OnDeleteMedia);
-    connect(this, &LiveStreamSource::deleteMedia, this, &LiveStreamSourceBilibili::OnDeleteMedia);
-    network_manager_ = new QNetworkAccessManager(this);
     push_timer_ = new QTimer(this);
     connect(push_timer_, &QTimer::timeout, this, &LiveStreamSourceBilibili::OnAVStreamPush);
     description_ = tr("bilibili live room %1").arg(room_display_id);
@@ -27,7 +13,7 @@ LiveStreamSourceBilibili::~LiveStreamSourceBilibili()
 {
 }
 
-void LiveStreamSourceBilibili::updateInfo()
+void LiveStreamSourceBilibili::UpdateInfo()
 {
     if (info_reply_)
         return; //Prevent duplicate request
@@ -104,7 +90,7 @@ void LiveStreamSourceBilibili::OnRequestUpdateInfoComplete()
     }
     room_id_ = (int)room_id_value.toDouble();
     int status = (int)live_status_value.toDouble();
-    status = status == 0 ? STATUS_OFFLINE : STATUS_ONLINE;
+    status = status == 1 ? STATUS_ONLINE : STATUS_OFFLINE;
     quality_.clear();
 
     QJsonValue qn_desc_value = data_object.value("playurl_info").toObject().value("playurl").toObject().value("g_qn_desc");
@@ -132,7 +118,7 @@ void LiveStreamSourceBilibili::OnRequestUpdateInfoComplete()
     emit infoUpdated(status, description_, descs);
 }
 
-void LiveStreamSourceBilibili::activate(const QString &quality_name)
+void LiveStreamSourceBilibili::Activate(const QString &quality_name)
 {
     if (stream_info_reply_ || av_reply_) //Activating or active
         return;
@@ -231,7 +217,7 @@ void LiveStreamSourceBilibili::OnRequestStreamInfoComplete()
     }
 
     //TODO: switch between different url on failure
-    QJsonValue first_url = durl[0].toObject().value("url");
+    QJsonValue first_url = durl[2].toObject().value("url");
     if (!first_url.isString())
     {
         emit invalidSourceArgument();
@@ -244,6 +230,7 @@ void LiveStreamSourceBilibili::OnRequestStreamInfoComplete()
     if (!av_reply_)
         return;
     active_ = true;
+    emit activated();
 
     BeginData();
     emit newInputStream("stream.flv");
@@ -258,6 +245,7 @@ void LiveStreamSourceBilibili::OnAVStreamProgress()
     PushData(av_reply_);
     if (av_reply_->isFinished() && av_reply_->bytesAvailable() <= 0)
     {
+        qDebug() << av_reply_->errorString();
         push_timer_->stop();
         EndData();
     }
@@ -274,12 +262,13 @@ void LiveStreamSourceBilibili::OnAVStreamPush()
         PushData(av_reply_);
     if (av_reply_->isFinished() && av_reply_->bytesAvailable() <= 0)
     {
+        qDebug() << av_reply_->errorString();
         push_timer_->stop();
         EndData();
     }
 }
 
-void LiveStreamSourceBilibili::deactivate()
+void LiveStreamSourceBilibili::Deactivate()
 {
     if (av_reply_)
     {
@@ -291,8 +280,15 @@ void LiveStreamSourceBilibili::deactivate()
     }
 }
 
+void LiveStreamSourceBilibili::OnInvalidMedia()
+{
+    OnDeleteMedia();
+}
+
 void LiveStreamSourceBilibili::OnDeleteMedia()
 {
+    if (!active_)
+        return;
     if (av_reply_)
     {
         push_timer_->stop();
@@ -301,14 +297,18 @@ void LiveStreamSourceBilibili::OnDeleteMedia()
         //No need to CloseData since LiveStreamDecoder::Close() has already done that
     }
     active_ = false;
+    emit deactivated();
 
     if (!pending_option_.isEmpty())
     {
         QTimer::singleShot(0, this, [this]()
         {
-            QString option = pending_option_;
-            pending_option_.clear();
-            activate(option);
+            if (!pending_option_.isEmpty())
+            {
+                QString option = pending_option_;
+                pending_option_.clear();
+                Activate(option);
+            }
         });
     }
 }

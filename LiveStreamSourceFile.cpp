@@ -26,21 +26,21 @@ void LiveStreamSourceFile::setFilePath(const QString &file_path)
     }
 }
 
-void LiveStreamSourceFile::updateInfo()
+void LiveStreamSourceFile::UpdateInfo()
 {
     emit infoUpdated(STATUS_ONLINE, file_path_, QList<QString>());
 }
 
-void LiveStreamSourceFile::activate(const QString &)
+void LiveStreamSourceFile::Activate(const QString &)
 {
     if (fin_)
-    {
-        fin_->deleteLater();
-    }
+        return;
     fin_ = new QFile(file_path_, this);
     fin_->open(QIODevice::ReadOnly);
     if (!fin_->isOpen())
     {
+        fin_->deleteLater();
+        fin_ = nullptr;
         emit invalidSourceArgument();
         return;
     }
@@ -61,7 +61,7 @@ void LiveStreamSourceFile::activate(const QString &)
     emit newSubtitleFrame(dmk);
 }
 
-void LiveStreamSourceFile::deactivate()
+void LiveStreamSourceFile::Deactivate()
 {
     if (!fin_)
         return;
@@ -74,7 +74,10 @@ void LiveStreamSourceFile::deactivate()
 void LiveStreamSourceFile::FeedTick()
 {
     if (!fin_)
+    {
+        feed_timer_->stop();
         return;
+    }
 
     PushData(fin_);
     if (fin_->atEnd())

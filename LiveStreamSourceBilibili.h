@@ -8,8 +8,7 @@ class LiveStreamSourceBilibili : public LiveStreamSource
     Q_OBJECT
 
 public:
-    explicit LiveStreamSourceBilibili(QObject *parent = nullptr);
-    explicit LiveStreamSourceBilibili(int room_display_id, QObject *parent = nullptr);
+    explicit LiveStreamSourceBilibili(int room_display_id, QNetworkAccessManager *network_manager, QObject *parent = nullptr);
     ~LiveStreamSourceBilibili();
 private slots:
     void OnRequestUpdateInfoProgress();
@@ -18,11 +17,12 @@ private slots:
     void OnRequestStreamInfoComplete();
     void OnAVStreamProgress();
     void OnAVStreamPush();
-    void OnDeleteMedia();
 private:
-    virtual void updateInfo() override;
-    virtual void activate(const QString &option) override;
-    virtual void deactivate() override;
+    virtual void UpdateInfo() override;
+    virtual void Activate(const QString &option) override;
+    virtual void Deactivate() override;
+    virtual void OnInvalidMedia() override;
+    virtual void OnDeleteMedia() override;
 
     int room_display_id_ = -1, room_id_ = -1;
     QString description_;

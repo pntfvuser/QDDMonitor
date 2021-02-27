@@ -96,7 +96,7 @@ void LiveStreamDecoder::CloseData()
 void LiveStreamDecoder::onNewInputStream(const QString &url_hint)
 {
     if (open_)
-        Close();
+        return;
 
     int i, ret;
 
@@ -246,7 +246,7 @@ void LiveStreamDecoder::onNewInputStream(const QString &url_hint)
 
 void LiveStreamDecoder::onDeleteInputStream()
 {
-    if (!open_)
+    if (open_)
         Close();
 }
 
@@ -283,7 +283,6 @@ void LiveStreamSourceDemuxWorker::Work()
             return;
         }
         packet.SetOwn();
-        (void)sizeof(LiveStreamDecoder);
 
         if (packet->stream_index == parent_->video_stream_index_)
         {
@@ -308,8 +307,7 @@ void LiveStreamSourceDemuxWorker::Work()
 
 void LiveStreamDecoder::Decode()
 {
-    if (Q_UNLIKELY(!open()))
-        return;
+    Q_ASSERT(open());
 
     int ret;
 
@@ -678,6 +676,9 @@ void LiveStreamDecoder::StopPushTick()
 
 void LiveStreamDecoder::OnPushTick()
 {
+    if (Q_UNLIKELY(!open_))
+        return;
+
     if (!playing() && IsFrameBufferLongerThan(kFrameBufferStartThreshold))
     {
         QMutexLocker lock(&demuxer_out_mutex_);
