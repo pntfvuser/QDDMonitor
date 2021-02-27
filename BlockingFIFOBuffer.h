@@ -98,7 +98,7 @@ public:
     size_t Write(const uint8_t *data, size_t max_size)
     {
         QMutexLocker lock(&mutex_);
-        if (!open_)
+        if (!open_ || eof_)
             return 0;
         const size_t size_written = max_size; //Will always write all data
         if (back_pos_ != kBufferBlockSize) //back_pos_ == kBufferChunkSize when active_chunks_.empty()
@@ -153,7 +153,7 @@ public:
     size_t Fill(QIODevice *source, size_t fill_to)
     {
         QMutexLocker lock(&mutex_);
-        if (!open_)
+        if (!open_ || eof_)
             return 0;
         size_t current_size = Size();
         if (current_size >= fill_to)

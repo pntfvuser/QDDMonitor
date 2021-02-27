@@ -257,7 +257,10 @@ void LiveStreamSourceBilibili::OnAVStreamProgress()
         return;
     PushData(av_reply_);
     if (av_reply_->isFinished() && av_reply_->bytesAvailable() <= 0)
+    {
+        push_timer_->stop();
         EndData();
+    }
 }
 
 void LiveStreamSourceBilibili::OnAVStreamPush()
@@ -270,16 +273,19 @@ void LiveStreamSourceBilibili::OnAVStreamPush()
     if (av_reply_->bytesAvailable() > 0)
         PushData(av_reply_);
     if (av_reply_->isFinished() && av_reply_->bytesAvailable() <= 0)
+    {
+        push_timer_->stop();
         EndData();
+    }
 }
 
 void LiveStreamSourceBilibili::deactivate()
 {
     if (av_reply_)
     {
+        push_timer_->stop();
         av_reply_->deleteLater();
         av_reply_ = nullptr;
-        push_timer_->stop();
         CloseData();
         emit deleteInputStream();
     }
@@ -289,9 +295,9 @@ void LiveStreamSourceBilibili::OnDeleteMedia()
 {
     if (av_reply_)
     {
+        push_timer_->stop();
         av_reply_->deleteLater();
         av_reply_ = nullptr;
-        push_timer_->stop();
         //No need to CloseData since LiveStreamDecoder::Close() has already done that
     }
     active_ = false;
