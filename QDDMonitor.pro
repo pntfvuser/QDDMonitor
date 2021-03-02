@@ -21,6 +21,7 @@ HEADERS += \
     LiveStreamSourceModel.h \
     LiveStreamSubtitleOverlay.h \
     LiveStreamView.h \
+    LiveStreamViewLayoutModel.h \
     LiveStreamViewModel.h \
     SubtitleFrame.h \
     VideoFrame.h \
@@ -40,6 +41,7 @@ SOURCES += \
         LiveStreamSourceModel.cpp \
         LiveStreamSubtitleOverlay.cpp \
         LiveStreamView.cpp \
+        LiveStreamViewLayoutModel.cpp \
         LiveStreamViewModel.cpp \
         VideoFrameTextureNode.cpp \
         main.cpp
