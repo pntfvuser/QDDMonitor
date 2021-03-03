@@ -114,7 +114,33 @@ void LiveStreamSourceModel::removeSourceByIndex(int index)
     }
 }
 
-void LiveStreamSourceModel::activateAndGetSources(std::vector<std::pair<int, LiveStreamSource *>> &sources)
+LiveStreamSource *LiveStreamSourceModel::ActivateAndGetSource(int source_id)
+{
+    if (activated_sources_.count(source_id) > 0)
+        return nullptr;
+    auto itr = sources_.find(source_id);
+    if (itr == sources_.end())
+        return nullptr;
+    activated_sources_.emplace(source_id);
+
+    const LiveStreamSourceInfo &source_info = itr->second;
+    if (source_info.online() && !source_info.activated())
+        ActivateSource(source_info.source(), source_info.effectiveOption());
+
+    return itr->second.source();
+}
+
+void LiveStreamSourceModel::DeactivateSingleSource(int source_id)
+{
+    if (activated_sources_.erase(source_id) > 0)
+    {
+        auto itr = sources_.find(source_id);
+        if (itr != sources_.end() && itr->second.activated())
+            DeactivateSource(itr->second.source());
+    }
+}
+
+void LiveStreamSourceModel::ActivateAndGetSources(std::vector<std::pair<int, LiveStreamSource *>> &sources)
 {
     std::unordered_set<int> new_activated_sources;
     for (auto &p : sources)
@@ -134,12 +160,10 @@ void LiveStreamSourceModel::activateAndGetSources(std::vector<std::pair<int, Liv
             if (itr_activated == activated_sources_.end())
             {
                 //Not previously marked as activated
-                if (!source_info.activated() && source_info.online())
+                if (source_info.online() && !source_info.activated())
                 {
                     //Not activated yet and online, activate
-
-                    const auto &options = source_info.availableOptions();
-                    QMetaObject::invokeMethod(source_info.source(), "onRequestActivate", Q_ARG(QString, options.empty() ? "" : options.front()));
+                    ActivateSource(source_info.source(), source_info.effectiveOption());
                 }
             }
             else
@@ -152,12 +176,23 @@ void LiveStreamSourceModel::activateAndGetSources(std::vector<std::pair<int, Liv
     for (int id : activated_sources_)
     {
         auto itr = sources_.find(id);
-        if (itr != sources_.end())
+        if (itr != sources_.end() && itr->second.activated())
         {
-            QMetaObject::invokeMethod(itr->second.source(), "onRequestDeactivate");
+            DeactivateSource(itr->second.source());
         }
     }
     activated_sources_ = std::move(new_activated_sources);
+}
+
+void LiveStreamSourceModel::DeactivateAllSource()
+{
+    for (int id : activated_sources_)
+    {
+        auto itr = sources_.find(id);
+        if (itr != sources_.end() && itr->second.activated())
+            DeactivateSource(itr->second.source());
+    }
+    activated_sources_.clear();
 }
 
 void LiveStreamSourceModel::AddSource(LiveStreamSource *source, const QString &name)
@@ -210,10 +245,8 @@ void LiveStreamSourceModel::OnDeactivated(int id)
     if (idx != -1)
         emit dataChanged(index(idx), index(idx));
 
-    if (activated_sources_.count(id) == 0)
-    {
+    if (itr->second.online() && activated_sources_.count(id) > 0)
         ActivateSource(itr->second.source(), itr->second.effectiveOption());
-    }
 }
 
 void LiveStreamSourceModel::StartUpdateSources()

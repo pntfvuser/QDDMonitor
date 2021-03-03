@@ -59,7 +59,10 @@ public:
     Q_INVOKABLE void removeSourceById(int id);
     Q_INVOKABLE void removeSourceByIndex(int index);
 
-    void activateAndGetSources(std::vector<std::pair<int, LiveStreamSource *>> &sources);
+    LiveStreamSource *ActivateAndGetSource(int source_id);
+    void DeactivateSingleSource(int source_id);
+    void ActivateAndGetSources(std::vector<std::pair<int, LiveStreamSource *>> &sources);
+    void DeactivateAllSource();
 signals:
     void newSource(int id);
     void deleteSource(int id);

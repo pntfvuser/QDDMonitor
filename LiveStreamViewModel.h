@@ -30,6 +30,7 @@ public:
     int columnSpan() const { return column_span_; }
     int sourceId() const { return source_id_; }
     LiveStreamSource *source() const { return source_; }
+    void setSource(int source_id, LiveStreamSource *source) { source_id_ = source_id; source_ = source; }
     AudioOutput *audioOut() const { return audio_out_; }
 private:
     int row_;
@@ -50,12 +51,13 @@ class LiveStreamViewModel : public QAbstractListModel
     Q_PROPERTY(int columns READ columns NOTIFY columnsChanged)
 public:
     explicit LiveStreamViewModel(QObject *parent = nullptr);
+    ~LiveStreamViewModel();
 
     int rowCount(const QModelIndex & = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role) const override;
 
     LiveStreamSourceModel *sourceModel() const { return source_model_; }
-    void setSourceModel(LiveStreamSourceModel *new_source_model) { if (source_model_ != new_source_model) { source_model_ = new_source_model; emit sourceModelChanged(); } }
+    void setSourceModel(LiveStreamSourceModel *new_source_model);
 
     int rows() const { return rows_; }
     void setRows(int new_rows) { if (rows_ != new_rows) { rows_ = new_rows; emit rowsChanged(); } }
@@ -63,18 +65,20 @@ public:
     void setColumns(int new_columns) { if (columns_ != new_columns) { columns_ = new_columns; emit columnsChanged(); } }
 
     Q_INVOKABLE void resetLayout(LiveStreamViewLayoutModel *layout_model);
+    Q_INVOKABLE void setSource(int index, int source_id);
 signals:
     void sourceModelChanged();
     void rowsChanged();
     void columnsChanged();
-public slots:
+private slots:
+    void OnDeleteSource(int source_id);
 private:
-    LiveStreamSourceModel *source_model_;
+    LiveStreamSourceModel *source_model_ = nullptr;
 
     QThread audio_thread_;
-    AudioOutput *audio_out_;
+    AudioOutput *audio_out_ = nullptr;
 
-    int rows_ = -1, columns_ = -1;
+    int rows_ = 1, columns_ = 1;
     std::vector<LiveStreamViewInfo> view_info_;
 };
 

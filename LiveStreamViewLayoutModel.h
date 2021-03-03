@@ -9,22 +9,19 @@ class LiveStreamViewLayoutItem
     Q_PROPERTY(int column READ column)
     Q_PROPERTY(int rowSpan READ rowSpan)
     Q_PROPERTY(int columnSpan READ columnSpan)
-    Q_PROPERTY(bool dummy READ isDummy)
 public:
     LiveStreamViewLayoutItem() = default;
-    LiveStreamViewLayoutItem(int row, int column, int row_span, int column_span, bool dummy) :row_(row), column_(column), row_span_(row_span), column_span_(column_span), dummy_(dummy) {}
+    LiveStreamViewLayoutItem(int row, int column, int row_span, int column_span) :row_(row), column_(column), row_span_(row_span), column_span_(column_span) {}
 
     int row() const { return row_; }
     int column() const { return column_; }
     int rowSpan() const { return row_span_; }
     int columnSpan() const { return column_span_; }
-    bool isDummy() const { return dummy_; }
 private:
     int row_;
     int column_;
     int row_span_;
     int column_span_;
-    bool dummy_;
 };
 
 class LiveStreamViewLayoutModel : public QAbstractListModel
@@ -44,17 +41,17 @@ public:
     int columns() const { return columns_; }
     void setColumns(int new_columns) { if (columns_ != new_columns) { columns_ = new_columns; emit columnsChanged(); } }
 
-    Q_INVOKABLE void resetLayout(int rows, int column);
+    Q_INVOKABLE void resetLayout(int rows, int columns);
     Q_INVOKABLE void addLayoutItem(int row, int column, int row_span, int column_span);
 
-    Q_INVOKABLE bool itemWillOverlap(int row, int column, int row_span, int column_span) const;
+    Q_INVOKABLE bool itemWillIntersect(int row, int column, int row_span, int column_span) const;
 
     const std::vector<LiveStreamViewLayoutItem> &LayoutItems() const { return layout_items_; }
 signals:
     void rowsChanged();
     void columnsChanged();
 private:
-    int rows_ = -1, columns_ = -1;
+    int rows_ = 1, columns_ = 1;
     std::vector<LiveStreamViewLayoutItem> layout_items_;
 };
 

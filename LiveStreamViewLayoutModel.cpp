@@ -1,13 +1,9 @@
 #include "pch.h"
 #include "LiveStreamViewLayoutModel.h"
 
-static inline constexpr bool overlapTest(int x1, int x1_span, int x2, int x2_span)
+static inline constexpr bool intersectTest(int x1, int x1_span, int x2, int x2_span)
 {
-    if (x1 <= x2 && x2 < x1 + x1_span)
-        return true;
-    if (x1 < x2 + x2_span && x2 + x2_span <= x1 + x1_span)
-        return true;
-    return false;
+    return x1 < x2 + x2_span && x2 < x1 + x1_span;
 }
 
 LiveStreamViewLayoutModel::LiveStreamViewLayoutModel(QObject *parent)
@@ -37,34 +33,35 @@ QVariant LiveStreamViewLayoutModel::data(const QModelIndex &index, int role) con
     return QVariant();
 }
 
-void LiveStreamViewLayoutModel::resetLayout(int rows, int column)
+void LiveStreamViewLayoutModel::resetLayout(int rows, int columns)
 {
     setRows(rows);
-    setColumns(column);
+    setColumns(columns);
     beginResetModel();
-    layout_items_.resize(1);
-    layout_items_[0] = LiveStreamViewLayoutItem(0, 0, rows, column, true);
+    layout_items_.clear();
     endResetModel();
 }
 
 void LiveStreamViewLayoutModel::addLayoutItem(int row, int column, int row_span, int column_span)
 {
-    assert(!itemWillOverlap(row, column, row_span, column_span));
-    if (!itemWillOverlap(row, column, row_span, column_span))
-    {
-        int new_row = (int)layout_items_.size();
-        beginInsertRows(QModelIndex(), new_row, new_row);
-        layout_items_.push_back(LiveStreamViewLayoutItem(row, column, row_span, column_span, false));
-        endInsertRows();
-    }
+    if (row < 0 || row + row_span > rows() || row_span <= 0)
+        return;
+    if (column < 0 || column + column_span > columns() || column_span <= 0)
+        return;
+    if (itemWillIntersect(row, column, row_span, column_span))
+        return;
+    int new_row = (int)layout_items_.size();
+    beginInsertRows(QModelIndex(), new_row, new_row);
+    layout_items_.push_back(LiveStreamViewLayoutItem(row, column, row_span, column_span));
+    endInsertRows();
 }
 
-bool LiveStreamViewLayoutModel::itemWillOverlap(int row, int column, int row_span, int column_span) const
+bool LiveStreamViewLayoutModel::itemWillIntersect(int row, int column, int row_span, int column_span) const
 {
-    for (size_t i = 1; i < layout_items_.size(); ++i)
+    for (size_t i = 0; i < layout_items_.size(); ++i)
     {
         const auto &item = layout_items_[i];
-        if (overlapTest(row, row_span, item.row(), item.rowSpan()) && overlapTest(column, column_span, item.column(), item.columnSpan()))
+        if (intersectTest(row, row_span, item.row(), item.rowSpan()) && intersectTest(column, column_span, item.column(), item.columnSpan()))
             return true;
     }
     return false;
