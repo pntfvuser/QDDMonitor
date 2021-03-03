@@ -13,7 +13,6 @@ class LiveStreamSubtitleOverlay;
 class LiveStreamView : public QQuickItem
 {
     Q_OBJECT
-    QML_ELEMENT
 
     Q_PROPERTY(LiveStreamSource* source READ source WRITE setSource NOTIFY sourceChanged)
     Q_PROPERTY(AudioOutput* audioOut READ audioOut WRITE setAudioOut NOTIFY audioOutChanged)

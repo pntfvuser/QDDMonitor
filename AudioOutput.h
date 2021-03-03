@@ -42,7 +42,6 @@ class AudioOutput : public QQuickItem
 
         bool starting = false, stopping = false;
     };
-
 public:
     explicit AudioOutput(QQuickItem *parent = nullptr);
     ~AudioOutput();

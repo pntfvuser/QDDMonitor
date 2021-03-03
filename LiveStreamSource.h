@@ -8,7 +8,6 @@ class LiveStreamDecoder;
 class LiveStreamSource : public QObject
 {
     Q_OBJECT
-
 public:
     enum StatusCode
     {
