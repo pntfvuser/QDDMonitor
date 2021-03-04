@@ -209,9 +209,9 @@ Window {
     }
 
     Component.onCompleted: {
-        sourceModelMain.addBilibiliSource("room1", 6655);
-        sourceModelMain.addBilibiliSource("room2", 876396);
-        sourceModelMain.addBilibiliSource("room3", 22047448);
+        sourceModelMain.addBilibiliSource("room1", 7595278);
+        sourceModelMain.addBilibiliSource("room2", 6632844);
+        sourceModelMain.addBilibiliSource("room3", 22671786);
     }
 
     onSourcePressed: {
@@ -228,7 +228,7 @@ Window {
                     if (selectedSourceView == -1) {
                         viewModelMain.setSource(i, selectedSource);
                     } else {
-                        //TODO: swap source of view
+                        viewModelMain.swapSource(i, selectedSourceView);
                     }
                 }
                 break;

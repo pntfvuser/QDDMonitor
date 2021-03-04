@@ -22,7 +22,8 @@ LiveStreamView::LiveStreamView(QQuickItem *parent)
 
 LiveStreamView::~LiveStreamView()
 {
-    emit deleteAudioSource(0);
+    if (view_index_ != -1)
+        emit deleteAudioSource(view_index_);
 }
 
 void LiveStreamView::setSource(LiveStreamSource *source)
@@ -39,6 +40,8 @@ void LiveStreamView::setSource(LiveStreamSource *source)
         current_source_ = source;
         if (current_source_)
         {
+            if (view_index_ != -1)
+                emit deleteAudioSource(view_index_); //Force resynchronize audio and video
             connect(current_source_->decoder(), &LiveStreamDecoder::newMedia, this, &LiveStreamView::onNewMedia);
             connect(current_source_->decoder(), &LiveStreamDecoder::newVideoFrame, this, &LiveStreamView::onNewVideoFrame);
             connect(current_source_->decoder(), &LiveStreamDecoder::newAudioFrame, this, &LiveStreamView::onNewAudioFrame);
@@ -54,7 +57,8 @@ void LiveStreamView::setAudioOut(AudioOutput *audio_out)
     {
         if (audio_out_)
         {
-            emit deleteAudioSource(0);
+            if (view_index_ != -1)
+                emit deleteAudioSource(view_index_);
             disconnect(this, &LiveStreamView::newAudioSource, audio_out_, &AudioOutput::onNewAudioSource);
             disconnect(this, &LiveStreamView::deleteAudioSource, audio_out_, &AudioOutput::onDeleteAudioSource);
             disconnect(this, &LiveStreamView::newAudioFrame, audio_out_, &AudioOutput::onNewAudioFrame);
@@ -67,6 +71,17 @@ void LiveStreamView::setAudioOut(AudioOutput *audio_out)
             connect(this, &LiveStreamView::newAudioFrame, audio_out_, &AudioOutput::onNewAudioFrame);
         }
         emit audioOutChanged();
+    }
+}
+
+void LiveStreamView::setViewIndex(int new_view_index)
+{
+    if (new_view_index >= -1 && view_index_ != new_view_index)
+    {
+        if (view_index_ != -1)
+            emit deleteAudioSource(view_index_);
+        view_index_ = new_view_index;
+        emit viewIndexChanged();
     }
 }
 
@@ -111,7 +126,7 @@ void LiveStreamView::onNewMedia(const AVCodecContext *video_decoder_context, con
 
 void LiveStreamView::onNewVideoFrame(const QSharedPointer<VideoFrame> &video_frame)
 {
-    if (sender() != current_source_->decoder())
+    if (!current_source_ || sender() != current_source_->decoder())
         return;
     bool need_update = next_frames_.empty();
     next_frames_.push_back(std::move(video_frame));
@@ -121,14 +136,16 @@ void LiveStreamView::onNewVideoFrame(const QSharedPointer<VideoFrame> &video_fra
 
 void LiveStreamView::onNewAudioFrame(const QSharedPointer<AudioFrame> &audio_frame)
 {
-    if (sender() != current_source_->decoder())
+    if (!current_source_ || sender() != current_source_->decoder())
         return;
-    emit newAudioFrame(0, audio_frame);
+    if (view_index_ == -1)
+        return;
+    emit newAudioFrame(view_index_, audio_frame);
 }
 
 void LiveStreamView::onNewSubtitleFrame(const QSharedPointer<SubtitleFrame> &subtitle_frame)
 {
-    if (sender() != current_source_)
+    if (!current_source_ || sender() != current_source_)
         return;
     subtitle_out_->onNewSubtitleFrame(subtitle_frame);
 }
@@ -147,9 +164,4 @@ void LiveStreamView::OnTChanged()
 {
     update();
     subtitle_out_->setT(t_);
-}
-
-void LiveStreamView::releaseResources()
-{
-    //node_ = nullptr;
 }

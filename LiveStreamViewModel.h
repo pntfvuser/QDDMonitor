@@ -66,6 +66,7 @@ public:
 
     Q_INVOKABLE void resetLayout(LiveStreamViewLayoutModel *layout_model);
     Q_INVOKABLE void setSource(int index, int source_id);
+    Q_INVOKABLE void swapSource(int index_1, int index_2);
 signals:
     void sourceModelChanged();
     void rowsChanged();

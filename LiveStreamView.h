@@ -16,6 +16,7 @@ class LiveStreamView : public QQuickItem
 
     Q_PROPERTY(LiveStreamSource* source READ source WRITE setSource NOTIFY sourceChanged)
     Q_PROPERTY(AudioOutput* audioOut READ audioOut WRITE setAudioOut NOTIFY audioOutChanged)
+    Q_PROPERTY(int viewIndex READ viewIndex WRITE setViewIndex NOTIFY viewIndexChanged)
     Q_PROPERTY(qreal t READ t WRITE setT NOTIFY tChanged)
 public:
     static constexpr int kAnimationTimeSourcePeriod = 10000;
@@ -29,6 +30,8 @@ public:
     AudioOutput *audioOut() const { return audio_out_; }
     void setAudioOut(AudioOutput *audio_out);
 
+    int viewIndex() const { return view_index_; }
+    void setViewIndex(int new_view_index);
     qreal t() const { return t_; }
     void setT(qreal new_t) { if (t_ != new_t) { t_ = new_t; emit tChanged(); } }
 protected:
@@ -42,6 +45,7 @@ signals:
     void deleteAudioSource(int source_id);
     void newAudioFrame(int source_id, QSharedPointer<AudioFrame> audio_frame);
 
+    void viewIndexChanged();
     void tChanged();
 public slots:
     void onNewMedia(const AVCodecContext *video_decoder_context, const AVCodecContext *audio_decoder_context);
@@ -54,8 +58,7 @@ private slots:
 
     void OnTChanged();
 private:
-    void releaseResources() override;
-
+    int view_index_ = -1;
     qreal t_ = 0;
     LiveStreamSource *current_source_ = nullptr;
     std::vector<QSharedPointer<VideoFrame>> next_frames_;

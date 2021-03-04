@@ -92,6 +92,25 @@ void LiveStreamViewModel::setSource(int index_row, int source_id)
     }
 }
 
+void LiveStreamViewModel::swapSource(int index_1, int index_2)
+{
+    if (index_1 >= 0 && index_1 < (int)view_info_.size() && index_2 >= 0 && index_2 < (int)view_info_.size())
+    {
+        LiveStreamViewInfo &view_info_1 = view_info_[index_1];
+        LiveStreamViewInfo &view_info_2 = view_info_[index_2];
+
+        int source_id_1 = view_info_1.sourceId();
+        LiveStreamSource *source_1 = view_info_1.source();
+        int source_id_2 = view_info_2.sourceId();
+        LiveStreamSource *source_2 = view_info_2.source();
+
+        view_info_1.setSource(source_id_2, source_2);
+        emit dataChanged(index(index_1), index(index_1));
+        view_info_2.setSource(source_id_1, source_1);
+        emit dataChanged(index(index_2), index(index_2));
+    }
+}
+
 void LiveStreamViewModel::OnDeleteSource(int source_id)
 {
     for (int i = 0; i < (int)view_info_.size(); ++i)
@@ -100,7 +119,7 @@ void LiveStreamViewModel::OnDeleteSource(int source_id)
         if (view_info.sourceId() == source_id)
         {
             view_info.setSource(-1, nullptr);
-            emit dataChanged(index(i), index(i));
+            emit dataChanged(index(i), index(i)); //Should be direct
         }
     }
 }
