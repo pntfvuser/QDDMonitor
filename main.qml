@@ -11,11 +11,12 @@ Window {
     title: "UI Test"
 
     property int selectedSource: -1
+    property int selectedSourceView: -1
     property bool isLayoutEditMode: false
 
     property real playbackTimer: 0
 
-    signal sourcePressed(int sourceId)
+    signal sourcePressed(int sourceId, int viewIndex)
     signal sourceReleased(point releasePoint)
 
     NumberAnimation on playbackTimer {
@@ -215,6 +216,7 @@ Window {
 
     onSourcePressed: {
         selectedSource = sourceId;
+        selectedSourceView = viewIndex;
     }
 
     onSourceReleased: {
@@ -222,11 +224,18 @@ Window {
             var item = repeaterViews.itemAt(i);
             console.assert(item !== null);
             if (item.contains(item.mapFromItem(null, releasePoint))) {
-                viewModelMain.setSource(i, selectedSource);
+                if (i !== selectedSourceView) {
+                    if (selectedSourceView == -1) {
+                        viewModelMain.setSource(i, selectedSource);
+                    } else {
+                        //TODO: swap source of view
+                    }
+                }
                 break;
             }
         }
 
         selectedSource = -1;
+        selectedSourceView = -1;
     }
 }

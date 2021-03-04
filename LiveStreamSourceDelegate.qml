@@ -16,19 +16,28 @@ Item {
             color: itemSourceDelegate.ListView.isCurrentItem ? "lightgray" : "whitesmoke"
         }
 
-        Text {
-            id: textSourceName
+        RowLayout {
+            anchors.fill: parent
+            anchors.margins: 5
 
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.verticalCenterOffset: 0
+            Rectangle {
+                Layout.preferredHeight: parent.height
+                Layout.preferredWidth: parent.height
+                radius: width / 2
+                color: display.online ? "green" : "red"
+            }
 
-            leftPadding: 5
-            rightPadding: 5
-            font.pixelSize: 16
+            Text {
+                id: textSourceName
 
-            text: display.name
+                Layout.fillHeight: true
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
+
+                font.pixelSize: 16
+
+                text: display.name
+            }
         }
 
         MouseArea {
@@ -40,7 +49,7 @@ Item {
 
             onPressed: {
                 listViewSource.currentIndex = index
-                sourcePressed(display.id)
+                sourcePressed(display.id, -1)
             }
 
             onReleased: {
