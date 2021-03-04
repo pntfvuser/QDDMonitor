@@ -13,7 +13,7 @@ static constexpr AVPixelFormat kHwPixelFormat = AV_PIX_FMT_D3D11;
 static constexpr PlaybackClock::duration kPacketBufferStartThreshold = 2500ms, kPacketBufferFullThreshold = 5000ms;
 static constexpr PlaybackClock::duration kFrameBufferStartThreshold = 200ms, kFrameBufferFullThreshold = 200ms;
 static constexpr std::chrono::milliseconds kFrameBufferPushInterval = 50ms;
-static constexpr PlaybackClock::duration kUploadToRenderLatency = 300ms;
+static constexpr PlaybackClock::duration kUploadToRenderLatency = 200ms;
 
 template <typename ToDuration>
 static inline constexpr ToDuration AVTimestampToDuration(int64_t timestamp, AVRational time_base)
