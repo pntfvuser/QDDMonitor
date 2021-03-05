@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "AudioOutput.h"
 
+Q_LOGGING_CATEGORY(CategoryAudioPlayback, "qddm.audio")
+
 static constexpr auto kFallbackLatencyAssumption = std::chrono::milliseconds(60);
 
 AudioOutput::AudioSource::AudioSource()
@@ -68,7 +70,7 @@ void AudioOutput::onNewAudioSource(int source_id, const AVCodecContext *context)
     }
     catch (...)
     {
-        qWarning("Failed to create new AudioSource");
+        qCWarning(CategoryAudioPlayback, "Failed to create new AudioSource");
         return;
     }
     AudioSource &source = *sources_.emplace(source_id, std::move(new_source)).first->second;
@@ -100,7 +102,7 @@ void AudioOutput::onNewAudioFrame(int source_id, const QSharedPointer<AudioFrame
         }
         catch (...)
         {
-            qWarning("Failed to create new AudioSource");
+            qCWarning(CategoryAudioPlayback, "Failed to create new AudioSource");
             return;
         }
         itr = sources_.emplace(source_id, std::move(new_source)).first;
@@ -127,7 +129,7 @@ void AudioOutput::onNewAudioFrame(int source_id, const QSharedPointer<AudioFrame
     alGetSourcei(source->al_id, AL_SOURCE_STATE, &source_state);
     if ((ret = alGetError()) != AL_NO_ERROR)
     {
-        qWarning("Can't get source state #%d", ret);
+        qCWarning(CategoryAudioPlayback, "Can't get source state #%d", ret);
     }
     if (source_state != AL_PLAYING && !source->starting)
     {
@@ -175,7 +177,7 @@ void AudioOutput::onSetAudioSourceVolume(int source_id, qreal volume)
         }
         catch (...)
         {
-            qWarning("Failed to create new AudioSource");
+            qCWarning(CategoryAudioPlayback, "Failed to create new AudioSource");
             return;
         }
         itr = sources_.emplace(source_id, std::move(new_source)).first;
@@ -279,16 +281,16 @@ void AudioOutput::StartSource(const std::shared_ptr<AudioSource> &source, Playba
     alGetSourcei64vSOFT(source->al_id, AL_SAMPLE_OFFSET_LATENCY_SOFT, offset_latency);
     if ((ret = alGetError()) != AL_NO_ERROR)
     {
-        qWarning("Can't get precise latency #%d", ret);
+        qCWarning(CategoryAudioPlayback, "Can't get precise latency #%d", ret);
     }
     else
     {
-        qDebug("Latency: %lldns", offset_latency[1]);
+        qCDebug(CategoryAudioPlayback, "Latency: %lldns", offset_latency[1]);
         latency = std::chrono::nanoseconds(offset_latency[1]);
     }
 
     std::chrono::milliseconds sleep_time = std::chrono::duration_cast<std::chrono::milliseconds>(timestamp - PlaybackClock::now() - latency);
-    qDebug("Starting audio playback after %lldms", sleep_time.count());
+    qCDebug(CategoryAudioPlayback, "Starting audio playback after %lldms", sleep_time.count());
     if (Q_UNLIKELY(sleep_time.count() <= 0))
     {
         QTimer::singleShot(0, this, [source_weak = std::weak_ptr<AudioSource>(source)]()
@@ -303,7 +305,7 @@ void AudioOutput::StartSource(const std::shared_ptr<AudioSource> &source, Playba
                 ALenum ret = AL_NO_ERROR;
                 if ((ret = alGetError()) != AL_NO_ERROR)
                 {
-                    qWarning("Can't start playback #%d", ret);
+                    qCWarning(CategoryAudioPlayback, "Can't start playback #%d", ret);
                 }
             }
         });
@@ -323,7 +325,7 @@ void AudioOutput::StartSource(const std::shared_ptr<AudioSource> &source, Playba
                 ALenum ret = AL_NO_ERROR;
                 if ((ret = alGetError()) != AL_NO_ERROR)
                 {
-                    qWarning("Can't start playback #%d", ret);
+                    qCWarning(CategoryAudioPlayback, "Can't start playback #%d", ret);
                 }
             }
         });
@@ -362,12 +364,12 @@ void AudioOutput::AppendBufferToSource(AudioSource &source)
         alBufferData(buffer_id, source.al_buffer_format, source.buffer_block.data(), source.buffer_block_cap, source.sample_rate);
         if ((ret = alGetError()) != AL_NO_ERROR)
         {
-            qWarning("Can't specify OpenAL buffer content #%d", ret);
+            qCWarning(CategoryAudioPlayback, "Can't specify OpenAL buffer content #%d", ret);
         }
         alSourceQueueBuffers(source.al_id, 1, &buffer_id);
         if ((ret = alGetError()) != AL_NO_ERROR)
         {
-            qWarning("Can't append buffer to queue #%d", ret);
+            qCWarning(CategoryAudioPlayback, "Can't append buffer to queue #%d", ret);
         }
         source.al_buffer_occupied[source.al_buffer_occupied_count++] = buffer_id;
         source.buffer_block.erase(source.buffer_block.begin(), source.buffer_block.begin() + source.buffer_block_cap);
@@ -382,7 +384,7 @@ void AudioOutput::CollectExhaustedBuffer(AudioSource &source)
     alGetSourcei(source.al_id, AL_BUFFERS_PROCESSED, &buffers_processed);
     if (alGetError() != AL_NO_ERROR)
     {
-        qWarning("Can't get number of exhausted buffer");
+        qCWarning(CategoryAudioPlayback, "Can't get number of exhausted buffer");
     }
     if (buffers_processed > 0)
     {
@@ -391,7 +393,7 @@ void AudioOutput::CollectExhaustedBuffer(AudioSource &source)
         alSourceUnqueueBuffers(source.al_id, buffers_processed, source.al_buffer_free + before);
         if (alGetError() != AL_NO_ERROR)
         {
-            qWarning("Can't unqueue buffer");
+            qCWarning(CategoryAudioPlayback, "Can't unqueue buffer");
         }
         ALsizei after = before + buffers_processed;
 
