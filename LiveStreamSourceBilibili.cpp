@@ -2,9 +2,8 @@
 #include "LiveStreamSourceBilibili.h"
 
 LiveStreamSourceBilibili::LiveStreamSourceBilibili(int room_display_id, QNetworkAccessManager *network_manager, QObject *parent)
-    :LiveStreamSource(parent), room_display_id_(room_display_id), network_manager_(network_manager)
+    :LiveStreamSource(parent), room_display_id_(room_display_id), network_manager_(network_manager), av_network_manager_(new QNetworkAccessManager(this)), push_timer_(new QTimer(this))
 {
-    push_timer_ = new QTimer(this);
     connect(push_timer_, &QTimer::timeout, this, &LiveStreamSourceBilibili::OnAVStreamPush);
     description_ = tr("bilibili live room %1").arg(room_display_id);
 }
@@ -226,7 +225,7 @@ void LiveStreamSourceBilibili::OnRequestStreamInfoComplete()
 
     QUrl request_url(first_url.toString());
     QNetworkRequest request(request_url);
-    av_reply_ = network_manager_->get(request);
+    av_reply_ = av_network_manager_->get(request);
     if (!av_reply_)
         return;
     active_ = true;

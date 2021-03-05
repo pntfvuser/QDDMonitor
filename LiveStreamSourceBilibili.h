@@ -30,7 +30,7 @@ private:
 
     bool active_ = false;
     QString pending_option_;
-    QNetworkAccessManager *network_manager_ = nullptr;
+    QNetworkAccessManager *network_manager_ = nullptr, *av_network_manager_ = nullptr;
     QNetworkReply *info_reply_ = nullptr, *stream_info_reply_ = nullptr, *av_reply_ = nullptr;
     QTimer *push_timer_ = nullptr;
 };
