@@ -12,6 +12,8 @@ LiveStreamViewModel::LiveStreamViewModel(QObject *parent)
     audio_out_->moveToThread(&audio_thread_);
     connect(&audio_thread_, &QThread::finished, audio_out_, &QObject::deleteLater);
     audio_thread_.start();
+
+    view_info_.push_back(LiveStreamViewInfo(0, 0, 1, 1, -1, nullptr, audio_out_));
 }
 
 LiveStreamViewModel::~LiveStreamViewModel()
