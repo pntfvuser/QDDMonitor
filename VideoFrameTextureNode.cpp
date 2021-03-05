@@ -7,6 +7,14 @@
 
 Q_LOGGING_CATEGORY(CategoryVideoPlayback, "qddm.video")
 
+static inline qreal ScreenRefreshRate(QScreen *screen)
+{
+    qreal refresh_rate = screen->refreshRate();
+    if (refresh_rate >= 59 && refresh_rate <= 60)
+        refresh_rate = 59.94; //Manual patch
+    return refresh_rate;
+}
+
 VideoFrameTextureNode::TextureItem::TextureItem(QQuickWindow *window, ID3D11Device *device, const D3D11_TEXTURE2D_DESC &desc, const QSize &size)
 {
     HRESULT hr;
@@ -117,9 +125,9 @@ void VideoFrameTextureNode::Synchronize(QQuickItem *item)
         }
     }
 
-    auto playback_time = playback_time_base_ + refresh_interval_ * playback_time_tick_;
+    auto playback_time = playback_time_base_ + playback_time_interval_ * playback_time_tick_;
     auto current_time = PlaybackClock::now();
-    if (std::chrono::abs(playback_time - current_time) > refresh_interval_)
+    if (std::chrono::abs(playback_time - current_time) > playback_time_interval_)
     {
         ResynchronizeTimer(current_time);
         playback_time = current_time;
@@ -128,11 +136,6 @@ void VideoFrameTextureNode::Synchronize(QQuickItem *item)
     else
     {
         playback_time_tick_ += 1;
-        if (playback_time_tick_ >= refresh_rate_)
-        {
-            playback_time_tick_ = 0;
-            playback_time_base_ += std::chrono::seconds(1);
-        }
     }
 
     auto present_time_limit = playback_time;
@@ -238,13 +241,13 @@ void VideoFrameTextureNode::Render()
 
 void VideoFrameTextureNode::UpdateScreen(QScreen *screen)
 {
-    int new_refresh_rate = round(screen->refreshRate());
+    qreal new_refresh_rate = ScreenRefreshRate(screen);
     if (new_refresh_rate != refresh_rate_)
     {
         static constexpr auto kTickPerSecond = std::chrono::duration_cast<PlaybackClock::duration>(std::chrono::seconds(1)).count();
         refresh_rate_ = new_refresh_rate;
-        refresh_interval_ = PlaybackClock::duration(static_cast<PlaybackClock::duration::rep>(
-                                                        round(kTickPerSecond / screen->refreshRate())
+        playback_time_interval_ = PlaybackClock::duration(static_cast<PlaybackClock::duration::rep>(
+                                                        round(kTickPerSecond / new_refresh_rate)
                                                         ));
     }
     if (window_->effectiveDevicePixelRatio() != dpr_)
@@ -264,9 +267,9 @@ void VideoFrameTextureNode::UpdateWindow(QQuickWindow *new_window)
         dpr_ = window_->effectiveDevicePixelRatio();
         QScreen *screen = window_->screen();
         static constexpr auto kTickPerSecond = std::chrono::duration_cast<PlaybackClock::duration>(std::chrono::seconds(1)).count();
-        refresh_rate_ = round(screen->refreshRate());
-        refresh_interval_ = PlaybackClock::duration(static_cast<PlaybackClock::duration::rep>(
-                                                        round(kTickPerSecond / screen->refreshRate())
+        refresh_rate_ = ScreenRefreshRate(screen);
+        playback_time_interval_ = PlaybackClock::duration(static_cast<PlaybackClock::duration::rep>(
+                                                        round(kTickPerSecond / refresh_rate_)
                                                         ));
         connect(window_, &QQuickWindow::frameSwapped, this, &VideoFrameTextureNode::Render, Qt::DirectConnection);
         connect(window_, &QQuickWindow::screenChanged, this, &VideoFrameTextureNode::UpdateScreen);

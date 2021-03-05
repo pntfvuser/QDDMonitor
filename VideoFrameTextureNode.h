@@ -60,8 +60,9 @@ private:
     std::vector<QSharedPointer<VideoFrame>> video_frames_;
     std::vector<TextureItem> empty_texture_queue_, rendered_texture_queue_, used_texture_queue_;
     PlaybackClock::time_point playback_time_base_;
-    int playback_time_tick_, refresh_rate_;
-    PlaybackClock::duration refresh_interval_;
+    PlaybackClock::duration playback_time_interval_;
+    int playback_time_tick_;
+    qreal refresh_rate_ = 1;
 
 #ifdef _DEBUG
     PlaybackClock::time_point last_frame_time_, last_texture_change_time_, last_second_;
