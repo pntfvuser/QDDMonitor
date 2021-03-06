@@ -41,6 +41,8 @@ class LiveStreamDecoder : public QObject
         AVPacketObject &operator=(const AVPacketObject &obj) = delete;
         AVPacketObject &operator=(AVPacketObject &&obj)
         {
+            if (this == &obj)
+                return *this;
             if (owns_object)
             {
                 av_packet_unref(&object);

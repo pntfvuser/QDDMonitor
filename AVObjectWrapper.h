@@ -27,6 +27,8 @@ public:
     AVObjectBase &operator=(const AVObjectBase &rhs) = delete;
     AVObjectBase &operator=(AVObjectBase &&rhs)
     {
+        if (this == &rhs)
+            return *this;
         if (object != nullptr)
             ReleaseFunctor()(&object);
         object = rhs.object;
