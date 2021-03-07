@@ -23,6 +23,12 @@ AudioOutput::AudioSource::AudioSource()
     }
 
     al_buffer_free_count = AudioSource::kALBufferCount;
+
+    alSourcef(al_id, AL_ROLLOFF_FACTOR, 0);
+    if ((ret = alGetError()) != AL_NO_ERROR)
+    {
+        qCWarning(CategoryAudioPlayback, "Can't set AL_ROLLOFF_FACTOR to 0");
+    }
 }
 
 AudioOutput::AudioSource::~AudioSource()
@@ -85,10 +91,7 @@ void AudioOutput::onStopAudioSource(void *source_id)
     if (itr == sources_.end())
         return;
     AudioSource *source = itr->second.get();
-    source->pending_frames.clear();
-    source->buffer_block.clear();
-    alSourceStop(source->al_id);
-    CollectExhaustedBuffer(*source);
+    StopSource(*source);
 }
 
 void AudioOutput::onDeleteAudioSource(void *source_id)
@@ -129,10 +132,7 @@ void AudioOutput::onNewAudioFrame(void *source_id, const QSharedPointer<AudioFra
         {
             InitSource(*source, audio_frame->frame->channels, audio_frame->frame->channel_layout, audio_frame->sample_format, audio_frame->frame->sample_rate);
             //Resynchronize
-            source->pending_frames.clear();
-            source->buffer_block.clear();
-            alSourceStop(source->al_id);
-            CollectExhaustedBuffer(*source);
+            StopSource(*source);
         }
     }
 
@@ -209,6 +209,68 @@ void AudioOutput::onSetAudioSourceVolume(void *source_id, qreal volume)
     alSourcef(source->al_id, AL_GAIN, (ALfloat)volume);
 }
 
+void AudioOutput::onSetAudioSourcePosition(void *source_id, QVector3D position)
+{
+    AudioSource *source;
+
+    auto itr = sources_.find(source_id);
+    if (itr == sources_.end())
+    {
+        std::shared_ptr<AudioSource> new_source;
+        try
+        {
+            new_source = std::make_shared<AudioSource>();
+        }
+        catch (...)
+        {
+            qCWarning(CategoryAudioPlayback, "Failed to create new AudioSource");
+            return;
+        }
+        itr = sources_.emplace(source_id, std::move(new_source)).first;
+        source = itr->second.get();
+        source->id = source_id;
+        InitSource(*source);
+    }
+    else
+    {
+        source = itr->second.get();
+    }
+
+    if (!std::isfinite(position.x()))
+        position.setX(0);
+    if (!std::isfinite(position.y()))
+        position.setY(0);
+    if (!std::isfinite(position.z()))
+        position.setZ(0);
+
+    if (position.isNull())
+    {
+        if (source->force_mono)
+        {
+            source->force_mono = false;
+            if (source->channels > 1)
+            {
+                InitSource(*source); //Force reinit one next frame
+                StopSource(*source);
+            }
+        }
+    }
+    else
+    {
+        if (!source->force_mono)
+        {
+            source->force_mono = true;
+            if (source->channels > 1)
+            {
+                InitSource(*source); //Force reinit one next frame
+                StopSource(*source);
+            }
+        }
+    }
+
+    alSource3f(source->al_id, AL_POSITION, position.x(), position.y(), position.z());
+}
+
 void AudioOutput::InitSource(AudioOutput::AudioSource &source)
 {
     source.channels = 0;
@@ -227,15 +289,23 @@ void AudioOutput::InitSource(AudioSource &source, int channels, int64_t channel_
 
     int out_channels = 0;
     AVSampleFormat out_sample_format = AV_SAMPLE_FMT_NONE;
-    switch (channels)
+
+    if (source.force_mono)
     {
-    case 1:
-    case 2:
-        out_channels = channels;
-        break;
-    default:
-        out_channels = 2;
-        break;
+        out_channels = 1;
+    }
+    else
+    {
+        switch (channels)
+        {
+        case 1:
+        case 2:
+            out_channels = channels;
+            break;
+        default:
+            out_channels = 2;
+            break;
+        }
     }
     switch (sample_fmt)
     {
@@ -247,6 +317,7 @@ void AudioOutput::InitSource(AudioSource &source, int channels, int64_t channel_
         out_sample_format = AV_SAMPLE_FMT_S16;
         break;
     }
+
     if (out_channels != channels || out_sample_format != sample_fmt)
     {
         int64_t out_channel_layout;
@@ -266,7 +337,7 @@ void AudioOutput::InitSource(AudioSource &source, int channels, int64_t channel_
     }
     if (out_sample_format == AV_SAMPLE_FMT_S16)
     {
-        source.sample_channel_size = 2 * out_channels;
+        source.sample_channel_size = sizeof(uint16_t) * out_channels;
         if (out_channels == 2)
             source.al_buffer_format = AL_FORMAT_STEREO16;
         else //Q_ASSERT(out_channels == 1)
@@ -274,11 +345,11 @@ void AudioOutput::InitSource(AudioSource &source, int channels, int64_t channel_
     }
     else //Q_ASSERT(out_sample_format == AV_SAMPLE_FMT_U8)
     {
-        source.sample_channel_size = 1 * out_channels;
+        source.sample_channel_size = sizeof(int8_t) * out_channels;
         if (out_channels == 2)
-            source.al_buffer_format = AL_FORMAT_STEREO16;
+            source.al_buffer_format = AL_FORMAT_STEREO8;
         else //Q_ASSERT(out_channels == 1)
-            source.al_buffer_format = AL_FORMAT_MONO16;
+            source.al_buffer_format = AL_FORMAT_MONO8;
     }
 
     source.buffer_block_cap = source.sample_rate * kBufferBlockSizeMS / 1000 * source.sample_channel_size;
@@ -431,4 +502,12 @@ void AudioOutput::CollectExhaustedBuffer(AudioSource &source)
         source.al_buffer_occupied_count = p;
         Q_ASSERT(source.al_buffer_occupied_count + source.al_buffer_free_count == AudioSource::kALBufferCount);
     }
+}
+
+void AudioOutput::StopSource(AudioOutput::AudioSource &source)
+{
+    source.pending_frames.clear();
+    source.buffer_block.clear();
+    alSourceStop(source.al_id);
+    CollectExhaustedBuffer(source);
 }

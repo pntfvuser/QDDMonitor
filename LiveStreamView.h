@@ -18,6 +18,7 @@ class LiveStreamView : public QQuickItem
     Q_PROPERTY(AudioOutput* audioOut READ audioOut WRITE setAudioOut NOTIFY audioOutChanged)
 
     Q_PROPERTY(qreal volume READ volume WRITE setVolume NOTIFY volumeChanged)
+    Q_PROPERTY(QVector3D position READ position WRITE setPosition NOTIFY positionChanged)
 
     Q_PROPERTY(qreal t READ t WRITE setT NOTIFY tChanged)
 public:
@@ -33,6 +34,8 @@ public:
 
     qreal volume() const { return volume_; }
     void setVolume(qreal new_volume);
+    QVector3D position() const { return position_; }
+    void setPosition(const QVector3D &new_position);
 
     qreal t() const { return t_; }
     void setT(qreal new_t);
@@ -44,12 +47,14 @@ signals:
     void audioOutChanged();
 
     void volumeChanged();
+    void positionChanged();
 
     void newAudioSource(void *source_id, const AVCodecContext *context);
     void stopAudioSource(void *source_id);
     void deleteAudioSource(void *source_id);
     void newAudioFrame(void *source_id, QSharedPointer<AudioFrame> audio_frame);
     void setAudioSourceVolume(void *source_id, qreal volume);
+    void setAudioSourcePosition(void *source_id, QVector3D position);
 
     void tChanged();
 public slots:
@@ -67,6 +72,7 @@ private:
     LiveStreamSubtitleOverlay *subtitle_out_ = nullptr;
 
     qreal volume_ = 1;
+    QVector3D position_;
 
     qreal t_ = 0;
 };

@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>images/settings-black.svg</file>
+        <file>images/arrow_back-black.svg</file>
+    </qresource>
+</RCC>

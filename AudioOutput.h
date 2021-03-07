@@ -29,6 +29,7 @@ class AudioOutput : public QObject
         AudioSourceId id;
         AVSampleFormat sample_format;
         int channels, sample_channel_size, sample_rate;
+        bool force_mono = false;
 
         std::vector<QSharedPointer<AudioFrame>> pending_frames;
         SwrContextObject swr_context;
@@ -58,6 +59,7 @@ public slots:
 
     void onNewAudioFrame(void *source_id, const QSharedPointer<AudioFrame> &audio_frame);
     void onSetAudioSourceVolume(void *source_id, qreal volume);
+    void onSetAudioSourcePosition(void *source_id, QVector3D position);
 private:
     void InitSource(AudioSource &source);
     void InitSource(AudioSource &source, int channels, int64_t channel_layout, AVSampleFormat sample_fmt, int sample_rate);
@@ -66,6 +68,7 @@ private:
     static void AppendFrameToSourceBuffer(AudioSource &source, const QSharedPointer<AudioFrame> &audio_frame);
     static void AppendBufferToSource(AudioSource &source);
     static void CollectExhaustedBuffer(AudioSource &source);
+    static void StopSource(AudioSource &source);
 
     ALCdevice *device_ = nullptr;
     ALCcontext *context_ = nullptr;

@@ -59,7 +59,7 @@ void LiveStreamView::setAudioOut(AudioOutput *audio_out)
             disconnect(this, &LiveStreamView::stopAudioSource, audio_out_, &AudioOutput::onStopAudioSource);
             disconnect(this, &LiveStreamView::deleteAudioSource, audio_out_, &AudioOutput::onDeleteAudioSource);
             disconnect(this, &LiveStreamView::newAudioFrame, audio_out_, &AudioOutput::onNewAudioFrame);
-            disconnect(this, &LiveStreamView::setAudioSourceVolume, audio_out_, &AudioOutput::onSetAudioSourceVolume);
+            disconnect(this, &LiveStreamView::setAudioSourcePosition, audio_out_, &AudioOutput::onSetAudioSourcePosition);
         }
         audio_out_ = audio_out;
         if (audio_out_)
@@ -69,6 +69,7 @@ void LiveStreamView::setAudioOut(AudioOutput *audio_out)
             connect(this, &LiveStreamView::deleteAudioSource, audio_out_, &AudioOutput::onDeleteAudioSource);
             connect(this, &LiveStreamView::newAudioFrame, audio_out_, &AudioOutput::onNewAudioFrame);
             connect(this, &LiveStreamView::setAudioSourceVolume, audio_out_, &AudioOutput::onSetAudioSourceVolume);
+            connect(this, &LiveStreamView::setAudioSourcePosition, audio_out_, &AudioOutput::onSetAudioSourcePosition);
         }
         emit audioOutChanged();
     }
@@ -81,6 +82,16 @@ void LiveStreamView::setVolume(qreal new_volume)
         volume_ = new_volume;
         emit setAudioSourceVolume(this, new_volume);
         emit volumeChanged();
+    }
+}
+
+void LiveStreamView::setPosition(const QVector3D &new_position)
+{
+    if (position_ != new_position)
+    {
+        position_ = new_position;
+        emit setAudioSourcePosition(this, new_position);
+        emit positionChanged();
     }
 }
 

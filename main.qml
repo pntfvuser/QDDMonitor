@@ -5,11 +5,6 @@ import QtQuick.Layouts 1.15
 import org.anon.QDDMonitor 1.0
 
 Window {
-    width: 640
-    height: 480
-    visible: true
-    title: "UI Test"
-
     property int selectedSource: -1
     property int selectedSourceView: -1
     property bool isLayoutEditMode: false
@@ -18,6 +13,11 @@ Window {
 
     signal sourcePressed(int sourceId, int viewIndex)
     signal sourceReleased(point releasePoint)
+
+    width: 640
+    height: 480
+    visible: true
+    title: "UI Test"
 
     NumberAnimation on playbackTimer {
         running: true
@@ -116,8 +116,6 @@ Window {
             visible: isLayoutEditMode
 
             MouseArea {
-                id: mouseareaViewLayoutEditing
-
                 property real columnWidth: width / viewLayoutModelMain.columns
                 property real rowHeight: height / viewLayoutModelMain.rows
                 property int beginRow: -1
@@ -129,6 +127,8 @@ Window {
                 property int rowSpan: Math.abs(beginRow - endRow) + 1
                 property int columnSpan: Math.abs(beginColumn - endColumn) + 1
                 property bool intersecting: viewLayoutModelMain.itemWillIntersect(row, column, rowSpan, columnSpan)
+
+                id: mouseareaViewLayoutEditing
 
                 anchors.fill: parent
                 preventStealing: true
@@ -219,9 +219,10 @@ Window {
     }
 
     Component.onCompleted: {
-        sourceModelMain.addBilibiliSource("room1", 22671786);
-        sourceModelMain.addBilibiliSource("room2", 21396545);
-        sourceModelMain.addBilibiliSource("room3", 21320551);
+        sourceModelMain.addBilibiliSource("room1", 3415150);
+        sourceModelMain.addBilibiliSource("room2", 631);
+        sourceModelMain.addBilibiliSource("room3", 6655);
+        sourceModelMain.addBilibiliSource("room4", 22671795);
     }
 
     onSourcePressed: {
