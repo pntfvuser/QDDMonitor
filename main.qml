@@ -115,6 +115,47 @@ Window {
             enabled: isLayoutEditMode
             visible: isLayoutEditMode
 
+            MouseArea {
+                id: mouseareaViewLayoutEditing
+
+                property real columnWidth: width / viewLayoutModelMain.columns
+                property real rowHeight: height / viewLayoutModelMain.rows
+                property int beginRow: -1
+                property int beginColumn: -1
+                property int endRow: -1
+                property int endColumn: -1
+                property int row: Math.min(beginRow, endRow)
+                property int column: Math.min(beginColumn, endColumn)
+                property int rowSpan: Math.abs(beginRow - endRow) + 1
+                property int columnSpan: Math.abs(beginColumn - endColumn) + 1
+                property bool intersecting: viewLayoutModelMain.itemWillIntersect(row, column, rowSpan, columnSpan)
+
+                anchors.fill: parent
+                preventStealing: true
+
+                onPressed: {
+                    beginColumn = endColumn = mouse.x / columnWidth;
+                    beginRow = endRow = mouse.y / rowHeight;
+                }
+
+                onPositionChanged: {
+                    endColumn = mouse.x / columnWidth;
+                    endRow = mouse.y / rowHeight;
+                }
+
+                onReleased: {
+                    if (!containsMouse) {
+                        return;
+                    }
+                    endColumn = mouse.x / columnWidth;
+                    endRow = mouse.y / rowHeight;
+                    if (!intersecting) {
+                        viewLayoutModelMain.addLayoutItem(row, column, rowSpan, columnSpan);
+                    }
+                    beginColumn = endColumn = beginRow = endRow = -1;
+                }
+            }
+
             LiveStreamViewGrid {
                 id: viewgridViewLayout
 
@@ -161,57 +202,26 @@ Window {
                                 text: index
                             }
                         }
+
+                        MouseArea {
+                            anchors.fill: parent
+
+                            preventStealing: true
+
+                            onClicked: {
+                                viewLayoutModelMain.deleteLayoutItem(index);
+                            }
+                        }
                     }
-                }
-            }
-
-            MouseArea {
-                id: mouseareaViewLayoutEditing
-
-                property real columnWidth: width / viewLayoutModelMain.columns
-                property real rowHeight: height / viewLayoutModelMain.rows
-                property int beginRow: -1
-                property int beginColumn: -1
-                property int endRow: -1
-                property int endColumn: -1
-                property int row: Math.min(beginRow, endRow)
-                property int column: Math.min(beginColumn, endColumn)
-                property int rowSpan: Math.abs(beginRow - endRow) + 1
-                property int columnSpan: Math.abs(beginColumn - endColumn) + 1
-                property bool intersecting: viewLayoutModelMain.itemWillIntersect(row, column, rowSpan, columnSpan)
-
-                anchors.fill: parent
-                preventStealing: true
-
-                onPressed: {
-                    beginColumn = endColumn = mouse.x / columnWidth;
-                    beginRow = endRow = mouse.y / rowHeight;
-                }
-
-                onPositionChanged: {
-                    endColumn = mouse.x / columnWidth;
-                    endRow = mouse.y / rowHeight;
-                }
-
-                onReleased: {
-                    if (!containsMouse) {
-                        return;
-                    }
-                    endColumn = mouse.x / columnWidth;
-                    endRow = mouse.y / rowHeight;
-                    if (!intersecting) {
-                        viewLayoutModelMain.addLayoutItem(row, column, rowSpan, columnSpan);
-                    }
-                    beginColumn = endColumn = beginRow = endRow = -1;
                 }
             }
         }
     }
 
     Component.onCompleted: {
-        sourceModelMain.addBilibiliSource("room1", 7595278);
-        sourceModelMain.addBilibiliSource("room2", 6632844);
-        sourceModelMain.addBilibiliSource("room3", 22671786);
+        sourceModelMain.addBilibiliSource("room1", 22671786);
+        sourceModelMain.addBilibiliSource("room2", 21396545);
+        sourceModelMain.addBilibiliSource("room3", 21320551);
     }
 
     onSourcePressed: {

@@ -43,6 +43,7 @@ public:
 
     Q_INVOKABLE void resetLayout(int rows, int columns);
     Q_INVOKABLE void addLayoutItem(int row, int column, int row_span, int column_span);
+    Q_INVOKABLE void deleteLayoutItem(int index);
 
     Q_INVOKABLE bool itemWillIntersect(int row, int column, int row_span, int column_span) const;
 

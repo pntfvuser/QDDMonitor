@@ -56,6 +56,16 @@ void LiveStreamViewLayoutModel::addLayoutItem(int row, int column, int row_span,
     endInsertRows();
 }
 
+void LiveStreamViewLayoutModel::deleteLayoutItem(int index)
+{
+    if (index >= 0 && index < (int)layout_items_.size())
+    {
+        beginRemoveRows(QModelIndex(), index, index);
+        layout_items_.erase(layout_items_.begin() + index);
+        endRemoveRows();
+    }
+}
+
 bool LiveStreamViewLayoutModel::itemWillIntersect(int row, int column, int row_span, int column_span) const
 {
     for (size_t i = 0; i < layout_items_.size(); ++i)
