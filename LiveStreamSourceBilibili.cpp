@@ -215,8 +215,7 @@ void LiveStreamSourceBilibili::OnRequestStreamInfoComplete()
         return;
     }
 
-    //TODO: switch between different url on failure
-    QJsonValue first_url = durl[2].toObject().value("url");
+    QJsonValue first_url = durl[0].toObject().value("url");
     if (!first_url.isString())
     {
         emit invalidSourceArgument();
@@ -225,6 +224,11 @@ void LiveStreamSourceBilibili::OnRequestStreamInfoComplete()
 
     QUrl request_url(first_url.toString());
     QNetworkRequest request(request_url);
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+    request.setMaximumRedirectsAllowed(2);
+    request.setRawHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.190 Safari/537.36");
+    request.setRawHeader("Origin", "https://live.bilibili.com");
+    request.setRawHeader("Referer", "https://live.bilibili.com/");
     av_reply_ = av_network_manager_->get(request);
     if (!av_reply_)
         return;
@@ -241,10 +245,11 @@ void LiveStreamSourceBilibili::OnAVStreamProgress()
 {
     if (!av_reply_ || sender() != av_reply_)
         return;
+
     PushData(av_reply_);
     if (av_reply_->isFinished() && av_reply_->bytesAvailable() <= 0)
     {
-        qDebug() << av_reply_->errorString();
+        qDebug() << av_reply_->error() << ' ' << av_reply_->errorString();
         push_timer_->stop();
         EndData();
     }
@@ -258,10 +263,12 @@ void LiveStreamSourceBilibili::OnAVStreamPush()
         return;
     }
     if (av_reply_->bytesAvailable() > 0)
+    {
         PushData(av_reply_);
+    }
     if (av_reply_->isFinished() && av_reply_->bytesAvailable() <= 0)
     {
-        qDebug() << av_reply_->errorString();
+        qDebug() << av_reply_->error() << ' ' << av_reply_->errorString();
         push_timer_->stop();
         EndData();
     }
