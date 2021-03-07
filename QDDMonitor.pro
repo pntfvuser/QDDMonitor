@@ -1,4 +1,4 @@
-QT += quick qml network
+QT += quick qml network svg
 
 CONFIG += c++17
 CONFIG(release, debug|release): CONFIG += ltcg

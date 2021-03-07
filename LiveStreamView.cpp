@@ -13,7 +13,6 @@ LiveStreamView::LiveStreamView(QQuickItem *parent)
     setFlag(ItemHasContents, true);
     connect(this, &QQuickItem::widthChanged, this, &LiveStreamView::OnWidthChanged);
     connect(this, &QQuickItem::heightChanged, this, &LiveStreamView::OnHeightChanged);
-    connect(this, &LiveStreamView::tChanged, this, &LiveStreamView::OnTChanged);
 
     subtitle_out_ = new LiveStreamSubtitleOverlay(this);
     subtitle_out_->setPosition(QPointF(0, 0));
@@ -22,8 +21,7 @@ LiveStreamView::LiveStreamView(QQuickItem *parent)
 
 LiveStreamView::~LiveStreamView()
 {
-    if (view_index_ != -1)
-        emit deleteAudioSource(view_index_);
+    emit deleteAudioSource(this);
 }
 
 void LiveStreamView::setSource(LiveStreamSource *source)
@@ -40,8 +38,7 @@ void LiveStreamView::setSource(LiveStreamSource *source)
         current_source_ = source;
         if (current_source_)
         {
-            if (view_index_ != -1)
-                emit stopAudioSource(view_index_); //Force resynchronize audio and video
+            emit stopAudioSource(this); //Force resynchronize audio and video
             connect(current_source_->decoder(), &LiveStreamDecoder::newMedia, this, &LiveStreamView::onNewMedia);
             connect(current_source_->decoder(), &LiveStreamDecoder::newVideoFrame, this, &LiveStreamView::onNewVideoFrame);
             connect(current_source_->decoder(), &LiveStreamDecoder::newAudioFrame, this, &LiveStreamView::onNewAudioFrame);
@@ -57,12 +54,12 @@ void LiveStreamView::setAudioOut(AudioOutput *audio_out)
     {
         if (audio_out_)
         {
-            if (view_index_ != -1)
-                emit deleteAudioSource(view_index_);
+            emit deleteAudioSource(this);
             disconnect(this, &LiveStreamView::newAudioSource, audio_out_, &AudioOutput::onNewAudioSource);
             disconnect(this, &LiveStreamView::stopAudioSource, audio_out_, &AudioOutput::onStopAudioSource);
             disconnect(this, &LiveStreamView::deleteAudioSource, audio_out_, &AudioOutput::onDeleteAudioSource);
             disconnect(this, &LiveStreamView::newAudioFrame, audio_out_, &AudioOutput::onNewAudioFrame);
+            disconnect(this, &LiveStreamView::setAudioSourceVolume, audio_out_, &AudioOutput::onSetAudioSourceVolume);
         }
         audio_out_ = audio_out;
         if (audio_out_)
@@ -71,19 +68,30 @@ void LiveStreamView::setAudioOut(AudioOutput *audio_out)
             connect(this, &LiveStreamView::stopAudioSource, audio_out_, &AudioOutput::onStopAudioSource);
             connect(this, &LiveStreamView::deleteAudioSource, audio_out_, &AudioOutput::onDeleteAudioSource);
             connect(this, &LiveStreamView::newAudioFrame, audio_out_, &AudioOutput::onNewAudioFrame);
+            connect(this, &LiveStreamView::setAudioSourceVolume, audio_out_, &AudioOutput::onSetAudioSourceVolume);
         }
         emit audioOutChanged();
     }
 }
 
-void LiveStreamView::setViewIndex(int new_view_index)
+void LiveStreamView::setVolume(qreal new_volume)
 {
-    if (new_view_index >= -1 && view_index_ != new_view_index)
+    if (volume_ != new_volume)
     {
-        if (view_index_ != -1)
-            emit deleteAudioSource(view_index_);
-        view_index_ = new_view_index;
-        emit viewIndexChanged();
+        volume_ = new_volume;
+        emit setAudioSourceVolume(this, new_volume);
+        emit volumeChanged();
+    }
+}
+
+void LiveStreamView::setT(qreal new_t)
+{
+    if (t_ != new_t)
+    {
+        t_ = new_t;
+        update();
+        subtitle_out_->setT(t_);
+        emit tChanged();
     }
 }
 
@@ -140,9 +148,7 @@ void LiveStreamView::onNewAudioFrame(const QSharedPointer<AudioFrame> &audio_fra
 {
     if (!current_source_ || sender() != current_source_->decoder())
         return;
-    if (view_index_ == -1)
-        return;
-    emit newAudioFrame(view_index_, audio_frame);
+    emit newAudioFrame(this, audio_frame);
 }
 
 void LiveStreamView::onNewSubtitleFrame(const QSharedPointer<SubtitleFrame> &subtitle_frame)
@@ -160,10 +166,4 @@ void LiveStreamView::OnWidthChanged()
 void LiveStreamView::OnHeightChanged()
 {
     subtitle_out_->setHeight(width());
-}
-
-void LiveStreamView::OnTChanged()
-{
-    update();
-    subtitle_out_->setT(t_);
 }

@@ -61,7 +61,7 @@ AudioOutput::~AudioOutput()
     }
 }
 
-void AudioOutput::onNewAudioSource(int source_id, const AVCodecContext *context)
+void AudioOutput::onNewAudioSource(void *source_id, const AVCodecContext *context)
 {
     std::shared_ptr<AudioSource> new_source;
     try
@@ -79,7 +79,7 @@ void AudioOutput::onNewAudioSource(int source_id, const AVCodecContext *context)
     InitSource(source, context->channels, context->channel_layout, context->sample_fmt, context->sample_rate);
 }
 
-void AudioOutput::onStopAudioSource(int source_id)
+void AudioOutput::onStopAudioSource(void *source_id)
 {
     auto itr = sources_.find(source_id);
     if (itr == sources_.end())
@@ -91,7 +91,7 @@ void AudioOutput::onStopAudioSource(int source_id)
     CollectExhaustedBuffer(*source);
 }
 
-void AudioOutput::onDeleteAudioSource(int source_id)
+void AudioOutput::onDeleteAudioSource(void *source_id)
 {
     auto itr = sources_.find(source_id);
     if (itr == sources_.end())
@@ -100,7 +100,7 @@ void AudioOutput::onDeleteAudioSource(int source_id)
     sources_.erase(itr);
 }
 
-void AudioOutput::onNewAudioFrame(int source_id, const QSharedPointer<AudioFrame> &audio_frame)
+void AudioOutput::onNewAudioFrame(void *source_id, const QSharedPointer<AudioFrame> &audio_frame)
 {
     AudioSource *source;
 
@@ -175,7 +175,7 @@ void AudioOutput::onNewAudioFrame(int source_id, const QSharedPointer<AudioFrame
     }
 }
 
-void AudioOutput::onSetAudioSourceVolume(int source_id, qreal volume)
+void AudioOutput::onSetAudioSourceVolume(void *source_id, qreal volume)
 {
     AudioSource *source;
 

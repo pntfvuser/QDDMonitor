@@ -13,6 +13,7 @@ class AudioOutput : public QObject
     };
     using SwrContextObject = AVObjectBase<SwrContext, SwrContextReleaseFunctor>;
 
+    using AudioSourceId = void *;
     using ALBufferId = ALuint;
     using ALSourceId = ALuint;
 
@@ -25,7 +26,7 @@ class AudioOutput : public QObject
         AudioSource(AudioSource &&) = delete;
         ~AudioSource();
 
-        int id;
+        AudioSourceId id;
         AVSampleFormat sample_format;
         int channels, sample_channel_size, sample_rate;
 
@@ -49,12 +50,14 @@ public:
 signals:
 
 public slots:
-    void onNewAudioSource(int source_id, const AVCodecContext *context);
-    void onStopAudioSource(int source_id);
-    void onDeleteAudioSource(int source_id);
+    //Use void* as a workaround since size_t/uintptr_t causes trouble in signals/slots
 
-    void onNewAudioFrame(int source_id, const QSharedPointer<AudioFrame> &audio_frame);
-    void onSetAudioSourceVolume(int source_id, qreal volume);
+    void onNewAudioSource(void *source_id, const AVCodecContext *context);
+    void onStopAudioSource(void *source_id);
+    void onDeleteAudioSource(void *source_id);
+
+    void onNewAudioFrame(void *source_id, const QSharedPointer<AudioFrame> &audio_frame);
+    void onSetAudioSourceVolume(void *source_id, qreal volume);
 private:
     void InitSource(AudioSource &source);
     void InitSource(AudioSource &source, int channels, int64_t channel_layout, AVSampleFormat sample_fmt, int sample_rate);
@@ -67,7 +70,7 @@ private:
     ALCdevice *device_ = nullptr;
     ALCcontext *context_ = nullptr;
     LPALGETSOURCEI64VSOFT alGetSourcei64vSOFT;
-    std::unordered_map<int, std::shared_ptr<AudioSource>> sources_;
+    std::unordered_map<AudioSourceId, std::shared_ptr<AudioSource>> sources_;
 };
 
 #endif // AUDIOOUTPUT_H
