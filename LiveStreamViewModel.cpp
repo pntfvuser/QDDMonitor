@@ -88,7 +88,7 @@ void LiveStreamViewModel::setSource(int index_row, int source_id)
         {
             if (view_info.sourceId() != -1)
                 source_model_->DeactivateSingleSource(view_info.sourceId());
-            view_info.setSource(index_row, source);
+            view_info.setSource(source_id, source);
             emit dataChanged(index(index_row), index(index_row));
         }
     }
