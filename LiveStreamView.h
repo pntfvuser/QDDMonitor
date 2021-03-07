@@ -42,6 +42,7 @@ signals:
     void audioOutChanged();
 
     void newAudioSource(int source_id, const AVCodecContext *context);
+    void stopAudioSource(int source_id);
     void deleteAudioSource(int source_id);
     void newAudioFrame(int source_id, QSharedPointer<AudioFrame> audio_frame);
 

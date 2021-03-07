@@ -3,7 +3,7 @@
 
 #include "AudioFrame.h"
 
-class AudioOutput : public QQuickItem
+class AudioOutput : public QObject
 {
     Q_OBJECT
 
@@ -43,13 +43,14 @@ class AudioOutput : public QQuickItem
         bool starting = false, stopping = false;
     };
 public:
-    explicit AudioOutput(QQuickItem *parent = nullptr);
+    explicit AudioOutput(QObject *parent = nullptr);
     ~AudioOutput();
 
 signals:
 
 public slots:
     void onNewAudioSource(int source_id, const AVCodecContext *context);
+    void onStopAudioSource(int source_id);
     void onDeleteAudioSource(int source_id);
 
     void onNewAudioFrame(int source_id, const QSharedPointer<AudioFrame> &audio_frame);

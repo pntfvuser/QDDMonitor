@@ -41,7 +41,7 @@ void LiveStreamView::setSource(LiveStreamSource *source)
         if (current_source_)
         {
             if (view_index_ != -1)
-                emit deleteAudioSource(view_index_); //Force resynchronize audio and video
+                emit stopAudioSource(view_index_); //Force resynchronize audio and video
             connect(current_source_->decoder(), &LiveStreamDecoder::newMedia, this, &LiveStreamView::onNewMedia);
             connect(current_source_->decoder(), &LiveStreamDecoder::newVideoFrame, this, &LiveStreamView::onNewVideoFrame);
             connect(current_source_->decoder(), &LiveStreamDecoder::newAudioFrame, this, &LiveStreamView::onNewAudioFrame);
@@ -60,6 +60,7 @@ void LiveStreamView::setAudioOut(AudioOutput *audio_out)
             if (view_index_ != -1)
                 emit deleteAudioSource(view_index_);
             disconnect(this, &LiveStreamView::newAudioSource, audio_out_, &AudioOutput::onNewAudioSource);
+            disconnect(this, &LiveStreamView::stopAudioSource, audio_out_, &AudioOutput::onStopAudioSource);
             disconnect(this, &LiveStreamView::deleteAudioSource, audio_out_, &AudioOutput::onDeleteAudioSource);
             disconnect(this, &LiveStreamView::newAudioFrame, audio_out_, &AudioOutput::onNewAudioFrame);
         }
@@ -67,6 +68,7 @@ void LiveStreamView::setAudioOut(AudioOutput *audio_out)
         if (audio_out_)
         {
             connect(this, &LiveStreamView::newAudioSource, audio_out_, &AudioOutput::onNewAudioSource);
+            connect(this, &LiveStreamView::stopAudioSource, audio_out_, &AudioOutput::onStopAudioSource);
             connect(this, &LiveStreamView::deleteAudioSource, audio_out_, &AudioOutput::onDeleteAudioSource);
             connect(this, &LiveStreamView::newAudioFrame, audio_out_, &AudioOutput::onNewAudioFrame);
         }

@@ -34,8 +34,8 @@ AudioOutput::AudioSource::~AudioSource()
     alDeleteBuffers(al_buffer_free_count, al_buffer_free);
 }
 
-AudioOutput::AudioOutput(QQuickItem *parent)
-    :QQuickItem(parent)
+AudioOutput::AudioOutput(QObject *parent)
+    :QObject(parent)
 {
     device_ = alcOpenDevice(nullptr);
     Q_ASSERT(device_);
@@ -77,6 +77,18 @@ void AudioOutput::onNewAudioSource(int source_id, const AVCodecContext *context)
     source.id = source_id;
 
     InitSource(source, context->channels, context->channel_layout, context->sample_fmt, context->sample_rate);
+}
+
+void AudioOutput::onStopAudioSource(int source_id)
+{
+    auto itr = sources_.find(source_id);
+    if (itr == sources_.end())
+        return;
+    AudioSource *source = itr->second.get();
+    source->pending_frames.clear();
+    source->buffer_block.clear();
+    alSourceStop(source->al_id);
+    CollectExhaustedBuffer(*source);
 }
 
 void AudioOutput::onDeleteAudioSource(int source_id)
@@ -207,7 +219,7 @@ void AudioOutput::InitSource(AudioOutput::AudioSource &source)
 
 void AudioOutput::InitSource(AudioSource &source, int channels, int64_t channel_layout, AVSampleFormat sample_fmt, int sample_rate)
 {
-    static constexpr int kBufferBlockSizeMS = 100;
+    static constexpr int kBufferBlockSizeMS = 50;
 
     source.channels = channels;
     source.sample_format = sample_fmt;
