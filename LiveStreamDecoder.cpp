@@ -27,11 +27,10 @@ static inline constexpr int64_t DurationToAVTimestamp(std::chrono::duration<Rep,
     return (duration.count() * Period::num * time_base.den) / (Period::den * time_base.num);
 }
 
-enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
-    const enum AVPixelFormat *pix_fmts)
+AVPixelFormat get_hw_format(AVCodecContext *ctx, const AVPixelFormat *pix_fmts)
 {
     Q_UNUSED(ctx);
-    const enum AVPixelFormat *p;
+    const AVPixelFormat *p;
 
     //See if there is hw pixel format first
     for (p = pix_fmts; *p != -1; p++) {
@@ -771,9 +770,9 @@ bool LiveStreamDecoder::IsPacketBufferLongerThan(PlaybackClock::duration duratio
 {
     if (video_packets_.empty() || audio_packets_.empty())
         return false;
-    if (AVTimestampToDuration<std::chrono::microseconds>(video_packets_.back()->pts - video_packets_.front()->pts, video_stream_time_base_) < duration)
+    if (video_packets_.back()->pts - video_packets_.front()->pts < DurationToAVTimestamp(duration, video_stream_time_base_))
         return false;
-    if (AVTimestampToDuration<std::chrono::microseconds>(audio_packets_.back()->pts - audio_packets_.front()->pts, audio_stream_time_base_) < duration)
+    if (audio_packets_.back()->pts - audio_packets_.front()->pts < DurationToAVTimestamp(duration, audio_stream_time_base_))
         return false;
     return true;
 }
@@ -782,9 +781,9 @@ bool LiveStreamDecoder::IsFrameBufferLongerThan(PlaybackClock::duration duration
 {
     if (video_frames_.empty() || audio_frames_.empty())
         return false;
-    if (AVTimestampToDuration<std::chrono::microseconds>(video_frames_.back()->timestamp - video_frames_.front()->timestamp, video_stream_time_base_) < duration)
+    if (video_frames_.back()->timestamp - video_frames_.front()->timestamp < DurationToAVTimestamp(duration, video_stream_time_base_))
         return false;
-    if (AVTimestampToDuration<std::chrono::microseconds>(audio_frames_.back()->timestamp - audio_frames_.front()->timestamp, audio_stream_time_base_) < duration)
+    if (audio_frames_.back()->timestamp - audio_frames_.front()->timestamp < DurationToAVTimestamp(duration, audio_stream_time_base_))
         return false;
     return true;
 }
