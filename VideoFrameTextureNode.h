@@ -27,7 +27,7 @@ class VideoFrameTextureNode : public QSGTextureProvider, public QSGSimpleTexture
         bool do_not_recycle = false;
     };
 
-    static constexpr size_t kQueueSize = 8, kUsedQueueSize = 4;
+    static constexpr size_t kQueueSize = 12, kUsedQueueSize = 6;
     static constexpr auto kTextureFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 public:
     VideoFrameTextureNode(QQuickItem *item);

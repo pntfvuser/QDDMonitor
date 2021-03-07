@@ -11,7 +11,7 @@ static inline qreal ScreenRefreshRate(QScreen *screen)
 {
     qreal refresh_rate = screen->refreshRate();
     if (refresh_rate >= 59 && refresh_rate <= 60)
-        refresh_rate = 59.94; //Manual patch
+        refresh_rate = 60; //Manual patch
     return refresh_rate;
 }
 
