@@ -4,6 +4,8 @@
 #include "LiveStreamSource.h"
 #include "LiveStreamSourceBilibili.h"
 
+Q_LOGGING_CATEGORY(CategorySourceControl, "qddm.sourcectrl")
+
 LiveStreamSourceModel::LiveStreamSourceModel(QObject *parent)
     :QAbstractListModel(parent)
 {
@@ -225,6 +227,7 @@ void LiveStreamSourceModel::OnActivated(int id)
     if (itr == sources_.end())
         return;
     itr->second.setActivated(true);
+    qCDebug(CategorySourceControl, "Source %d activated", id);
 
     int idx = FindSourceIndex(id);
     if (idx != -1)
@@ -240,6 +243,7 @@ void LiveStreamSourceModel::OnDeactivated(int id)
     if (itr == sources_.end())
         return;
     itr->second.setActivated(false);
+    qCDebug(CategorySourceControl, "Source %d deactivated", id);
 
     int idx = FindSourceIndex(id);
     if (idx != -1)

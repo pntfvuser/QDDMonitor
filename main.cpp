@@ -39,7 +39,9 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
 
     QLoggingCategory::setFilterRules("qddm.video=false\n"
+                                     "qddm.audio=false\n"
                                      //"qddm.decode=false\n"
+                                     //"qddm.sourcectrl=false\n"
                                      "qt.scenegraph.general=true");
 
 #ifdef _WIN32
