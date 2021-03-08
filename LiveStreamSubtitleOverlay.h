@@ -17,7 +17,7 @@ class LiveStreamSubtitleOverlay : public QQuickPaintedItem
 
     struct SubtitleItem
     {
-        static constexpr int kProgressDen = 4096;
+        static constexpr int kProgressDen = 8192;
 
         QStaticText text;
         QColor color;
