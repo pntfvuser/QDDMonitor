@@ -1,4 +1,4 @@
-QT += quick qml network svg
+QT += quick qml network svg websockets
 
 CONFIG += c++17
 CONFIG(release, debug|release): CONFIG += ltcg
@@ -17,6 +17,7 @@ HEADERS += \
     LiveStreamDecoder.h \
     LiveStreamSource.h \
     LiveStreamSourceBilibili.h \
+    LiveStreamSourceBilibiliDanmu.h \
     LiveStreamSourceFile.h \
     LiveStreamSourceModel.h \
     LiveStreamSubtitleOverlay.h \
@@ -38,6 +39,7 @@ SOURCES += \
         LiveStreamDecoder.cpp \
         LiveStreamSource.cpp \
         LiveStreamSourceBilibili.cpp \
+        LiveStreamSourceBilibiliDanmu.cpp \
         LiveStreamSourceFile.cpp \
         LiveStreamSourceModel.cpp \
         LiveStreamSubtitleOverlay.cpp \
@@ -62,7 +64,7 @@ qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
-DEFINES += AL_LIBTYPE_STATIC
+DEFINES += AL_LIBTYPE_STATIC ZLIB_WINAPI
 
 win32: {
     INCLUDEPATH += C:/usr/include
@@ -77,7 +79,7 @@ win32: {
         LIBS += -LC:/usr/lib/Win32/Debug
     }
 
-    LIBS += libavcodec.lib libavformat.lib libavutil.lib libswresample.lib libswscale.lib libx264.lib x265.lib OpenAL32.lib libssl.lib libcrypto.lib evr.lib mf.lib strmiids.lib mfplat.lib mfplay.lib mfreadwrite.lib mfuuid.lib ws2_32.lib bcrypt.lib secur32.lib d3d11.lib
+    LIBS += libavcodec.lib libavformat.lib libavutil.lib libswresample.lib libswscale.lib libx264.lib x265.lib OpenAL32.lib libssl.lib libcrypto.lib zlibstat.lib evr.lib mf.lib strmiids.lib mfplat.lib mfplay.lib mfreadwrite.lib mfuuid.lib ws2_32.lib bcrypt.lib secur32.lib d3d11.lib
 }
 else:unix: {
     LIBS += -lavcodec -lavformat -lavutil

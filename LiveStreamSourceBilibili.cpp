@@ -1,15 +1,27 @@
 #include "pch.h"
 #include "LiveStreamSourceBilibili.h"
 
+#include "LiveStreamSourceBilibiliDanmu.h"
+
 LiveStreamSourceBilibili::LiveStreamSourceBilibili(int room_display_id, QNetworkAccessManager *network_manager, QObject *parent)
-    :LiveStreamSource(parent), room_display_id_(room_display_id), network_manager_(network_manager), av_network_manager_(new QNetworkAccessManager(this)), push_timer_(new QTimer(this))
+    :LiveStreamSource(parent),
+    room_display_id_(room_display_id),
+    network_manager_(network_manager), av_network_manager_(new QNetworkAccessManager(this)),
+    danmu_source_(new LiveStreamSourceBilibiliDanmu(network_manager_, this)),
+    push_timer_(new QTimer(this))
 {
     connect(push_timer_, &QTimer::timeout, this, &LiveStreamSourceBilibili::OnAVStreamPush);
+    push_timer_->setInterval(50);
     description_ = tr("bilibili live room %1").arg(room_display_id);
 }
 
 LiveStreamSourceBilibili::~LiveStreamSourceBilibili()
 {
+}
+
+void LiveStreamSourceBilibili::OnNewDanmu(const QSharedPointer<SubtitleFrame> &danmu_frame)
+{
+    emit newSubtitleFrame(danmu_frame);
 }
 
 void LiveStreamSourceBilibili::UpdateInfo()
@@ -157,6 +169,11 @@ void LiveStreamSourceBilibili::Activate(const QString &quality_name)
 
     QNetworkRequest request(request_url);
     stream_info_reply_ = network_manager_->get(request);
+    if (!stream_info_reply_)
+    {
+        emit invalidSourceArgument();
+        return;
+    }
     connect(stream_info_reply_, &QNetworkReply::readyRead, this, &LiveStreamSourceBilibili::OnRequestStreamInfoProgress);
     connect(stream_info_reply_, &QNetworkReply::finished, this, &LiveStreamSourceBilibili::OnRequestStreamInfoComplete);
 }
@@ -182,63 +199,56 @@ void LiveStreamSourceBilibili::OnRequestStreamInfoComplete()
     stream_info_reply_->deleteLater();
     stream_info_reply_ = nullptr;
 
-    if (!json_doc.isObject())
+    Q_ASSERT(!active_);
+    do
     {
-        emit invalidSourceArgument();
-        return;
-    }
-    QJsonObject json_object = json_doc.object();
-    int code = (int)json_object.value("code").toDouble(-1);
-    if (code != 0)
-    {
-        emit invalidSourceArgument();
-        return;
-    }
-    QJsonValue data_value = json_object.value("data");
-    if (!data_value.isObject())
-    {
-        emit invalidSourceArgument();
-        return;
-    }
-    QJsonObject data_object = data_value.toObject();
+        if (!json_doc.isObject())
+            break;
+        QJsonObject json_object = json_doc.object();
+        int code = (int)json_object.value("code").toDouble(-1);
+        if (code != 0)
+            break;
+        QJsonValue data_value = json_object.value("data");
+        if (!data_value.isObject())
+            break;
+        QJsonObject data_object = data_value.toObject();
 
-    QJsonValue durl_value = data_object.value("durl");
-    if (!durl_value.isArray())
+        QJsonValue durl_value = data_object.value("durl");
+        if (!durl_value.isArray())
+            break;
+        QJsonArray durl = durl_value.toArray();
+        if (durl.empty())
+            break;
+
+        QJsonValue first_url = durl[0].toObject().value("url");
+        if (!first_url.isString())
+            break;
+
+        QUrl request_url(first_url.toString());
+        QNetworkRequest request(request_url);
+        request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+        request.setMaximumRedirectsAllowed(2);
+        request.setRawHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.190 Safari/537.36");
+        request.setRawHeader("Origin", "https://live.bilibili.com");
+        request.setRawHeader("Referer", "https://live.bilibili.com/");
+        av_reply_ = av_network_manager_->get(request);
+        if (!av_reply_)
+            break;
+        active_ = true;
+        emit activated();
+
+        BeginData();
+        emit newInputStream("stream.flv");
+        connect(av_reply_, &QNetworkReply::readyRead, this, &LiveStreamSourceBilibili::OnAVStreamProgress);
+        push_timer_->start();
+
+        danmu_source_->Activate(room_id_, 3);
+    } while (false);
+    if (!active_)
     {
         emit invalidSourceArgument();
         return;
     }
-    QJsonArray durl = durl_value.toArray();
-    if (durl.empty())
-    {
-        emit invalidSourceArgument();
-        return;
-    }
-
-    QJsonValue first_url = durl[0].toObject().value("url");
-    if (!first_url.isString())
-    {
-        emit invalidSourceArgument();
-        return;
-    }
-
-    QUrl request_url(first_url.toString());
-    QNetworkRequest request(request_url);
-    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
-    request.setMaximumRedirectsAllowed(2);
-    request.setRawHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.190 Safari/537.36");
-    request.setRawHeader("Origin", "https://live.bilibili.com");
-    request.setRawHeader("Referer", "https://live.bilibili.com/");
-    av_reply_ = av_network_manager_->get(request);
-    if (!av_reply_)
-        return;
-    active_ = true;
-    emit activated();
-
-    BeginData();
-    emit newInputStream("stream.flv");
-    connect(av_reply_, &QNetworkReply::readyRead, this, &LiveStreamSourceBilibili::OnAVStreamProgress);
-    push_timer_->start(50);
 }
 
 void LiveStreamSourceBilibili::OnAVStreamProgress()
@@ -279,6 +289,7 @@ void LiveStreamSourceBilibili::Deactivate()
     if (av_reply_)
     {
         push_timer_->stop();
+        av_reply_->close();
         av_reply_->deleteLater();
         av_reply_ = nullptr;
         CloseData();
@@ -295,13 +306,14 @@ void LiveStreamSourceBilibili::OnDeleteMedia()
 {
     if (!active_)
         return;
+    push_timer_->stop();
     if (av_reply_)
     {
-        push_timer_->stop();
         av_reply_->deleteLater();
         av_reply_ = nullptr;
         //No need to CloseData since LiveStreamDecoder::Close() has already done that
     }
+    danmu_source_->Deactivate();
     active_ = false;
     emit deactivated();
 

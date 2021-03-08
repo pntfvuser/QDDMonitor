@@ -3,6 +3,8 @@
 
 #include "LiveStreamSource.h"
 
+class LiveStreamSourceBilibiliDanmu;
+
 class LiveStreamSourceBilibili : public LiveStreamSource
 {
     Q_OBJECT
@@ -10,6 +12,8 @@ class LiveStreamSourceBilibili : public LiveStreamSource
 public:
     explicit LiveStreamSourceBilibili(int room_display_id, QNetworkAccessManager *network_manager, QObject *parent = nullptr);
     ~LiveStreamSourceBilibili();
+
+    void OnNewDanmu(const QSharedPointer<SubtitleFrame> &danmu_frame);
 private slots:
     void OnRequestUpdateInfoProgress();
     void OnRequestUpdateInfoComplete();
@@ -32,6 +36,7 @@ private:
     QString pending_option_;
     QNetworkAccessManager *network_manager_ = nullptr, *av_network_manager_ = nullptr;
     QNetworkReply *info_reply_ = nullptr, *stream_info_reply_ = nullptr, *av_reply_ = nullptr;
+    LiveStreamSourceBilibiliDanmu *danmu_source_ = nullptr;
     QTimer *push_timer_ = nullptr;
 };
 

@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <limits>
 #include <type_traits>
 
 #include <atomic>
@@ -45,6 +46,7 @@ using namespace std::chrono_literals;
 #include <QPainter>
 #include <QScreen>
 #include <QStaticText>
+#include <QWebSocket>
 
 #include <QQuickWindow>
 #include <QQuickItem>
@@ -55,6 +57,8 @@ using namespace std::chrono_literals;
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+
+#include <zlib.h>
 
 #ifdef _WIN32
 #include <wrl/client.h>
