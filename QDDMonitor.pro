@@ -14,6 +14,7 @@ HEADERS += \
     BlockingFIFOBuffer.h \
     D3D11FlushHelper.h \
     D3D11SharedResource.h \
+    FixedGridLayout.h \
     LiveStreamDecoder.h \
     LiveStreamSource.h \
     LiveStreamSourceBilibili.h \
@@ -22,7 +23,6 @@ HEADERS += \
     LiveStreamSourceModel.h \
     LiveStreamSubtitleOverlay.h \
     LiveStreamView.h \
-    LiveStreamViewGrid.h \
     LiveStreamViewLayoutModel.h \
     LiveStreamViewModel.h \
     SubtitleFrame.h \
@@ -36,6 +36,7 @@ SOURCES += \
         AudioOutput.cpp \
         D3D11FlushHelper.cpp \
         D3D11SharedResource.cpp \
+        FixedGridLayout.cpp \
         LiveStreamDecoder.cpp \
         LiveStreamSource.cpp \
         LiveStreamSourceBilibili.cpp \
@@ -44,7 +45,6 @@ SOURCES += \
         LiveStreamSourceModel.cpp \
         LiveStreamSubtitleOverlay.cpp \
         LiveStreamView.cpp \
-        LiveStreamViewGrid.cpp \
         LiveStreamViewLayoutModel.cpp \
         LiveStreamViewModel.cpp \
         VideoFrameTextureNode.cpp \

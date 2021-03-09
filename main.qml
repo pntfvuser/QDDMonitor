@@ -80,7 +80,7 @@ Window {
             enabled: !isLayoutEditMode
             visible: !isLayoutEditMode
 
-            LiveStreamViewGrid {
+            FixedGridLayout {
                 id: gridView
 
                 anchors.fill: parent
@@ -100,10 +100,10 @@ Window {
                     }
 
                     delegate: LiveStreamViewDelegate {
-                        LiveStreamViewGrid.row: display.row
-                        LiveStreamViewGrid.column: display.column
-                        LiveStreamViewGrid.rowSpan: display.rowSpan
-                        LiveStreamViewGrid.columnSpan: display.columnSpan
+                        FixedGridLayout.row: display.row
+                        FixedGridLayout.column: display.column
+                        FixedGridLayout.rowSpan: display.rowSpan
+                        FixedGridLayout.columnSpan: display.columnSpan
                     }
                 }
             }
@@ -156,7 +156,7 @@ Window {
                 }
             }
 
-            LiveStreamViewGrid {
+            FixedGridLayout {
                 id: viewgridViewLayout
 
                 anchors.fill: parent
@@ -168,10 +168,10 @@ Window {
                     enabled: mouseareaViewLayoutEditing.pressed
                     visible: mouseareaViewLayoutEditing.pressed
 
-                    LiveStreamViewGrid.row: mouseareaViewLayoutEditing.row
-                    LiveStreamViewGrid.column: mouseareaViewLayoutEditing.column
-                    LiveStreamViewGrid.rowSpan: mouseareaViewLayoutEditing.rowSpan
-                    LiveStreamViewGrid.columnSpan: mouseareaViewLayoutEditing.columnSpan
+                    FixedGridLayout.row: mouseareaViewLayoutEditing.row
+                    FixedGridLayout.column: mouseareaViewLayoutEditing.column
+                    FixedGridLayout.rowSpan: mouseareaViewLayoutEditing.rowSpan
+                    FixedGridLayout.columnSpan: mouseareaViewLayoutEditing.columnSpan
 
                     color: mouseareaViewLayoutEditing.intersecting ? "red" : "green"
                 }
@@ -184,10 +184,10 @@ Window {
                     }
 
                     delegate: Item {
-                        LiveStreamViewGrid.row: display.row
-                        LiveStreamViewGrid.column: display.column
-                        LiveStreamViewGrid.rowSpan: display.rowSpan
-                        LiveStreamViewGrid.columnSpan: display.columnSpan
+                        FixedGridLayout.row: display.row
+                        FixedGridLayout.column: display.column
+                        FixedGridLayout.rowSpan: display.rowSpan
+                        FixedGridLayout.columnSpan: display.columnSpan
 
                         Rectangle {
                             anchors.fill: parent
@@ -219,10 +219,10 @@ Window {
     }
 
     Component.onCompleted: {
-        sourceModelMain.addBilibiliSource("room1", 3415150);
-        sourceModelMain.addBilibiliSource("room2", 631);
+        sourceModelMain.addBilibiliSource("room1", 14327465);
+        sourceModelMain.addBilibiliSource("room2", 8725120);
         sourceModelMain.addBilibiliSource("room3", 6655);
-        sourceModelMain.addBilibiliSource("room4", 22671795);
+        sourceModelMain.addBilibiliSource("room4", 766);
     }
 
     onSourcePressed: {

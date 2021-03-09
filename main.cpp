@@ -5,7 +5,7 @@
 #include "LiveStreamView.h"
 #include "LiveStreamViewModel.h"
 #include "LiveStreamViewLayoutModel.h"
-#include "LiveStreamViewGrid.h"
+#include "FixedGridLayout.h"
 #include "AudioOutput.h"
 
 #ifdef _WIN32
@@ -25,12 +25,12 @@ int main(int argc, char *argv[])
 
     qmlRegisterAnonymousType<LiveStreamSource>("org.anon.QDDMonitor", 1);
     qmlRegisterAnonymousType<AudioOutput>("org.anon.QDDMonitor", 1);
-    qmlRegisterAnonymousType<LiveStreamViewGridAttachedType>("org.anon.QDDMonitor", 1);
+    qmlRegisterAnonymousType<FixedGridLayoutAttachedType>("org.anon.QDDMonitor", 1);
 
     qmlRegisterType<LiveStreamSourceModel>("org.anon.QDDMonitor", 1, 0, "LiveStreamSourceModel");
     qmlRegisterType<LiveStreamViewModel>("org.anon.QDDMonitor", 1, 0, "LiveStreamViewModel");
     qmlRegisterType<LiveStreamViewLayoutModel>("org.anon.QDDMonitor", 1, 0, "LiveStreamViewLayoutModel");
-    qmlRegisterType<LiveStreamViewGrid>("org.anon.QDDMonitor", 1, 0, "LiveStreamViewGrid");
+    qmlRegisterType<FixedGridLayout>("org.anon.QDDMonitor", 1, 0, "FixedGridLayout");
     qmlRegisterType<LiveStreamView>("org.anon.QDDMonitor", 1, 0, "LiveStreamView");
     qmlRegisterType<D3D11FlushHelper>("org.anon.QDDMonitor", 1, 0, "D3D11FlushHelper");
 
