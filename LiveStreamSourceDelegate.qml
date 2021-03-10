@@ -1,4 +1,5 @@
 import QtQuick 2.15
+import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
 Item {
@@ -14,6 +15,23 @@ Item {
             anchors.fill: parent
             visible: itemSourceDelegate.ListView.isCurrentItem || mouseAreaSource.containsMouse
             color: itemSourceDelegate.ListView.isCurrentItem ? "lightgray" : "whitesmoke"
+        }
+
+        MouseArea {
+            id: mouseAreaSource
+
+            anchors.fill: parent
+            hoverEnabled: true
+            preventStealing: true
+
+            onPressed: {
+                listViewSource.currentIndex = index
+                sourcePressed(display.id, -1)
+            }
+
+            onReleased: {
+                sourceReleased(mapToItem(null, mouse.x, mouse.y))
+            }
         }
 
         RowLayout {
@@ -38,22 +56,22 @@ Item {
 
                 text: display.name
             }
-        }
 
-        MouseArea {
-            id: mouseAreaSource
+            Button {
+                Layout.preferredHeight: parent.height
+                Layout.preferredWidth: parent.height
 
-            anchors.fill: parent
-            hoverEnabled: true
-            preventStealing: true
+                background: Rectangle {
+                    color: parent.pressed ? "gray" : "lightgray"
+                    Image {
+                        anchors.fill: parent
+                        source: "images/remove_circle.svg"
+                    }
+                }
 
-            onPressed: {
-                listViewSource.currentIndex = index
-                sourcePressed(display.id, -1)
-            }
-
-            onReleased: {
-                sourceReleased(mapToItem(null, mouse.x, mouse.y))
+                onClicked: {
+                    sourceModelMain.removeSourceByIndex(index)
+                }
             }
         }
     }

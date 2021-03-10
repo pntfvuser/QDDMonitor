@@ -58,7 +58,7 @@ Window {
         }
 
         Button {
-            text: "Add room"
+            text: qsTr("Add room")
 
             Layout.fillWidth: true
 
@@ -96,12 +96,15 @@ Window {
             TextField {
                 id: textInputLayoutRows
                 Layout.fillWidth: true
+
                 inputMethodHints: Qt.ImhDigitsOnly
                 validator: IntValidator {
                     bottom: 1
                     top: 12
                 }
                 selectByMouse: true
+
+                text: "3"
             }
 
             Label {
@@ -110,17 +113,20 @@ Window {
             TextField {
                 id: textInputLayoutColumns
                 Layout.fillWidth: true
+
                 inputMethodHints: Qt.ImhDigitsOnly
                 validator: IntValidator {
                     bottom: 1
                     top: 12
                 }
                 selectByMouse: true
+
+                text: "3"
             }
         }
 
         Button {
-            text: "switch view mode"
+            text: isLayoutEditMode ? qsTr("Save layout") : qsTr("Edit layout")
 
             Layout.fillWidth: true
 
