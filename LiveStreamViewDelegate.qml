@@ -142,6 +142,7 @@ StackView {
                     text: subtitleText
                     color: subtitleColor
                     font.pixelSize: 20
+                    font.bold: true
                     style: Text.Outline
                     styleColor: "black"
                 }

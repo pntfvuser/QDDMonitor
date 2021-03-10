@@ -33,11 +33,25 @@ Window {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.left: parent.left
-        width: 120
+        width: 150
+
+        TextField {
+            id: textInputRoomName
+
+            Layout.fillWidth: true
+            Layout.leftMargin: 5
+            Layout.rightMargin: 5
+
+            selectByMouse: true
+        }
 
         TextField {
             id: textInputRoomId
+
             Layout.fillWidth: true
+            Layout.leftMargin: 5
+            Layout.rightMargin: 5
+
             inputMethodHints: Qt.ImhDigitsOnly
             validator: IntValidator {}
             selectByMouse: true
@@ -49,7 +63,7 @@ Window {
             Layout.fillWidth: true
 
             onClicked: {
-                sourceModelMain.addBilibiliSource(textInputRoomId.text, textInputRoomId.text);
+                sourceModelMain.addBilibiliSource(textInputRoomName.text, textInputRoomId.text);
             }
         }
 
@@ -69,6 +83,42 @@ Window {
             }
         }
 
+        GridLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: 5
+            Layout.rightMargin: 5
+
+            columns: 2
+
+            Label {
+                text: qsTr("Rows: ")
+            }
+            TextField {
+                id: textInputLayoutRows
+                Layout.fillWidth: true
+                inputMethodHints: Qt.ImhDigitsOnly
+                validator: IntValidator {
+                    bottom: 1
+                    top: 12
+                }
+                selectByMouse: true
+            }
+
+            Label {
+                text: qsTr("Columns: ")
+            }
+            TextField {
+                id: textInputLayoutColumns
+                Layout.fillWidth: true
+                inputMethodHints: Qt.ImhDigitsOnly
+                validator: IntValidator {
+                    bottom: 1
+                    top: 12
+                }
+                selectByMouse: true
+            }
+        }
+
         Button {
             text: "switch view mode"
 
@@ -79,8 +129,10 @@ Window {
                     viewModelMain.resetLayout(viewLayoutModelMain);
                     isLayoutEditMode = false;
                 } else {
-                    viewLayoutModelMain.resetLayout(5, 5);
-                    isLayoutEditMode = true;
+                    if (textInputLayoutRows.acceptableInput && textInputLayoutColumns.acceptableInput) {
+                        viewLayoutModelMain.resetLayout(textInputLayoutRows.text, textInputLayoutColumns.text);
+                        isLayoutEditMode = true;
+                    }
                 }
             }
         }
