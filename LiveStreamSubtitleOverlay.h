@@ -7,23 +7,31 @@ class LiveStreamSubtitleOverlay : public QQuickItem
 {
     Q_OBJECT
 
-    enum : unsigned char
+    enum ItemType
     {
-        ROW_BUSY_NORMAL = 0x01,
-        ROW_BUSY_TOP = 0x02,
-        ROW_BUSY_BOTTOM = 0x04,
-        ROW_BUSY_REVERSE = 0x08,
+        ROW_NORMAL,
+        ROW_TOP,
+        ROW_BOTTOM,
+        ROW_REVERSE,
+    };
+    static constexpr int ROW_TYPE_COUNT = ROW_REVERSE + 1;
+
+    struct RowStatus
+    {
+        int status[4] = { -1, -1, -1, -1 };
     };
 
     struct SubtitleItem
     {
         static constexpr int kProgressDen = 8192;
 
-        QQmlContext *item_context = nullptr;
-        QQuickItem *item = nullptr;
-        SubtitleStyle style;
-        int width = 0, slot = -1, progress_num = 0;
-        bool occupies_slot = false;
+        SubtitleItem() = default;
+        SubtitleItem(QQmlContext *new_context, QQuickItem *new_item, ItemType new_style, int new_width) :visual_item_context(new_context), visual_item(new_item), style(new_style), width(new_width) {}
+
+        QQmlContext *visual_item_context = nullptr;
+        QQuickItem *visual_item = nullptr;
+        ItemType style = ROW_NORMAL;
+        int width = 0, row = -1, progress_num = 0;
     };
 
     Q_PROPERTY(qreal t READ t WRITE setT NOTIFY tChanged)
@@ -51,18 +59,20 @@ private:
 
     void UpdateItemY(const SubtitleItem &item);
 
-    static bool IsStyleFixedPosition(SubtitleStyle style);
-    static unsigned char GetSlotBit(SubtitleStyle style);
+    bool OccupiesRow(int index, const SubtitleItem &item);
+
+    static bool IsStyleFixedPosition(ItemType style);
+    static ItemType GetItemType(SubtitleStyle style);
 
     qreal t_ = 0;
 
     QQmlComponent *text_delegate_ = nullptr;
-    QQmlContext *subtitle_slot_height_context_ = nullptr;
-    QQuickItem *subtitle_slot_height_item_ = nullptr;
-    int subtitle_slot_height_ = 0, overlay_height_ = 0;
+    QQmlContext *subtitle_row_height_context_ = nullptr;
+    QQuickItem *subtitle_row_height_item_ = nullptr;
+    int subtitle_row_height_ = 0, overlay_height_ = 0;
 
     std::vector<SubtitleItem> active_subtitles_;
-    std::vector<unsigned char> subtitle_slot_busy_;
+    std::vector<RowStatus> subtitle_row_status_;
 };
 
 #endif // LIVESTREAMVIEWSUBTITLEOVERLAY_H
