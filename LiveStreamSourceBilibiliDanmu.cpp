@@ -340,7 +340,7 @@ void LiveStreamSourceBilibiliDanmu::OnChatroomSocketBinaryMessage(const QByteArr
                 danmu_frame->content = content;
 
                 QJsonArray style = info[0].toArray();
-                qDebug() << style;
+                //qDebug() << style;
                 if (style.size() >= 4)
                 {
                     quint32 color_value = (quint32)style[3].toDouble(0xFFFFFF);
