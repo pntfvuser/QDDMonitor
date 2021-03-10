@@ -33,7 +33,25 @@ Window {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.left: parent.left
-        width: 100
+        width: 120
+
+        TextField {
+            id: textInputRoomId
+            Layout.fillWidth: true
+            inputMethodHints: Qt.ImhDigitsOnly
+            validator: IntValidator {}
+            selectByMouse: true
+        }
+
+        Button {
+            text: "Add room"
+
+            Layout.fillWidth: true
+
+            onClicked: {
+                sourceModelMain.addBilibiliSource(textInputRoomId.text, textInputRoomId.text);
+            }
+        }
 
         ListView {
             id: listViewSource
@@ -56,7 +74,7 @@ Window {
 
             Layout.fillWidth: true
 
-            onPressed: {
+            onClicked: {
                 if (isLayoutEditMode) {
                     viewModelMain.resetLayout(viewLayoutModelMain);
                     isLayoutEditMode = false;
@@ -219,10 +237,6 @@ Window {
     }
 
     Component.onCompleted: {
-        sourceModelMain.addBilibiliSource("room1", 14327465);
-        sourceModelMain.addBilibiliSource("room2", 8725120);
-        sourceModelMain.addBilibiliSource("room3", 6655);
-        sourceModelMain.addBilibiliSource("room4", 766);
     }
 
     onSourcePressed: {
