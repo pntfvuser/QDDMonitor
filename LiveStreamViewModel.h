@@ -74,6 +74,9 @@ signals:
 private slots:
     void OnDeleteSource(int source_id);
 private:
+    void LoadFromFile();
+    void SaveToFile();
+
     LiveStreamSourceModel *source_model_ = nullptr;
 
     QThread audio_thread_;

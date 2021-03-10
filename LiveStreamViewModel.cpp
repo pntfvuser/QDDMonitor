@@ -13,13 +13,17 @@ LiveStreamViewModel::LiveStreamViewModel(QObject *parent)
     connect(&audio_thread_, &QThread::finished, audio_out_, &QObject::deleteLater);
     audio_thread_.start();
 
-    view_info_.push_back(LiveStreamViewInfo(0, 0, 1, 1, -1, nullptr, audio_out_));
+    LoadFromFile();
+    if (view_info_.empty())
+        view_info_.push_back(LiveStreamViewInfo(0, 0, 1, 1, -1, nullptr, audio_out_));
 }
 
 LiveStreamViewModel::~LiveStreamViewModel()
 {
     audio_thread_.exit();
     audio_thread_.wait();
+
+    SaveToFile();
 }
 
 int LiveStreamViewModel::rowCount(const QModelIndex &) const
@@ -124,4 +128,65 @@ void LiveStreamViewModel::OnDeleteSource(int source_id)
             emit dataChanged(index(i), index(i)); //Should be direct
         }
     }
+}
+
+void LiveStreamViewModel::LoadFromFile()
+{
+    QFile file("saved_view_layout.json");
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return;
+    if (file.bytesAvailable() >= 0x1000)
+        return;
+    QJsonDocument json = QJsonDocument::fromJson(file.readAll());
+    if (!json.isObject())
+        return;
+    QJsonObject json_object = json.object();
+
+    int rows = json_object.value("rows").toDouble(-1);
+    int columns = json_object.value("columns").toDouble(-1);
+    if (rows < 0 || columns < 0)
+        return;
+    rows_ = rows;
+    columns_ = columns;
+    QJsonArray json_array = json_object.value("layout").toArray();
+
+    for (const auto &item : json_array)
+    {
+        if (!item.isObject())
+            continue;
+        QJsonObject item_object = item.toObject();
+
+        int row = item_object.value("row").toDouble(-1);
+        int column = item_object.value("column").toDouble(-1);
+        int rowSpan = item_object.value("rowSpan").toDouble(-1);
+        int columnSpan = item_object.value("columnSpan").toDouble(-1);
+        if (row < 0 || column < 0 || rowSpan <= 0 || columnSpan <= 0)
+            continue;
+        view_info_.push_back(LiveStreamViewInfo(row, column, rowSpan, columnSpan, -1, nullptr, audio_out_));
+    }
+}
+
+void LiveStreamViewModel::SaveToFile()
+{
+    QJsonArray json_array;
+    for (const auto &p : view_info_)
+    {
+        QJsonObject item;
+        item["row"] = p.row();
+        item["column"] = p.column();
+        item["rowSpan"] = p.rowSpan();
+        item["columnSpan"] = p.columnSpan();
+        json_array.push_back(item);
+    }
+
+    QJsonObject json_object;
+    json_object["rows"] = rows_;
+    json_object["columns"] = columns_;
+    json_object["layout"] = std::move(json_array);
+
+    QFile file("saved_view_layout.json");
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+        return;
+    file.write(QJsonDocument(json_object).toJson(QJsonDocument::Compact));
+    file.close();
 }
