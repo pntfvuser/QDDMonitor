@@ -4,57 +4,130 @@
 #include "LiveStreamView.h"
 
 static constexpr int kSubtitleSameSlotMargin = 10;
+static constexpr int kSubtitleDifferentSlotMargin = 5;
 
 LiveStreamSubtitleOverlay::LiveStreamSubtitleOverlay(QQuickItem *parent)
-    :QQuickPaintedItem(parent), subtitle_font_(QGuiApplication::font())
+    :QQuickItem(parent)
 {
-    connect(this, &QQuickItem::heightChanged, this, &LiveStreamSubtitleOverlay::onHeightChanged);
-
-    subtitle_font_.setPixelSize(20);
-    QStaticText height_test_text("Ip");
-    height_test_text.prepare(QTransform(), subtitle_font_);
-    subtitle_slot_height_ = round(height_test_text.size().height());
-    if (height() >= subtitle_slot_height_)
-        subtitle_slot_busy_.resize((int)(height() / subtitle_slot_height_), 0);
+    connect(this, &QQuickItem::heightChanged, this, &LiveStreamSubtitleOverlay::OnHeightChanged);
 }
 
-void LiveStreamSubtitleOverlay::paint(QPainter *painter)
+void LiveStreamSubtitleOverlay::setTextDelegate(QQmlComponent *new_text_delegate)
 {
-    painter->setFont(subtitle_font_);
-    painter->setClipRect(0, 0, width(), height());
-    painter->setClipping(true);
-
-    int overlay_height = (int)height();
-    int overlay_width = (int)width();
-    for (const SubtitleItem &item : active_subtitles_)
+    if (text_delegate_ != new_text_delegate)
     {
-        if (item.slot != -1)
+        if (subtitle_slot_height_item_)
         {
-            int item_width = item.width;
-            int x, y;
-
-            if (item.style == SubtitleStyle::BOTTOM)
-                y = overlay_height - (item.slot + 1) * subtitle_slot_height_;
-            else
-                y = item.slot * subtitle_slot_height_;
-
-            if (item.style == SubtitleStyle::NORMAL)
-                x = overlay_width - item.progress_num / SubtitleItem::kProgressDen;
-            else if (item.style == SubtitleStyle::REVERSE)
-                x = item.progress_num / SubtitleItem::kProgressDen - item_width;
-            else
-                x = (overlay_width - item_width) / 2;
-
-            painter->setPen(item.color);
-            painter->drawStaticText(x, y, item.text);
+            delete subtitle_slot_height_item_;
+            subtitle_slot_height_item_ = nullptr;
         }
+        if (subtitle_slot_height_context_)
+        {
+            delete subtitle_slot_height_context_;
+            subtitle_slot_height_context_ = nullptr;
+        }
+        text_delegate_ = new_text_delegate;
+
+        if (text_delegate_)
+        {
+            subtitle_slot_height_context_ = new QQmlContext(text_delegate_->creationContext(), this);
+            if (subtitle_slot_height_context_)
+            {
+                subtitle_slot_height_context_->setContextProperty("subtitleText", "Ip");
+                subtitle_slot_height_context_->setContextProperty("subtitleColor", QColor(0xFF, 0xFF, 0xFF, 0x00));
+                subtitle_slot_height_item_ = qobject_cast<QQuickItem *>(text_delegate_->create(subtitle_slot_height_context_));
+                if (subtitle_slot_height_item_)
+                {
+                    subtitle_slot_height_item_->setParent(this);
+                    subtitle_slot_height_item_->setParentItem(this);
+                    subtitle_slot_height_item_->setEnabled(false);
+                    subtitle_slot_height_item_->setVisible(false);
+                    connect(subtitle_slot_height_item_, &QQuickItem::heightChanged, this, &LiveStreamSubtitleOverlay::OnItemHeightChanged);
+                    connect(subtitle_slot_height_item_, &QQuickItem::widthChanged, this, &LiveStreamSubtitleOverlay::OnItemWidthChanged);
+                }
+            }
+            OnItemHeightChanged();
+        }
+
+        emit textDelegateChanged();
     }
 }
 
-void LiveStreamSubtitleOverlay::onHeightChanged()
+void LiveStreamSubtitleOverlay::onNewSubtitleFrame(const QSharedPointer<SubtitleFrame> &frame)
 {
+    if (!text_delegate_)
+        return;
+
+    QQmlContext *text_item_context = new QQmlContext(text_delegate_->creationContext(), this);
+    if (!text_item_context)
+        return;
+    text_item_context->setContextProperty("subtitleText", frame->content);
+    text_item_context->setContextProperty("subtitleColor", frame->color);
+
+    QQuickItem *text_item = qobject_cast<QQuickItem *>(text_delegate_->create(text_item_context));
+    if (!text_item)
+    {
+        delete text_item_context;
+        return;
+    }
+    text_item->setParent(this);
+    text_item->setParentItem(this);
+    text_item->setEnabled(false);
+    text_item->setVisible(false);
+
+    active_subtitles_.emplace_back();
+    SubtitleItem &item = active_subtitles_.back();
+
+    item.item = text_item;
+    item.item_context = text_item_context;
+    item.style = frame->style;
+    item.width = (int)round(text_item->width());
+}
+
+void LiveStreamSubtitleOverlay::OnHeightChanged()
+{
+    int new_overlay_height = (int)round(height());
+    if (overlay_height_ != new_overlay_height)
+    {
+        overlay_height_ = new_overlay_height;
+        UpdateHeight();
+    }
+}
+
+void LiveStreamSubtitleOverlay::OnItemHeightChanged()
+{
+    int new_subtitle_slot_height;
+    if (!subtitle_slot_height_item_)
+    {
+        new_subtitle_slot_height = 0;
+    }
+    else
+    {
+        new_subtitle_slot_height = (int)round(subtitle_slot_height_item_->height());
+    }
+    if (subtitle_slot_height_ != new_subtitle_slot_height)
+    {
+        subtitle_slot_height_ = new_subtitle_slot_height;
+        UpdateHeight();
+    }
+}
+
+void LiveStreamSubtitleOverlay::OnItemWidthChanged()
+{
+    for (SubtitleItem &item : active_subtitles_)
+        item.width = (int)round(item.item->width());
+}
+
+void LiveStreamSubtitleOverlay::UpdateHeight()
+{
+    if (overlay_height_ <= kSubtitleDifferentSlotMargin || subtitle_slot_height_ <= 0)
+    {
+        subtitle_slot_busy_.clear();
+        return;
+    }
+
     size_t old_slot_count = subtitle_slot_busy_.size();
-    subtitle_slot_busy_.resize((int)(height() / subtitle_slot_height_));
+    subtitle_slot_busy_.resize((int)((overlay_height_ - kSubtitleDifferentSlotMargin) / (subtitle_slot_height_ + kSubtitleDifferentSlotMargin)), 0);
     if (subtitle_slot_busy_.size() < old_slot_count)
     {
         for (SubtitleItem &item : active_subtitles_)
@@ -63,19 +136,14 @@ void LiveStreamSubtitleOverlay::onHeightChanged()
                 item.occupies_slot = false;
         }
     }
-}
 
-void LiveStreamSubtitleOverlay::onNewSubtitleFrame(const QSharedPointer<SubtitleFrame> &frame)
-{
-    active_subtitles_.emplace_back();
-    SubtitleItem &item = active_subtitles_.back();
-    item.text.setText(frame->content);
-    item.text.prepare(QTransform(), subtitle_font_);
-    item.color = frame->color;
-    item.style = frame->style;
-    item.width = (int)round(item.text.size().width());
-
-    update();
+    for (SubtitleItem &item : active_subtitles_)
+    {
+        if (item.slot != -1)
+        {
+            UpdateItemY(item);
+        }
+    }
 }
 
 void LiveStreamSubtitleOverlay::Update(qreal t)
@@ -99,6 +167,9 @@ void LiveStreamSubtitleOverlay::Update(qreal t)
                     subtitle_slot_busy_[i] |= slot_bit;
                     item.slot = i;
                     item.occupies_slot = true;
+                    item.item->setEnabled(true);
+                    item.item->setVisible(true);
+                    UpdateItemY(item);
                     break;
                 }
             }
@@ -134,18 +205,51 @@ void LiveStreamSubtitleOverlay::Update(qreal t)
                     item.occupies_slot = false;
                 }
             }
+
+            qreal x;
+
+            if (item.style == SubtitleStyle::NORMAL)
+                x = overlay_width - (qreal)item.progress_num / SubtitleItem::kProgressDen;
+            else if (item.style == SubtitleStyle::REVERSE)
+                x = (qreal)item.progress_num / SubtitleItem::kProgressDen - item_width;
+            else
+                x = (qreal)(overlay_width - item_width) / 2;
+
+            item.item->setX(x);
         }
     }
 
     for (auto itr = active_subtitles_.begin(); itr != active_subtitles_.end();)
     {
         if (itr->slot == -1)
+        {
+            if (itr->item)
+            {
+                delete itr->item;
+                itr->item = nullptr;
+            }
+            if (itr->item_context)
+            {
+                delete itr->item_context;
+                itr->item = nullptr;
+            }
             itr = active_subtitles_.erase(itr);
+        }
         else
+        {
             ++itr;
+        }
     }
+}
 
-    update();
+void LiveStreamSubtitleOverlay::UpdateItemY(const LiveStreamSubtitleOverlay::SubtitleItem &item)
+{
+    int y;
+    if (item.style == SubtitleStyle::BOTTOM)
+        y = overlay_height_ - (item.slot + 1) * (subtitle_slot_height_ + kSubtitleDifferentSlotMargin);
+    else
+        y = item.slot * (subtitle_slot_height_ + kSubtitleDifferentSlotMargin) + kSubtitleDifferentSlotMargin;
+    item.item->setY(y);
 }
 
 bool LiveStreamSubtitleOverlay::IsStyleFixedPosition(SubtitleStyle style)
@@ -167,13 +271,13 @@ unsigned char LiveStreamSubtitleOverlay::GetSlotBit(SubtitleStyle style)
     switch (style)
     {
     case SubtitleStyle::NORMAL:
-        return SLOT_BUSY_NORMAL;
+        return ROW_BUSY_NORMAL;
     case SubtitleStyle::TOP:
-        return SLOT_BUSY_TOP;
+        return ROW_BUSY_TOP;
     case SubtitleStyle::BOTTOM:
-        return SLOT_BUSY_BOTTOM;
+        return ROW_BUSY_BOTTOM;
     case SubtitleStyle::REVERSE:
-        return SLOT_BUSY_REVERSE;
+        return ROW_BUSY_REVERSE;
     }
     return 0;
 }

@@ -48,10 +48,10 @@ using namespace std::chrono_literals;
 #include <QStaticText>
 #include <QWebSocket>
 
+#include <QQmlContext>
 #include <QQuickWindow>
 #include <QQuickItem>
 #include <QQuickPaintedItem>
-#include <QtQuick/QQuickView>
 #include <QSGTextureProvider>
 #include <QSGSimpleTextureNode>
 

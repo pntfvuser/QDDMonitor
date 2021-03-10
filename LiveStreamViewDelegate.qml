@@ -138,6 +138,13 @@ StackView {
 
                 source: display.source
                 audioOut: display.audioOut
+                subtitleOut.textDelegate: Text {
+                    text: subtitleText
+                    color: subtitleColor
+                    font.pixelSize: 20
+                    style: Text.Outline
+                    styleColor: "black"
+                }
 
                 volume: sliderVolume.position
 

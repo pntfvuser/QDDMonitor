@@ -16,6 +16,7 @@ class LiveStreamView : public QQuickItem
 
     Q_PROPERTY(LiveStreamSource* source READ source WRITE setSource NOTIFY sourceChanged)
     Q_PROPERTY(AudioOutput* audioOut READ audioOut WRITE setAudioOut NOTIFY audioOutChanged)
+    Q_PROPERTY(LiveStreamSubtitleOverlay* subtitleOut READ subtitleOut NOTIFY subtitleOutChanged)
 
     Q_PROPERTY(qreal volume READ volume WRITE setVolume NOTIFY volumeChanged)
     Q_PROPERTY(QVector3D position READ position WRITE setPosition NOTIFY positionChanged)
@@ -31,6 +32,7 @@ public:
     void setSource(LiveStreamSource *source);
     AudioOutput *audioOut() const { return audio_out_; }
     void setAudioOut(AudioOutput *audio_out);
+    LiveStreamSubtitleOverlay *subtitleOut() const { return subtitle_out_; }
 
     qreal volume() const { return volume_; }
     void setVolume(qreal new_volume);
@@ -45,6 +47,7 @@ protected:
 signals:
     void sourceChanged();
     void audioOutChanged();
+    void subtitleOutChanged();
 
     void volumeChanged();
     void positionChanged();

@@ -5,6 +5,7 @@
 #include "LiveStreamView.h"
 #include "LiveStreamViewModel.h"
 #include "LiveStreamViewLayoutModel.h"
+#include "LiveStreamSubtitleOverlay.h"
 #include "FixedGridLayout.h"
 #include "AudioOutput.h"
 
@@ -23,9 +24,10 @@ int main(int argc, char *argv[])
     qRegisterMetaType<QSharedPointer<VideoFrame>>();
     qRegisterMetaType<QSharedPointer<SubtitleFrame>>();
 
-    qmlRegisterAnonymousType<LiveStreamSource>("org.anon.QDDMonitor", 1);
     qmlRegisterAnonymousType<AudioOutput>("org.anon.QDDMonitor", 1);
     qmlRegisterAnonymousType<FixedGridLayoutAttachedType>("org.anon.QDDMonitor", 1);
+    qmlRegisterAnonymousType<LiveStreamSource>("org.anon.QDDMonitor", 1);
+    qmlRegisterAnonymousType<LiveStreamSubtitleOverlay>("org.anon.QDDMonitor", 1);
 
     qmlRegisterType<LiveStreamSourceModel>("org.anon.QDDMonitor", 1, 0, "LiveStreamSourceModel");
     qmlRegisterType<LiveStreamViewModel>("org.anon.QDDMonitor", 1, 0, "LiveStreamViewModel");
