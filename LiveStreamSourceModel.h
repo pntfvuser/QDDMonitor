@@ -82,6 +82,9 @@ private:
     void ActivateSource(LiveStreamSource *source, const QString &option);
     void DeactivateSource(LiveStreamSource *source);
 
+    void LoadFromFile();
+    void SaveToFile();
+
     QThread source_thread_;
     QNetworkAccessManager *source_network_manager_ = nullptr;
 

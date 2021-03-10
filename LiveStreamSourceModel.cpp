@@ -3,16 +3,18 @@
 
 #include "LiveStreamSource.h"
 #include "LiveStreamSourceBilibili.h"
+#include "LiveStreamSourceFile.h"
 
 Q_LOGGING_CATEGORY(CategorySourceControl, "qddm.sourcectrl")
 
 LiveStreamSourceModel::LiveStreamSourceModel(QObject *parent)
-    :QAbstractListModel(parent)
+    :QAbstractListModel(parent), source_network_manager_(new QNetworkAccessManager)
 {
-    source_network_manager_ = new QNetworkAccessManager;
     source_network_manager_->moveToThread(&source_thread_);
     connect(&source_thread_, &QThread::finished, source_network_manager_, &QObject::deleteLater);
     source_thread_.start();
+
+    LoadFromFile();
 
     connect(this, &LiveStreamSourceModel::deleteSource, this, [this](int id)
     {
@@ -26,6 +28,8 @@ LiveStreamSourceModel::LiveStreamSourceModel(QObject *parent)
 
 LiveStreamSourceModel::~LiveStreamSourceModel()
 {
+    SaveToFile(); //Sources will be deleted when source_thread_ is finished
+
     source_thread_.exit();
     source_thread_.wait();
 }
@@ -407,4 +411,58 @@ void LiveStreamSourceModel::ActivateSource(LiveStreamSource *source, const QStri
 void LiveStreamSourceModel::DeactivateSource(LiveStreamSource *source)
 {
     QMetaObject::invokeMethod(source, "onRequestDeactivate");
+}
+
+void LiveStreamSourceModel::LoadFromFile()
+{
+    QFile file("saved_sources.json");
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return;
+    if (file.bytesAvailable() >= 0x1000)
+        return;
+    QJsonDocument json = QJsonDocument::fromJson(file.readAll());
+    if (!json.isArray())
+        return;
+    QJsonArray json_array = json.array();
+
+    for (const auto &item : json_array)
+    {
+        if (!item.isObject())
+            continue;
+        QJsonObject item_object = item.toObject();
+        QString type = item_object.value("type").toString();
+        if (type.isEmpty())
+            continue;
+
+        LiveStreamSource *source = nullptr;
+        //TODO: Use QHash
+        if (type == "bilibili")
+            source = LiveStreamSourceBilibili::FromJson(item_object.value("data").toObject(), source_network_manager_);
+        else if (type == "file")
+            source = LiveStreamSourceFile::FromJson(item_object.value("data").toObject());
+        if (source == nullptr)
+            continue;
+
+        QString name = item_object.value("name").toString();
+        AddSource(source, name);
+    }
+}
+
+void LiveStreamSourceModel::SaveToFile()
+{
+    QJsonArray json_array;
+    for (const auto &p : sources_)
+    {
+        QJsonObject item;
+        item["type"] = p.second.source()->SourceType();
+        item["name"] = p.second.name();
+        item["data"] = p.second.source()->ToJson();
+        json_array.push_back(item);
+    }
+
+    QFile file("saved_sources.json");
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+        return;
+    file.write(QJsonDocument(json_array).toJson(QJsonDocument::Compact));
+    file.close();
 }

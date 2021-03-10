@@ -24,6 +24,26 @@ void LiveStreamSourceBilibili::OnNewDanmu(const QSharedPointer<SubtitleFrame> &d
     emit newSubtitleFrame(danmu_frame);
 }
 
+LiveStreamSourceBilibili *LiveStreamSourceBilibili::FromJson(const QJsonObject &json, QNetworkAccessManager *network_manager, QObject *parent)
+{
+    int room_id = (int)json.value("room_id").toDouble(-1);
+    if (room_id <= 0)
+        return nullptr;
+    return new LiveStreamSourceBilibili(room_id, network_manager, parent);
+}
+
+QString LiveStreamSourceBilibili::SourceType() const
+{
+    return "bilibili";
+}
+
+QJsonObject LiveStreamSourceBilibili::ToJson() const
+{
+    QJsonObject obj;
+    obj["room_id"] = room_display_id_;
+    return obj;
+}
+
 void LiveStreamSourceBilibili::UpdateInfo()
 {
     if (info_reply_)

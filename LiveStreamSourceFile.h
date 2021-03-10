@@ -14,6 +14,10 @@ public:
 
     QString filePath() const;
     void setFilePath(const QString &file_path);
+
+    static LiveStreamSourceFile *FromJson(const QJsonObject &json, QObject *parent = nullptr);
+    virtual QString SourceType() const override;
+    virtual QJsonObject ToJson() const override;
 signals:
     void filePathChanged();
 private:

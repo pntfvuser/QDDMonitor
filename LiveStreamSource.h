@@ -20,6 +20,9 @@ public:
     ~LiveStreamSource();
 
     LiveStreamDecoder *decoder() const { return decoder_; }
+
+    virtual QString SourceType() const = 0;
+    virtual QJsonObject ToJson() const = 0;
 signals:
     void infoUpdated(int status, const QString &description, const QList<QString> &options);
 

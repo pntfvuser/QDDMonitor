@@ -26,6 +26,29 @@ void LiveStreamSourceFile::setFilePath(const QString &file_path)
     }
 }
 
+LiveStreamSourceFile *LiveStreamSourceFile::FromJson(const QJsonObject &json, QObject *parent)
+{
+    QString file_path = json.value("file_path").toString();
+    if (file_path.isEmpty())
+        return nullptr;
+    LiveStreamSourceFile *source = new LiveStreamSourceFile(parent);
+    if (source)
+        source->setFilePath(file_path);
+    return source;
+}
+
+QString LiveStreamSourceFile::SourceType() const
+{
+    return "file";
+}
+
+QJsonObject LiveStreamSourceFile::ToJson() const
+{
+    QJsonObject obj;
+    obj["file_path"] = file_path_;
+    return obj;
+}
+
 void LiveStreamSourceFile::UpdateInfo()
 {
     emit infoUpdated(STATUS_ONLINE, file_path_, QList<QString>());

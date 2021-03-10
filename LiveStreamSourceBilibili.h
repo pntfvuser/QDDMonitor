@@ -14,6 +14,10 @@ public:
     ~LiveStreamSourceBilibili();
 
     void OnNewDanmu(const QSharedPointer<SubtitleFrame> &danmu_frame);
+
+    static LiveStreamSourceBilibili *FromJson(const QJsonObject &json, QNetworkAccessManager *network_manager, QObject *parent = nullptr);
+    virtual QString SourceType() const override;
+    virtual QJsonObject ToJson() const override;
 private slots:
     void OnRequestUpdateInfoProgress();
     void OnRequestUpdateInfoComplete();
