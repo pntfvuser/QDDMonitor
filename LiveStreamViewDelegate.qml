@@ -141,7 +141,7 @@ StackView {
                 subtitleOut.textDelegate: Text {
                     text: subtitleText
                     color: subtitleColor
-                    font.pixelSize: 20
+                    font.pixelSize: 24
                     font.bold: true
                     style: Text.Outline
                     styleColor: "black"

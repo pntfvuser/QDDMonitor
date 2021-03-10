@@ -73,6 +73,8 @@ Window {
             Layout.fillHeight: true
             Layout.fillWidth: true
 
+            clip: true
+
             model: LiveStreamSourceModel {
                 id: sourceModelMain
             }
