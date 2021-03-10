@@ -21,14 +21,14 @@ public:
 
     LiveStreamDecoder *decoder() const { return decoder_; }
 signals:
-    void infoUpdated(int status, QString description, QList<QString> options);
+    void infoUpdated(int status, const QString &description, const QList<QString> &options);
 
     void invalidSourceArgument();
     void activated();
-    void newSubtitleFrame(QSharedPointer<SubtitleFrame> audio_frame);
+    void newSubtitleFrame(const QSharedPointer<SubtitleFrame> &audio_frame);
     void deactivated();
 
-    void newInputStream(QString url_hint);
+    void newInputStream(const QString &url_hint);
     void deleteInputStream();
 public slots:
     void onRequestUpdateInfo();

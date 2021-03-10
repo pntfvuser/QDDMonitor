@@ -94,7 +94,7 @@ class LiveStreamDecoder : public QObject
 
     struct AVAllocatedMemoryReleaseFunctor
     {
-        void operator()(uint8_t **object) const { av_free(*object); *object = nullptr; }
+        void operator()(uint8_t **object) const { uint8_t *p = *object; *object = nullptr; av_free(p); }
     };
     using AVAllocatedMemory = AVObjectBase<uint8_t, AVAllocatedMemoryReleaseFunctor>;
     struct AVIOContextReleaseFunctor
@@ -114,7 +114,7 @@ class LiveStreamDecoder : public QObject
     using AVCodecContextObject = AVObjectBase<AVCodecContext, AVCodecContextReleaseFunctor>;
     struct SwsContextReleaseFunctor
     {
-        void operator()(SwsContext **object) const { sws_freeContext(*object); *object = nullptr; }
+        void operator()(SwsContext **object) const { SwsContext *p = *object; *object = nullptr; sws_freeContext(p); }
     };
     using SwsContextObject = AVObjectBase<SwsContext, SwsContextReleaseFunctor>;
 
@@ -135,8 +135,8 @@ signals:
 
     void invalidMedia();
     void newMedia(const AVCodecContext *video_decoder_context, const AVCodecContext *audio_decoder_context);
-    void newVideoFrame(QSharedPointer<VideoFrame> video_frame);
-    void newAudioFrame(QSharedPointer<AudioFrame> audio_frame);
+    void newVideoFrame(const QSharedPointer<VideoFrame> &video_frame);
+    void newAudioFrame(const QSharedPointer<AudioFrame> &audio_frame);
     void deleteMedia();
 public slots:
     void onNewInputStream(const QString &url_hint);

@@ -220,7 +220,6 @@ void VideoFrameTextureNode::Render()
             used_texture.texture.Reset();
             used_texture.texture_share_handle = nullptr;
             used_texture.texture_qsg.reset();
-            used_texture.do_not_recycle = false;
             NewTextureItem(1);
         }
         else

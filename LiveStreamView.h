@@ -55,7 +55,7 @@ signals:
     void newAudioSource(void *source_id, const AVCodecContext *context);
     void stopAudioSource(void *source_id);
     void deleteAudioSource(void *source_id);
-    void newAudioFrame(void *source_id, QSharedPointer<AudioFrame> audio_frame);
+    void newAudioFrame(void *source_id, const QSharedPointer<AudioFrame> &audio_frame);
     void setAudioSourceVolume(void *source_id, qreal volume);
     void setAudioSourcePosition(void *source_id, QVector3D position);
 

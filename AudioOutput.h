@@ -47,9 +47,6 @@ class AudioOutput : public QObject
 public:
     explicit AudioOutput(QObject *parent = nullptr);
     ~AudioOutput();
-
-signals:
-
 public slots:
     //Use void* as a workaround since size_t/uintptr_t causes trouble in signals/slots
 

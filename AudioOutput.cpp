@@ -155,11 +155,11 @@ void AudioOutput::onNewAudioFrame(void *source_id, const QSharedPointer<AudioFra
     while (source->buffer_block.size() < source->buffer_block_cap && !source->pending_frames.empty())
     {
         AppendFrameToSourceBuffer(*source, source->pending_frames.front());
+        source->pending_frames.erase(source->pending_frames.begin());
         if (source->buffer_block.size() >= source->buffer_block_cap)
         {
             AppendBufferToSource(*source);
         }
-        source->pending_frames.erase(source->pending_frames.begin());
     }
     if (source->buffer_block.size() < source->buffer_block_cap)
     {
