@@ -9,11 +9,6 @@
 #include "FixedGridLayout.h"
 #include "AudioOutput.h"
 
-#ifdef _WIN32
-#include "D3D11SharedResource.h"
-#include "D3D11FlushHelper.h"
-#endif
-
 #include <QQmlContext>
 #include <QLoggingCategory>
 
@@ -34,23 +29,16 @@ int main(int argc, char *argv[])
     qmlRegisterType<LiveStreamViewLayoutModel>("org.anon.QDDMonitor", 1, 0, "LiveStreamViewLayoutModel");
     qmlRegisterType<FixedGridLayout>("org.anon.QDDMonitor", 1, 0, "FixedGridLayout");
     qmlRegisterType<LiveStreamView>("org.anon.QDDMonitor", 1, 0, "LiveStreamView");
-    qmlRegisterType<D3D11FlushHelper>("org.anon.QDDMonitor", 1, 0, "D3D11FlushHelper");
 
     QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 
     QGuiApplication app(argc, argv);
 
-    QLoggingCategory::setFilterRules("qddm.video=false\n"
+    QLoggingCategory::setFilterRules(//"qddm.video=false\n"
                                      "qddm.audio=false\n"
-                                     "qddm.decode=false\n"
+                                     //"qddm.decode=false\n"
                                      //"qddm.sourcectrl=false\n"
                                      "qt.scenegraph.general=true");
-
-#ifdef _WIN32
-    D3D11SharedResource d3d11resource;
-    D3D11SharedResource::resource = &d3d11resource;
-    QQuickWindow::setSceneGraphBackend(QSGRendererInterface::Direct3D11Rhi);
-#endif
 
     QQmlApplicationEngine engine;
 

@@ -3,7 +3,7 @@
 
 #include "LiveStreamSource.h"
 #include "LiveStreamDecoder.h"
-#include "VideoFrameTextureNode.h"
+#include "VideoFrameRenderNodeOGL.h"
 #include "AudioOutput.h"
 #include "LiveStreamSubtitleOverlay.h"
 
@@ -108,18 +108,15 @@ void LiveStreamView::setT(qreal new_t)
 
 QSGNode *LiveStreamView::updatePaintNode(QSGNode *node_base, QQuickItem::UpdatePaintNodeData *)
 {
-    VideoFrameTextureNode *node = static_cast<VideoFrameTextureNode *>(node_base);
+    VideoFrameRenderNodeOGL *node = static_cast<VideoFrameRenderNodeOGL *>(node_base);
 
     if (!node)
     {
         if (width() <= 0 || height() <= 0)
             return nullptr;
-        node = new VideoFrameTextureNode(this);
-        node->setTextureCoordinatesTransform(QSGSimpleTextureNode::NoTransform);
-        node->setFiltering(QSGTexture::Nearest);
+        node = new VideoFrameRenderNodeOGL;
     }
 
-    node->setRect(0, 0, width(), height());
     if (!next_frames_.empty())
     {
         node->AddVideoFrames(std::move(next_frames_));
@@ -150,7 +147,7 @@ void LiveStreamView::onNewVideoFrame(const QSharedPointer<VideoFrame> &video_fra
     if (!current_source_ || sender() != current_source_->decoder())
         return;
     bool need_update = next_frames_.empty();
-    if (next_frames_.size() >= VideoFrameTextureNode::kQueueSize)
+    if (next_frames_.size() >= 12)
         next_frames_.erase(next_frames_.begin());
     next_frames_.push_back(std::move(video_frame));
     if (need_update)

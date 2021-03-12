@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file>shaders/yuvbiplanar.frag</file>
+        <file>shaders/default.vert</file>
+        <file>shaders/yuvtriplanar.frag</file>
+        <file>shaders/rgbx.frag</file>
+    </qresource>
+</RCC>

@@ -177,6 +177,8 @@ private:
 
     int video_stream_index_, audio_stream_index_;
 
+    AVPixelFormat video_decoder_hw_pixel_format_;
+    AVBufferRefObject video_decoder_hw_ctx_;
     AVCodecContextObject video_decoder_ctx_, audio_decoder_ctx_;
     SwsContextObject sws_context_;
     bool open_ = false;

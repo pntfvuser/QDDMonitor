@@ -6,7 +6,6 @@
 #include "SubtitleFrame.h"
 
 class LiveStreamSource;
-class VideoFrameTextureNode;
 class AudioOutput;
 class LiveStreamSubtitleOverlay;
 

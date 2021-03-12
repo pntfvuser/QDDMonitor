@@ -12,8 +12,6 @@ HEADERS += \
     AudioFrame.h \
     AudioOutput.h \
     BlockingFIFOBuffer.h \
-    D3D11FlushHelper.h \
-    D3D11SharedResource.h \
     FixedGridLayout.h \
     LiveStreamDecoder.h \
     LiveStreamSource.h \
@@ -27,15 +25,13 @@ HEADERS += \
     LiveStreamViewModel.h \
     SubtitleFrame.h \
     VideoFrame.h \
-    VideoFrameTextureNode.h \
+    VideoFrameRenderNodeOGL.h \
     pch.h
 
 PRECOMPILED_HEADER = pch.h
 
 SOURCES += \
         AudioOutput.cpp \
-        D3D11FlushHelper.cpp \
-        D3D11SharedResource.cpp \
         FixedGridLayout.cpp \
         LiveStreamDecoder.cpp \
         LiveStreamSource.cpp \
@@ -47,11 +43,12 @@ SOURCES += \
         LiveStreamView.cpp \
         LiveStreamViewLayoutModel.cpp \
         LiveStreamViewModel.cpp \
-        VideoFrameTextureNode.cpp \
+        VideoFrameRenderNodeOGL.cpp \
         main.cpp
 
 RESOURCES += qml.qrc \
-    res.qrc
+    res.qrc \
+    shader.qrc
 
 # Additional import path used to resolve QML modules in Qt Creator's code model
 QML_IMPORT_PATH =
@@ -79,7 +76,7 @@ win32: {
         LIBS += -LC:/usr/lib/Win32/Debug
     }
 
-    LIBS += libavcodec.lib libavformat.lib libavutil.lib libswresample.lib libswscale.lib libx264.lib x265.lib OpenAL32.lib libssl.lib libcrypto.lib zlibstat.lib evr.lib mf.lib strmiids.lib mfplat.lib mfplay.lib mfreadwrite.lib mfuuid.lib ws2_32.lib bcrypt.lib secur32.lib d3d11.lib
+    LIBS += libavcodec.lib libavformat.lib libavutil.lib libswresample.lib libswscale.lib libx264.lib x265.lib OpenAL32.lib libssl.lib libcrypto.lib zlibstat.lib evr.lib mf.lib strmiids.lib mfplat.lib mfplay.lib mfreadwrite.lib mfuuid.lib ws2_32.lib bcrypt.lib secur32.lib
 }
 else:unix: {
     LIBS += -lavcodec -lavformat -lavutil

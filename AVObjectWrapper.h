@@ -52,11 +52,16 @@ public:
     operator bool() const { return object != nullptr; }
     bool operator!() const { return object == nullptr; }
 
+    ObjectType **GetAddressOf() { return &object; }
+    ObjectType **ReleaseAndGetAddressOf()
+    {
+        if (object != nullptr)
+            ReleaseFunctor()(&object);
+        return &object;
+    }
+
     const ObjectType *Get() const { return object; }
     ObjectType *Get() { return object; }
-    ObjectType **GetAddressOf() { return &object; }
-    const ObjectType &operator*() const { return *object; }
-    ObjectType &operator*() { return *object; }
     const ObjectType *operator->() const { return object; }
     ObjectType *operator->() { return object; }
 private:

@@ -1,14 +1,9 @@
 #include "pch.h"
 #include "LiveStreamDecoder.h"
 
-#include "D3D11SharedResource.h"
-
 Q_LOGGING_CATEGORY(CategoryStreamDecoding, "qddm.decode")
 
 static constexpr int kInputBufferSize = 0x1000, kInputBufferSizeLimit = 0x100000;
-
-static constexpr AVHWDeviceType kHwDeviceType = AV_HWDEVICE_TYPE_D3D11VA;
-static constexpr AVPixelFormat kHwPixelFormat = AV_PIX_FMT_D3D11;
 
 static constexpr PlaybackClock::duration kPacketBufferStartThreshold = 2500ms, kPacketBufferFullThreshold = 5000ms;
 static constexpr PlaybackClock::duration kFrameBufferStartThreshold = 200ms, kFrameBufferFullThreshold = 200ms;
@@ -25,21 +20,6 @@ template <typename Rep, typename Period>
 static inline constexpr int64_t DurationToAVTimestamp(std::chrono::duration<Rep, Period> duration, AVRational time_base)
 {
     return (duration.count() * Period::num * time_base.den) / (Period::den * time_base.num);
-}
-
-AVPixelFormat get_hw_format(AVCodecContext *ctx, const AVPixelFormat *pix_fmts)
-{
-    Q_UNUSED(ctx);
-    const AVPixelFormat *p;
-
-    //See if there is hw pixel format first
-    for (p = pix_fmts; *p != -1; p++) {
-        if (*p == kHwPixelFormat)
-            return *p;
-    }
-
-    //Return preference of decoder otherwise
-    return *pix_fmts;
 }
 
 LiveStreamDecoder::LiveStreamDecoder(QObject *parent)
@@ -144,17 +124,17 @@ void LiveStreamDecoder::onNewInputStream(const QString &url_hint)
 
     AVStream *video_stream = demuxer_ctx_->streams[video_stream_index_];
 
+    AVHWDeviceType hw_device_type = AV_HWDEVICE_TYPE_NONE;
+    video_decoder_hw_pixel_format_ = AV_PIX_FMT_NONE;
     for (i = 0;; i++)
     {
-        const AVCodecHWConfig *config = avcodec_get_hw_config(video_decoder, i);
-        if (!config)
+        const AVCodecHWConfig *video_decoder_hw_config = avcodec_get_hw_config(video_decoder, i);
+        if (!video_decoder_hw_config)
+            break;
+        if (video_decoder_hw_config->device_type != AV_HWDEVICE_TYPE_NONE && video_decoder_hw_config->pix_fmt != AV_PIX_FMT_NONE && (video_decoder_hw_config->methods & AV_CODEC_HW_CONFIG_METHOD_AD_HOC) != 0)
         {
-            qCWarning(CategoryStreamDecoding, "Decoder %s does not support device type %s.", video_decoder->name, av_hwdevice_get_type_name(kHwDeviceType));
-            Close();
-            return;
-        }
-        if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == kHwDeviceType && kHwPixelFormat == config->pix_fmt)
-        {
+            hw_device_type = video_decoder_hw_config->device_type;
+            video_decoder_hw_pixel_format_ = video_decoder_hw_config->pix_fmt;
             break;
         }
     }
@@ -172,7 +152,15 @@ void LiveStreamDecoder::onNewInputStream(const QString &url_hint)
         return;
     }
 
-    video_decoder_ctx_->hw_device_ctx = av_buffer_ref(D3D11SharedResource::resource->hw_device_ctx_obj.Get());
+    if (hw_device_type != AV_HWDEVICE_TYPE_NONE)
+    {
+        if ((ret = av_hwdevice_ctx_create(video_decoder_hw_ctx_.ReleaseAndGetAddressOf(), hw_device_type, NULL, NULL, 0)) < 0)
+        {
+            Close();
+            return;
+        }
+        video_decoder_ctx_->hw_device_ctx = av_buffer_ref(video_decoder_hw_ctx_.Get());
+    }
 
     if ((ret = avcodec_open2(video_decoder_ctx_.Get(), video_decoder, NULL)) < 0)
     {
@@ -181,6 +169,7 @@ void LiveStreamDecoder::onNewInputStream(const QString &url_hint)
         return;
     }
 
+    /*
     if (video_decoder_ctx_->pix_fmt != kHwPixelFormat)
     {
         sws_context_ = sws_getContext(video_decoder_ctx_->width, video_decoder_ctx_->height, video_decoder_ctx_->pix_fmt,
@@ -193,6 +182,7 @@ void LiveStreamDecoder::onNewInputStream(const QString &url_hint)
             return;
         }
     }
+    */
 
     /* find the audio stream information */
     AVCodec *audio_decoder = nullptr;
@@ -467,156 +457,80 @@ int LiveStreamDecoder::ReceiveVideoFrame()
         return ret;
     }
 
-    if (frame->format == kHwPixelFormat)
+    //Save important properties
+    auto pts = frame->pts;
+
+    if (frame->format == video_decoder_hw_pixel_format_) //HW pixel format, copy back first
     {
-        D3D11_TEXTURE2D_DESC texture_desc;
-
-        ID3D11Texture2D *decoded_texture = reinterpret_cast<ID3D11Texture2D *>(frame->data[0]);
-        const UINT decoded_texture_index = reinterpret_cast<intptr_t>(frame->data[1]);
-        decoded_texture->GetDesc(&texture_desc);
-        int width = texture_desc.Width;
-        int height = texture_desc.Height;
-        Q_ASSERT(width > 0 || height > 0);
-
-        ZeroMemory(&texture_desc, sizeof(texture_desc));
-        texture_desc.Format = DXGI_FORMAT_NV12;              // Pixel format
-        texture_desc.Width = width;                          // Width of the video frames
-        texture_desc.Height = height;                        // Height of the video frames
-        texture_desc.ArraySize = 1;                          // Number of textures in the array
-        texture_desc.MipLevels = 1;                          // Number of miplevels in each texture
-        texture_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE; // We read from this texture in the shader
-        texture_desc.Usage = D3D11_USAGE_DEFAULT;
-        texture_desc.MiscFlags = 0;
-        texture_desc.CPUAccessFlags = 0;
-        texture_desc.SampleDesc.Count = 1;
-
-        ComPtr<ID3D11Texture2D> nv12_texture = nullptr;
-        D3D11SharedResource *shared_resource = D3D11SharedResource::resource;
-        HRESULT hr;
-        hr = shared_resource->device->CreateTexture2D(&texture_desc, nullptr, &nv12_texture);
-        if (FAILED(hr))
+        AVFrameObject copied_frame = av_frame_alloc();
+        if (!copied_frame)
         {
-            qCWarning(CategoryStreamDecoding, "Error while creating nv12_texture");
+            qCWarning(CategoryStreamDecoding, "Frame alloc failed while copy back");
             return AVERROR(ENOMEM);
         }
+        if ((ret = av_hwframe_transfer_data(copied_frame.Get(), frame.Get(), 0)) < 0)
+        {
+            qCWarning(CategoryStreamDecoding, "Copy back failed #%u", ret);
+            return ret;
+        }
 
-        AVD3D11VADeviceContextUniqueLock lock(shared_resource->d3d11_device_ctx);
-        shared_resource->device_context->CopySubresourceRegion(nv12_texture.Get(), 0, 0, 0, 0, decoded_texture, decoded_texture_index, nullptr);
-        lock.Unlock();
-
-        QSharedPointer<VideoFrame> video_frame = QSharedPointer<VideoFrame>::create();
-        video_frame->timestamp = frame->pts;
-        video_frame->size = QSize(width, height);
-        video_frame->texture = std::move(nv12_texture);
-        video_frame->texture_format = VideoFrame::NV12;
-
-        Q_ASSERT(video_frame->texture);
-        video_frames_.push_back(std::move(video_frame));
+        copied_frame->colorspace = frame->colorspace;
+        copied_frame->color_range = frame->color_range;
+        frame = std::move(copied_frame);
     }
-    else if (frame->format == AV_PIX_FMT_YUVJ444P)
+
+    bool supported = false;
+    switch (frame->format)
+    {
+    case AV_PIX_FMT_RGB0:
+    case AV_PIX_FMT_NV12:
+    case AV_PIX_FMT_NV21:
+    case AV_PIX_FMT_YUV444P:
+    case AV_PIX_FMT_YUVJ444P:
+        supported = true;
+        break;
+    }
+
+    if (!supported) //Pixel format not supported by shader
     {
         Q_ASSERT(frame->format == video_decoder_ctx_->pix_fmt);
         Q_ASSERT(frame->width == video_decoder_ctx_->width);
         Q_ASSERT(frame->height == video_decoder_ctx_->height);
 
+        //TODO: Init sws_context
+
         int width = frame->width, height = frame->height;
 
-        D3D11_TEXTURE2D_DESC texture_desc;
-        ZeroMemory(&texture_desc, sizeof(texture_desc));
-        texture_desc.Format = DXGI_FORMAT_R8_UNORM;          // Pixel format
-        texture_desc.Width = width;                          // Width of the video frames
-        texture_desc.Height = height;                        // Height of the video frames
-        texture_desc.ArraySize = 3;                          // Number of textures in the array
-        texture_desc.MipLevels = 1;                          // Number of miplevels in each texture
-        texture_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE; // We read from this texture in the shader
-        texture_desc.Usage = D3D11_USAGE_IMMUTABLE;
-        texture_desc.MiscFlags = 0;
-        texture_desc.CPUAccessFlags = 0;
-        texture_desc.SampleDesc.Count = 1;
-        D3D11_SUBRESOURCE_DATA texture_init_data[3];
-        ZeroMemory(&texture_init_data, sizeof(texture_init_data));
-        texture_init_data[0].pSysMem = frame->data[0];
-        texture_init_data[0].SysMemPitch = frame->linesize[0];
-        texture_init_data[1].pSysMem = frame->data[1];
-        texture_init_data[1].SysMemPitch = frame->linesize[1];
-        texture_init_data[2].pSysMem = frame->data[2];
-        texture_init_data[2].SysMemPitch = frame->linesize[2];
-
-        ComPtr<ID3D11Texture2D> yuvj444p_texture = nullptr;
-        D3D11SharedResource *shared_resource = D3D11SharedResource::resource;
-        HRESULT hr;
-        hr = shared_resource->device->CreateTexture2D(&texture_desc, texture_init_data, &yuvj444p_texture);
-        if (FAILED(hr))
+        AVFrameObject converted_frame = av_frame_alloc();
+        if (!converted_frame)
         {
-            qCWarning(CategoryStreamDecoding, "Error while creating rgb_texture");
+            qCWarning(CategoryStreamDecoding, "Frame alloc failed while color format converting");
             return AVERROR(ENOMEM);
         }
+        converted_frame->width = width;
+        converted_frame->height = height;
+        converted_frame->format = AV_PIX_FMT_RGB0;
+        ret = av_frame_get_buffer(converted_frame.Get(), 0);
+        if (ret < 0)
+        {
+            qCWarning(CategoryStreamDecoding, "Buffer alloc failed while color format converting");
+            return ret;
+        }
 
-        QSharedPointer<VideoFrame> video_frame = QSharedPointer<VideoFrame>::create();
-        video_frame->timestamp = frame->pts;
-        video_frame->size = QSize(width, height);
-        video_frame->texture = std::move(yuvj444p_texture);
-        video_frame->texture_format = VideoFrame::YUVJ444P;
-
-        Q_ASSERT(video_frame->texture);
-        video_frames_.push_back(std::move(video_frame));
-    }
-    else
-    {
-        Q_ASSERT(frame->format == video_decoder_ctx_->pix_fmt);
-        Q_ASSERT(frame->width == video_decoder_ctx_->width);
-        Q_ASSERT(frame->height == video_decoder_ctx_->height);
-
-        int width = frame->width, height = frame->height;
-        int dst_line_size = sizeof(uint32_t) * width;
-        int dst_size = dst_line_size * height;
-        thread_local std::vector<uint8_t> dst_buffer;
-        dst_buffer.resize(dst_size);
-        uint8_t *dst_data[3] = { dst_buffer.data(), nullptr, nullptr };
-        int dst_stride[3] = { dst_line_size, 0, 0 };
-        ret = sws_scale(sws_context_.Get(), frame->data, frame->linesize, 0, height, dst_data, dst_stride);
+        ret = sws_scale(sws_context_.Get(), frame->data, frame->linesize, 0, height, converted_frame->data, converted_frame->linesize);
         if (ret < 0)
         {
             qCWarning(CategoryStreamDecoding, "Error while color format converting");
             return ret;
         }
-
-        D3D11_TEXTURE2D_DESC texture_desc;
-        ZeroMemory(&texture_desc, sizeof(texture_desc));
-        texture_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;    // Pixel format
-        texture_desc.Width = width;                          // Width of the video frames
-        texture_desc.Height = height;                        // Height of the video frames
-        texture_desc.ArraySize = 1;                          // Number of textures in the array
-        texture_desc.MipLevels = 1;                          // Number of miplevels in each texture
-        texture_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE; // We read from this texture in the shader
-        texture_desc.Usage = D3D11_USAGE_IMMUTABLE;
-        texture_desc.MiscFlags = 0;
-        texture_desc.CPUAccessFlags = 0;
-        texture_desc.SampleDesc.Count = 1;
-        D3D11_SUBRESOURCE_DATA texture_init_data;
-        ZeroMemory(&texture_init_data, sizeof(texture_init_data));
-        texture_init_data.pSysMem = dst_buffer.data();
-        texture_init_data.SysMemPitch = dst_line_size;
-
-        ComPtr<ID3D11Texture2D> rgbx_texture = nullptr;
-        D3D11SharedResource *shared_resource = D3D11SharedResource::resource;
-        HRESULT hr;
-        hr = shared_resource->device->CreateTexture2D(&texture_desc, &texture_init_data, &rgbx_texture);
-        if (FAILED(hr))
-        {
-            qCWarning(CategoryStreamDecoding, "Error while creating rgb_texture");
-            return AVERROR(ENOMEM);
-        }
-
-        QSharedPointer<VideoFrame> video_frame = QSharedPointer<VideoFrame>::create();
-        video_frame->timestamp = frame->pts;
-        video_frame->size = QSize(width, height);
-        video_frame->texture = std::move(rgbx_texture);
-        video_frame->texture_format = VideoFrame::RGBX;
-
-        Q_ASSERT(video_frame->texture);
-        video_frames_.push_back(std::move(video_frame));
+        frame = std::move(converted_frame);
     }
+
+    QSharedPointer<VideoFrame> video_frame = QSharedPointer<VideoFrame>::create();
+    video_frame->timestamp = pts;
+    video_frame->frame = std::move(frame);
+
+    video_frames_.push_back(std::move(video_frame));
 
     return 0;
 }
@@ -833,6 +747,7 @@ void LiveStreamDecoder::Close()
     sws_context_ = nullptr;
     video_decoder_ctx_ = nullptr;
     audio_decoder_ctx_ = nullptr;
+    video_decoder_hw_ctx_ = nullptr;
     video_packets_.clear();
     audio_packets_.clear();
     demuxer_eof_ = false;

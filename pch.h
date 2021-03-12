@@ -48,30 +48,29 @@ using namespace std::chrono_literals;
 #include <QStaticText>
 #include <QWebSocket>
 
+#include <QOpenGLFunctions>
+#include <QOpenGLBuffer>
+#include <QOpenGLTexture>
+#include <QOpenGLShaderProgram>
+
 #include <QQmlContext>
 #include <QQuickWindow>
 #include <QQuickItem>
 #include <QQuickPaintedItem>
-#include <QSGTextureProvider>
-#include <QSGSimpleTextureNode>
+#include <QSGRenderNode>
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 
 #include <zlib.h>
 
-#ifdef _WIN32
-#include <wrl/client.h>
-using Microsoft::WRL::ComPtr;
-
-#include <d3d11.h>
-#include <dxgi1_2.h>
-#include <DirectXMath.h>
-#endif
-
 #include <AL/al.h>
 #include <AL/alc.h>
 #include <AL/alext.h>
+
+#ifdef _WIN32
+#include <d3d11.h>
+#endif
 
 extern "C"
 {
