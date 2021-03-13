@@ -67,7 +67,7 @@ void InitSingleTexture(std::unique_ptr<QOpenGLTexture> &texture, int width, int 
     texture->setSize(width, height);
     texture->setFormat(texture_format);
     texture->allocateStorage(pixel_format, pixel_type);
-    texture->setMinificationFilter(QOpenGLTexture::Nearest);
+    texture->setMinificationFilter(QOpenGLTexture::Linear);
     texture->setMagnificationFilter(QOpenGLTexture::Linear);
     texture->setWrapMode(QOpenGLTexture::ClampToEdge);
 }
