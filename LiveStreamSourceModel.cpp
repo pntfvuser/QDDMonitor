@@ -59,6 +59,11 @@ QVariant LiveStreamSourceModel::data(const QModelIndex &index, int role) const
     return QVariant();
 }
 
+void LiveStreamSourceModel::addFileSource(const QString &name, const QString &path)
+{
+    AddSource(new LiveStreamSourceFile(path), name);
+}
+
 void LiveStreamSourceModel::addBilibiliSource(const QString &name, int room_display_id)
 {
     AddSource(new LiveStreamSourceBilibili(room_display_id, source_network_manager_), name);

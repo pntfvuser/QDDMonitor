@@ -9,7 +9,7 @@ class LiveStreamSourceFile : public LiveStreamSource
 
     Q_PROPERTY(QString filePath READ filePath WRITE setFilePath NOTIFY filePathChanged)
 public:
-    explicit LiveStreamSourceFile(QObject *parent = nullptr);
+    explicit LiveStreamSourceFile(const QString &file_path, QObject *parent = nullptr);
     ~LiveStreamSourceFile();
 
     QString filePath() const;

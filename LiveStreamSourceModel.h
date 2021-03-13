@@ -54,6 +54,7 @@ public:
     int rowCount(const QModelIndex & = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role) const override;
 
+    Q_INVOKABLE void addFileSource(const QString &name, const QString &path);
     Q_INVOKABLE void addBilibiliSource(const QString &name, int room_display_id);
     Q_INVOKABLE void setSourceOption(int id, const QString &option);
     Q_INVOKABLE void removeSourceById(int id);

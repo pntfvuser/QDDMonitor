@@ -1,8 +1,8 @@
 #include "pch.h"
 #include "LiveStreamSourceFile.h"
 
-LiveStreamSourceFile::LiveStreamSourceFile(QObject *parent)
-    :LiveStreamSource(parent), feed_timer_(new QTimer(this))
+LiveStreamSourceFile::LiveStreamSourceFile(const QString &file_path, QObject *parent)
+    :LiveStreamSource(parent), file_path_(file_path), feed_timer_(new QTimer(this))
 {
     connect(feed_timer_, &QTimer::timeout, this, &LiveStreamSourceFile::FeedTick);
 }
