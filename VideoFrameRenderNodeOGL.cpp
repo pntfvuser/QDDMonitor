@@ -16,6 +16,11 @@ constexpr inline qreal ScreenRefreshRate(qreal refresh_rate)
     return refresh_rate;
 }
 
+constexpr int DivideTwoRoundUp(int a)
+{
+    return a / 2 + a % 2;
+}
+
 struct ColorMatrix
 {
     constexpr ColorMatrix(const double (&eff)[5], const double (&range_eff)[3][2])
@@ -65,6 +70,32 @@ void InitSingleTexture(std::unique_ptr<QOpenGLTexture> &texture, int width, int 
     texture->setMinificationFilter(QOpenGLTexture::Nearest);
     texture->setMagnificationFilter(QOpenGLTexture::Linear);
     texture->setWrapMode(QOpenGLTexture::ClampToEdge);
+}
+
+void UpdateSingleTexture(QOpenGLTexture *texture, QOpenGLTexture::PixelFormat pixel_format, QOpenGLTexture::PixelType pixel_type, const void *data, int line_size, int actual_line_size, int height)
+{
+    if (line_size == actual_line_size)
+    {
+        texture->setData(pixel_format, pixel_type, data);
+    }
+    else if (actual_line_size % 8 != 0 && line_size % 8 == 0 && (uintptr_t)data % 8 == 0)
+    {
+        QOpenGLPixelTransferOptions options;
+        options.setAlignment(8);
+        texture->setData(pixel_format, pixel_type, data, &options);
+    }
+    else
+    {
+        //Have to use another buffer there
+        thread_local std::vector<char> buffer;
+        buffer.resize(actual_line_size * height);
+        for (int i = 0; i < height; ++i)
+            memcpy(buffer.data() + i * actual_line_size, static_cast<const char *>(data) + i * line_size, actual_line_size);
+
+        QOpenGLPixelTransferOptions options;
+        options.setAlignment(1);
+        texture->setData(pixel_format, pixel_type, static_cast<const char *>(buffer.data()), &options);
+    }
 }
 
 }
@@ -142,7 +173,7 @@ void VideoFrameRenderNodeOGL::InitTexture()
     case AV_PIX_FMT_NV12:
     case AV_PIX_FMT_NV21:
         InitSingleTexture(texture_0_, frame_size_.width(), frame_size_.height(), QOpenGLTexture::R8_UNorm, QOpenGLTexture::Red, QOpenGLTexture::UInt8);
-        InitSingleTexture(texture_1_, frame_size_.width() / 2, frame_size_.height() / 2, QOpenGLTexture::RG8_UNorm, QOpenGLTexture::RG, QOpenGLTexture::UInt8);
+        InitSingleTexture(texture_1_, DivideTwoRoundUp(frame_size_.width()), DivideTwoRoundUp(frame_size_.height()), QOpenGLTexture::RG8_UNorm, QOpenGLTexture::RG, QOpenGLTexture::UInt8);
         texture_2_ = nullptr; Q_ASSERT(texture_2_uniform_index_ == -1);
         break;
     case AV_PIX_FMT_YUV444P:
@@ -163,18 +194,18 @@ void VideoFrameRenderNodeOGL::UpdateTexture(AVFrame *frame)
     switch (pixel_format_)
     {
     case AV_PIX_FMT_RGB0:
-        texture_0_->setData(QOpenGLTexture::RGBA, QOpenGLTexture::UInt8, (const void *)frame->data[0]);
+        UpdateSingleTexture(texture_0_.get(), QOpenGLTexture::RGBA, QOpenGLTexture::UInt8, frame->data[0], frame->linesize[0], frame_size_.width() * sizeof(GLubyte), frame_size_.height());
         break;
     case AV_PIX_FMT_NV12:
     case AV_PIX_FMT_NV21:
-        texture_0_->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, (const void *)frame->data[0]);
-        texture_1_->setData(QOpenGLTexture::RG, QOpenGLTexture::UInt8, (const void *)frame->data[1]);
+        UpdateSingleTexture(texture_0_.get(), QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame->data[0], frame->linesize[0], frame_size_.width() * sizeof(GLubyte), frame_size_.height());
+        UpdateSingleTexture(texture_1_.get(), QOpenGLTexture::RG, QOpenGLTexture::UInt8, frame->data[1], frame->linesize[1], DivideTwoRoundUp(frame_size_.width()) * sizeof(GLubyte) * 2, DivideTwoRoundUp(frame_size_.height()));
         break;
     case AV_PIX_FMT_YUV444P:
     case AV_PIX_FMT_YUVJ444P:
-        texture_0_->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, (const void *)frame->data[0]);
-        texture_1_->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, (const void *)frame->data[1]);
-        texture_2_->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, (const void *)frame->data[2]);
+        UpdateSingleTexture(texture_0_.get(), QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame->data[0], frame->linesize[0], frame_size_.width() * sizeof(GLubyte), frame_size_.height());
+        UpdateSingleTexture(texture_1_.get(), QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame->data[1], frame->linesize[1], frame_size_.width() * sizeof(GLubyte), frame_size_.height());
+        UpdateSingleTexture(texture_2_.get(), QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame->data[2], frame->linesize[2], frame_size_.width() * sizeof(GLubyte), frame_size_.height());
         break;
     default:
         qCWarning(CategoryVideoPlayback) << "Unsupported pixel format";

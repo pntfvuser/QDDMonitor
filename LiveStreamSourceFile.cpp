@@ -31,9 +31,7 @@ LiveStreamSourceFile *LiveStreamSourceFile::FromJson(const QJsonObject &json, QO
     QString file_path = json.value("file_path").toString();
     if (file_path.isEmpty())
         return nullptr;
-    LiveStreamSourceFile *source = new LiveStreamSourceFile(parent);
-    if (source)
-        source->setFilePath(file_path);
+    LiveStreamSourceFile *source = new LiveStreamSourceFile(file_path, parent);
     return source;
 }
 

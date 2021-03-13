@@ -51,6 +51,7 @@ using namespace std::chrono_literals;
 #include <QOpenGLFunctions>
 #include <QOpenGLBuffer>
 #include <QOpenGLTexture>
+#include <QOpenGLPixelTransferOptions>
 #include <QOpenGLShaderProgram>
 
 #include <QQmlContext>
