@@ -44,7 +44,7 @@ private:
     void InitColorMatrix();
     void InitVertexBuffer();
 
-    void Upload();
+    void Upload(PlaybackClock::time_point current_time);
 
     void ResynchronizeTimer(PlaybackClock::time_point current_time);
 

@@ -334,7 +334,7 @@ void VideoFrameRenderNodeOGL::InitVertexBuffer()
     vertex_buffer_->release();
 }
 
-void VideoFrameRenderNodeOGL::Upload()
+void VideoFrameRenderNodeOGL::Upload(PlaybackClock::time_point current_time)
 {
     if (texture_buffers_used_.size() > kUsedQueueSize)
     {
@@ -344,23 +344,26 @@ void VideoFrameRenderNodeOGL::Upload()
     }
     while (!video_frames_.empty() && !texture_buffers_empty_.empty())
     {
-        auto &buffer = texture_buffers_empty_.front();
         auto &frame = video_frames_.front();
-        if (!buffer.IsCompatible(frame->frame.Get()))
+        if (frame->present_time > current_time)
         {
-            for (int i = 0; i < kTextureItemCount; ++i)
-                buffer.buffers[i].reset();
-            buffer.frame_size = QSize(frame->frame->width, frame->frame->height);
-            buffer.pixel_format = static_cast<AVPixelFormat>(frame->frame->format);
-            buffer.color_range = frame->frame->color_range;
-            buffer.colorspace = frame->frame->colorspace;
-            InitPixelUnpackBuffer(buffer);
-        }
-        UpdatePixelUnpackBuffer(buffer, frame->frame.Get());
-        buffer.present_time = frame->present_time;
+            auto &buffer = texture_buffers_empty_.front();
+            if (!buffer.IsCompatible(frame->frame.Get()))
+            {
+                for (int i = 0; i < kTextureItemCount; ++i)
+                    buffer.buffers[i].reset();
+                buffer.frame_size = QSize(frame->frame->width, frame->frame->height);
+                buffer.pixel_format = static_cast<AVPixelFormat>(frame->frame->format);
+                buffer.color_range = frame->frame->color_range;
+                buffer.colorspace = frame->frame->colorspace;
+                InitPixelUnpackBuffer(buffer);
+            }
+            UpdatePixelUnpackBuffer(buffer, frame->frame.Get());
+            buffer.present_time = frame->present_time;
 
-        texture_buffers_uploaded_.push_back(std::move(buffer));
-        texture_buffers_empty_.erase(texture_buffers_empty_.begin());
+            texture_buffers_uploaded_.push_back(std::move(buffer));
+            texture_buffers_empty_.erase(texture_buffers_empty_.begin());
+        }
         video_frames_.erase(video_frames_.begin());
     }
 }
@@ -437,11 +440,11 @@ void VideoFrameRenderNodeOGL::render(const RenderState *state)
 #endif
 
         ++texture_buffer_itr;
-        texture_buffers_used_.insert(texture_buffers_used_.end(), std::make_move_iterator(texture_buffers_uploaded_.begin()), std::make_move_iterator(texture_buffer_itr));
-        texture_buffers_uploaded_.erase(texture_buffers_uploaded_.begin(), texture_buffer_itr);
     }
+    texture_buffers_used_.insert(texture_buffers_used_.end(), std::make_move_iterator(texture_buffers_uploaded_.begin()), std::make_move_iterator(texture_buffer_itr));
+    texture_buffers_uploaded_.erase(texture_buffers_uploaded_.begin(), texture_buffer_itr);
 
-    Upload();
+    Upload(playback_time);
 
     QOpenGLFunctions *f = QOpenGLContext::currentContext()->functions();
 
@@ -647,9 +650,9 @@ void VideoFrameRenderNodeOGL::AddVideoFrames(std::vector<QSharedPointer<VideoFra
             if ((*ritr)->present_time < frame->present_time)
                 break;
         video_frames_.insert(ritr.base(), std::move(frame));
-        if (video_frames_.size() > kQueueSize)
-            video_frames_.erase(video_frames_.begin(), video_frames_.end() - kQueueSize);
     }
+    if (video_frames_.size() > kQueueSize)
+        video_frames_.erase(video_frames_.begin(), video_frames_.end() - kQueueSize);
 }
 
 void VideoFrameRenderNodeOGL::Synchronize(QQuickItem *item)
