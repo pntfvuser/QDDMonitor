@@ -5,6 +5,22 @@
 
 class VideoFrameRenderNodeOGL : public QSGRenderNode
 {
+    static constexpr int kTextureItemCount = 3;
+    struct PixelUnpackBufferItem
+    {
+        std::unique_ptr<QOpenGLBuffer> buffers[kTextureItemCount];
+        PlaybackClock::time_point present_time;
+
+        QSize frame_size;
+        AVPixelFormat pixel_format = AV_PIX_FMT_NONE;
+        AVColorRange color_range = AVCOL_RANGE_UNSPECIFIED;
+        AVColorSpace colorspace = AVCOL_SPC_UNSPECIFIED;
+
+        bool IsCompatible(AVFrame *frame);
+    };
+
+    static constexpr size_t kQueueSize = 6;
+    static constexpr size_t kUsedQueueSize = 2;
 public:
     VideoFrameRenderNodeOGL();
     ~VideoFrameRenderNodeOGL();
@@ -22,9 +38,14 @@ public:
 private:
     void InitShader();
     void InitTexture();
-    void UpdateTexture(AVFrame *frame);
+    void UpdateTexture(PixelUnpackBufferItem &item);
+    static void InitPixelUnpackBuffer(PixelUnpackBufferItem &item);
+    static void UpdatePixelUnpackBuffer(PixelUnpackBufferItem &item, AVFrame *frame);
     void InitColorMatrix();
     void InitVertexBuffer();
+
+    void Upload();
+
     void ResynchronizeTimer(PlaybackClock::time_point current_time);
 
     int width_ = 0, height_ = 0;
@@ -44,8 +65,10 @@ private:
 
     std::unique_ptr<QOpenGLShaderProgram> shader_;
     int matrix_uniform_index_ = -1, opacity_uniform_index_ = -1, color_matrix_uniform_index_ = -1, texture_0_uniform_index_ = -1, texture_1_uniform_index_ = -1, texture_2_uniform_index_ = -1;
-    std::unique_ptr<QOpenGLTexture> texture_0_, texture_1_, texture_2_;
+    std::unique_ptr<QOpenGLTexture> textures_[kTextureItemCount];
+    std::vector<PixelUnpackBufferItem> texture_buffers_uploaded_, texture_buffers_empty_, texture_buffers_used_;
     std::unique_ptr<QOpenGLBuffer> vertex_buffer_;
+    bool vertex_buffer_need_update_ = false;
 
 #ifdef _DEBUG
     PlaybackClock::time_point last_frame_time_, last_texture_change_time_, last_second_;

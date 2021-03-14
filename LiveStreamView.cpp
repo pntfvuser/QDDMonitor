@@ -147,7 +147,7 @@ void LiveStreamView::onNewVideoFrame(const QSharedPointer<VideoFrame> &video_fra
     if (!current_source_ || sender() != current_source_->decoder())
         return;
     bool need_update = next_frames_.empty();
-    if (next_frames_.size() >= 12)
+    if (next_frames_.size() >= 8)
         next_frames_.erase(next_frames_.begin());
     next_frames_.push_back(std::move(video_frame));
     if (need_update)
