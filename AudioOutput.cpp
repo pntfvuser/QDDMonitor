@@ -81,8 +81,12 @@ void AudioOutput::onNewAudioSource(void *source_id, const AVCodecContext *contex
     }
     AudioSource &source = *sources_.emplace(source_id, std::move(new_source)).first->second;
     source.id = source_id;
-
     InitSource(source, context->channels, context->channel_layout, context->sample_fmt, context->sample_rate);
+
+    if (solo_source_id_ && source_id != solo_source_id_)
+    {
+        alSourcef(source.al_id, AL_MAX_GAIN, 0.0f);
+    }
 }
 
 void AudioOutput::onStopAudioSource(void *source_id)
@@ -101,6 +105,9 @@ void AudioOutput::onDeleteAudioSource(void *source_id)
         return;
     itr->second->stopping = true;
     sources_.erase(itr);
+
+    if (solo_source_id_ == source_id)
+        onSetAudioSourceSolo(source_id, false);
 }
 
 void AudioOutput::onNewAudioFrame(void *source_id, const QSharedPointer<AudioFrame> &audio_frame)
@@ -124,6 +131,11 @@ void AudioOutput::onNewAudioFrame(void *source_id, const QSharedPointer<AudioFra
         source = itr->second.get();
         source->id = source_id;
         InitSource(*source, audio_frame->frame->channels, audio_frame->frame->channel_layout, audio_frame->sample_format, audio_frame->frame->sample_rate);
+
+        if (solo_source_id_ && source_id != solo_source_id_)
+        {
+            alSourcef(source->al_id, AL_MAX_GAIN, 0.0f);
+        }
     }
     else
     {
@@ -177,30 +189,7 @@ void AudioOutput::onNewAudioFrame(void *source_id, const QSharedPointer<AudioFra
 
 void AudioOutput::onSetAudioSourceVolume(void *source_id, qreal volume)
 {
-    AudioSource *source;
-
-    auto itr = sources_.find(source_id);
-    if (itr == sources_.end())
-    {
-        std::shared_ptr<AudioSource> new_source;
-        try
-        {
-            new_source = std::make_shared<AudioSource>();
-        }
-        catch (...)
-        {
-            qCWarning(CategoryAudioPlayback, "Failed to create new AudioSource");
-            return;
-        }
-        itr = sources_.emplace(source_id, std::move(new_source)).first;
-        source = itr->second.get();
-        source->id = source_id;
-        InitSource(*source);
-    }
-    else
-    {
-        source = itr->second.get();
-    }
+    AudioSource *source = GetOrCreateSource(source_id);
 
     if (volume < 0)
         volume = 0;
@@ -211,30 +200,7 @@ void AudioOutput::onSetAudioSourceVolume(void *source_id, qreal volume)
 
 void AudioOutput::onSetAudioSourcePosition(void *source_id, QVector3D position)
 {
-    AudioSource *source;
-
-    auto itr = sources_.find(source_id);
-    if (itr == sources_.end())
-    {
-        std::shared_ptr<AudioSource> new_source;
-        try
-        {
-            new_source = std::make_shared<AudioSource>();
-        }
-        catch (...)
-        {
-            qCWarning(CategoryAudioPlayback, "Failed to create new AudioSource");
-            return;
-        }
-        itr = sources_.emplace(source_id, std::move(new_source)).first;
-        source = itr->second.get();
-        source->id = source_id;
-        InitSource(*source);
-    }
-    else
-    {
-        source = itr->second.get();
-    }
+    AudioSource *source = GetOrCreateSource(source_id);
 
     if (!std::isfinite(position.x()))
         position.setX(0);
@@ -269,6 +235,51 @@ void AudioOutput::onSetAudioSourcePosition(void *source_id, QVector3D position)
     }
 
     alSource3f(source->al_id, AL_POSITION, position.x(), position.y(), position.z());
+}
+
+void AudioOutput::onSetAudioSourceMute(void *source_id, bool mute)
+{
+    AudioSource *source = GetOrCreateSource(source_id);
+
+    source->muted = mute;
+    alSourcef(source->al_id, AL_MAX_GAIN, mute ? 0.0f : 1.0f);
+}
+
+void AudioOutput::onSetAudioSourceSolo(void *source_id, bool solo)
+{
+    if (solo)
+    {
+        if (solo_source_id_ != source_id)
+        {
+            solo_source_id_ = source_id;
+            for (const auto &p : sources_)
+            {
+                AudioSource *source = p.second.get();
+                if (p.first == solo_source_id_)
+                {
+                    alSourcef(source->al_id, AL_MAX_GAIN, source->muted ? 0.0f : 1.0f);
+                }
+                else
+                {
+                    alSourcef(source->al_id, AL_MAX_GAIN, 0.0f);
+                }
+            }
+            emit soloAudioSourceChanged(source_id);
+        }
+    }
+    else
+    {
+        if (solo_source_id_ == source_id)
+        {
+            solo_source_id_ = nullptr;
+            for (const auto &p : sources_)
+            {
+                AudioSource *source = p.second.get();
+                alSourcef(source->al_id, AL_MAX_GAIN, source->muted ? 0.0f : 1.0f);
+            }
+            emit soloAudioSourceChanged(nullptr);
+        }
+    }
 }
 
 void AudioOutput::InitSource(AudioOutput::AudioSource &source)
@@ -353,6 +364,40 @@ void AudioOutput::InitSource(AudioSource &source, int channels, int64_t channel_
     }
 
     source.buffer_block_cap = source.sample_rate * kBufferBlockSizeMS / 1000 * source.sample_channel_size;
+}
+
+AudioOutput::AudioSource *AudioOutput::GetOrCreateSource(void *source_id)
+{
+    AudioSource *source;
+    auto itr = sources_.find(source_id);
+    if (itr == sources_.end())
+    {
+        std::shared_ptr<AudioSource> new_source;
+        try
+        {
+            new_source = std::make_shared<AudioSource>();
+        }
+        catch (...)
+        {
+            qCWarning(CategoryAudioPlayback, "Failed to create new AudioSource");
+            return nullptr;
+        }
+        itr = sources_.emplace(source_id, std::move(new_source)).first;
+        source = itr->second.get();
+        source->id = source_id;
+        InitSource(*source);
+
+        if (solo_source_id_ && source_id != solo_source_id_)
+        {
+            alSourcef(source->al_id, AL_MAX_GAIN, 0.0f);
+        }
+    }
+    else
+    {
+        source = itr->second.get();
+    }
+
+    return source;
 }
 
 void AudioOutput::StartSource(const std::shared_ptr<AudioSource> &source, PlaybackClock::time_point timestamp)

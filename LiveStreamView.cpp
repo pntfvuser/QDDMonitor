@@ -54,12 +54,21 @@ void LiveStreamView::setAudioOut(AudioOutput *audio_out)
     {
         if (audio_out_)
         {
+            if (solo_)
+            {
+                //Normally these will be done in OnSoloAudioSourceChanged, but it probably won't be called there since we'll disconnect with audio output
+                solo_ = false;
+                emit soloChanged();
+            }
             emit deleteAudioSource(this);
             disconnect(this, &LiveStreamView::newAudioSource, audio_out_, &AudioOutput::onNewAudioSource);
             disconnect(this, &LiveStreamView::stopAudioSource, audio_out_, &AudioOutput::onStopAudioSource);
             disconnect(this, &LiveStreamView::deleteAudioSource, audio_out_, &AudioOutput::onDeleteAudioSource);
             disconnect(this, &LiveStreamView::newAudioFrame, audio_out_, &AudioOutput::onNewAudioFrame);
             disconnect(this, &LiveStreamView::setAudioSourcePosition, audio_out_, &AudioOutput::onSetAudioSourcePosition);
+            disconnect(this, &LiveStreamView::setAudioSourceMute, audio_out_, &AudioOutput::onSetAudioSourceMute);
+            disconnect(this, &LiveStreamView::setAudioSourceSolo, audio_out_, &AudioOutput::onSetAudioSourceSolo);
+            disconnect(audio_out_, &AudioOutput::soloAudioSourceChanged, this, &LiveStreamView::OnSoloAudioSourceChanged);
         }
         audio_out_ = audio_out;
         if (audio_out_)
@@ -70,6 +79,9 @@ void LiveStreamView::setAudioOut(AudioOutput *audio_out)
             connect(this, &LiveStreamView::newAudioFrame, audio_out_, &AudioOutput::onNewAudioFrame);
             connect(this, &LiveStreamView::setAudioSourceVolume, audio_out_, &AudioOutput::onSetAudioSourceVolume);
             connect(this, &LiveStreamView::setAudioSourcePosition, audio_out_, &AudioOutput::onSetAudioSourcePosition);
+            connect(this, &LiveStreamView::setAudioSourceMute, audio_out_, &AudioOutput::onSetAudioSourceMute);
+            connect(this, &LiveStreamView::setAudioSourceSolo, audio_out_, &AudioOutput::onSetAudioSourceSolo);
+            connect(audio_out_, &AudioOutput::soloAudioSourceChanged, this, &LiveStreamView::OnSoloAudioSourceChanged);
         }
         emit audioOutChanged();
     }
@@ -92,6 +104,25 @@ void LiveStreamView::setPosition(const QVector3D &new_position)
         position_ = new_position;
         emit setAudioSourcePosition(this, new_position);
         emit positionChanged();
+    }
+}
+
+void LiveStreamView::setMute(bool new_mute)
+{
+    if (mute_ != new_mute)
+    {
+        mute_ = new_mute;
+        emit setAudioSourceMute(this, new_mute);
+        emit muteChanged();
+    }
+}
+
+void LiveStreamView::setSolo(bool new_solo)
+{
+    if (solo_ != new_solo)
+    {
+        emit setAudioSourceSolo(this, new_solo);
+        //Don't change solo_ or emit soloChanged here; these will be done in OnSoloAudioSourceChanged
     }
 }
 
@@ -166,6 +197,28 @@ void LiveStreamView::onNewSubtitleFrame(const QSharedPointer<SubtitleFrame> &sub
     if (!current_source_ || sender() != current_source_)
         return;
     subtitle_out_->onNewSubtitleFrame(subtitle_frame);
+}
+
+void LiveStreamView::OnSoloAudioSourceChanged(void *source_id)
+{
+    if (!audio_out_ || sender() != audio_out_)
+        return;
+    if (source_id == this)
+    {
+        if (!solo_)
+        {
+            solo_ = true;
+            emit soloChanged();
+        }
+    }
+    else
+    {
+        if (solo_)
+        {
+            solo_ = false;
+            emit soloChanged();
+        }
+    }
 }
 
 void LiveStreamView::OnWidthChanged()

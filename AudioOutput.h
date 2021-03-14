@@ -42,11 +42,13 @@ class AudioOutput : public QObject
         ALBufferId al_buffer_occupied[kALBufferCount], al_buffer_free[kALBufferCount];
         ALsizei al_buffer_occupied_count = 0, al_buffer_free_count = 0;
 
-        bool starting = false, stopping = false;
+        bool starting = false, muted = false, stopping = false;
     };
 public:
     explicit AudioOutput(QObject *parent = nullptr);
     ~AudioOutput();
+signals:
+    void soloAudioSourceChanged(void *source_id);
 public slots:
     //Use void* as a workaround since size_t/uintptr_t causes trouble in signals/slots
 
@@ -57,9 +59,12 @@ public slots:
     void onNewAudioFrame(void *source_id, const QSharedPointer<AudioFrame> &audio_frame);
     void onSetAudioSourceVolume(void *source_id, qreal volume);
     void onSetAudioSourcePosition(void *source_id, QVector3D position);
+    void onSetAudioSourceMute(void *source_id, bool mute);
+    void onSetAudioSourceSolo(void *source_id, bool solo);
 private:
     void InitSource(AudioSource &source);
     void InitSource(AudioSource &source, int channels, int64_t channel_layout, AVSampleFormat sample_fmt, int sample_rate);
+    AudioSource *GetOrCreateSource(void *source_id);
 
     void StartSource(const std::shared_ptr<AudioSource> &source, PlaybackClock::time_point timestamp);
     static void AppendFrameToSourceBuffer(AudioSource &source, const QSharedPointer<AudioFrame> &audio_frame);
@@ -71,6 +76,8 @@ private:
     ALCcontext *context_ = nullptr;
     LPALGETSOURCEI64VSOFT alGetSourcei64vSOFT;
     std::unordered_map<AudioSourceId, std::shared_ptr<AudioSource>> sources_;
+
+    void *solo_source_id_ = nullptr;
 };
 
 #endif // AUDIOOUTPUT_H

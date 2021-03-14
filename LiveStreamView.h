@@ -19,6 +19,8 @@ class LiveStreamView : public QQuickItem
 
     Q_PROPERTY(qreal volume READ volume WRITE setVolume NOTIFY volumeChanged)
     Q_PROPERTY(QVector3D position READ position WRITE setPosition NOTIFY positionChanged)
+    Q_PROPERTY(bool mute READ mute WRITE setMute NOTIFY muteChanged)
+    Q_PROPERTY(bool solo READ solo WRITE setSolo NOTIFY soloChanged)
 
     Q_PROPERTY(qreal t READ t WRITE setT NOTIFY tChanged)
 public:
@@ -37,6 +39,10 @@ public:
     void setVolume(qreal new_volume);
     QVector3D position() const { return position_; }
     void setPosition(const QVector3D &new_position);
+    bool mute() const { return mute_; }
+    void setMute(bool new_mute);
+    bool solo() const { return solo_; }
+    void setSolo(bool new_solo);
 
     qreal t() const { return t_; }
     void setT(qreal new_t);
@@ -50,6 +56,8 @@ signals:
 
     void volumeChanged();
     void positionChanged();
+    void muteChanged();
+    void soloChanged();
 
     void newAudioSource(void *source_id, const AVCodecContext *context);
     void stopAudioSource(void *source_id);
@@ -57,6 +65,8 @@ signals:
     void newAudioFrame(void *source_id, const QSharedPointer<AudioFrame> &audio_frame);
     void setAudioSourceVolume(void *source_id, qreal volume);
     void setAudioSourcePosition(void *source_id, QVector3D position);
+    void setAudioSourceMute(void *source_id, bool mute);
+    void setAudioSourceSolo(void *source_id, bool solo);
 
     void tChanged();
 public slots:
@@ -65,6 +75,8 @@ public slots:
     void onNewAudioFrame(const QSharedPointer<AudioFrame> &audio_frame);
     void onNewSubtitleFrame(const QSharedPointer<SubtitleFrame> &subtitle_frame);
 private slots:
+    void OnSoloAudioSourceChanged(void *source_id);
+
     void OnWidthChanged();
     void OnHeightChanged();
 private:
@@ -75,6 +87,7 @@ private:
 
     qreal volume_ = 1;
     QVector3D position_;
+    bool mute_ = false, solo_ = false;
 
     qreal t_ = 0;
 };

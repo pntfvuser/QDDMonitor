@@ -167,6 +167,7 @@ StackView {
 
                 RowLayout {
                     anchors.fill: parent
+                    spacing: buttonViewSettings.implicitHeight / 4
 
                     Item {
                         Layout.fillWidth: true
@@ -180,6 +181,50 @@ StackView {
                         Layout.alignment: Qt.AlignCenter
 
                         value: 0.5
+                    }
+
+                    Button {
+                        Layout.preferredHeight: buttonViewSettings.implicitHeight / 2
+                        Layout.preferredWidth: buttonViewSettings.implicitHeight / 2
+
+                        background: Rectangle {
+                            border.color: "black"
+                            border.width: 1
+
+                            color: liveview.mute ? "lightgreen" : "transparent";
+
+                            Text {
+                                anchors.centerIn: parent
+                                font.pixelSize: parent.height - 4
+                                text: "M"
+                            }
+                        }
+
+                        onPressed: {
+                            liveview.mute = !liveview.mute;
+                        }
+                    }
+
+                    Button {
+                        Layout.preferredHeight: buttonViewSettings.implicitHeight / 2
+                        Layout.preferredWidth: buttonViewSettings.implicitHeight / 2
+
+                        background: Rectangle {
+                            border.color: "black"
+                            border.width: 1
+
+                            color: liveview.solo ? "gold" : "transparent";
+
+                            Text {
+                                anchors.centerIn: parent
+                                font.pixelSize: parent.height - 4
+                                text: "S"
+                            }
+                        }
+
+                        onPressed: {
+                            liveview.solo = !liveview.solo;
+                        }
                     }
 
                     ToolButton {
@@ -214,6 +259,21 @@ StackView {
 
                 onReleased: {
                     sourceReleased(mapToItem(null, mouse.x, mouse.y));
+                }
+            }
+
+            Connections {
+                target: windowMain
+
+                function onMutePressed() {
+                    if (mouseareaView.containsMouse) {
+                        liveview.mute = !liveview.mute;
+                    }
+                }
+                function onSoloPressed() {
+                    if (mouseareaView.containsMouse) {
+                        liveview.solo = !liveview.solo;
+                    }
                 }
             }
         }
