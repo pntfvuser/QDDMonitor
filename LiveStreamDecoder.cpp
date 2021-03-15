@@ -482,7 +482,6 @@ int LiveStreamDecoder::ReceiveVideoFrame()
     bool supported = false;
     switch (frame->format)
     {
-    case AV_PIX_FMT_RGB0:
     case AV_PIX_FMT_NV12:
     case AV_PIX_FMT_NV21:
     case AV_PIX_FMT_YUV444P:
@@ -497,7 +496,10 @@ int LiveStreamDecoder::ReceiveVideoFrame()
         Q_ASSERT(frame->width == video_decoder_ctx_->width);
         Q_ASSERT(frame->height == video_decoder_ctx_->height);
 
-        //TODO: Init sws_context
+        sws_context_ = sws_getCachedContext(sws_context_.DetachObject(),
+                    frame->width, frame->height, (AVPixelFormat)frame->format,
+                    frame->width, frame->height, AV_PIX_FMT_RGB0,
+                    SWS_POINT | SWS_BITEXACT, nullptr, nullptr, nullptr);
 
         int width = frame->width, height = frame->height;
 
