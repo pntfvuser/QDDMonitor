@@ -15,6 +15,7 @@ class LiveStreamSourceInfo : public QObject
     Q_PROPERTY(QList<QString> availableOptions READ availableOptions NOTIFY availableOptionsChanged)
     Q_PROPERTY(bool online READ online NOTIFY onlineChanged)
     Q_PROPERTY(bool activated READ activated NOTIFY activatedChanged)
+    Q_PROPERTY(bool recording READ recording NOTIFY recordingChanged)
 
     Q_PROPERTY(QString effectiveOption READ effectiveOption NOTIFY effectiveOptionChanged)
 public:
@@ -36,6 +37,8 @@ public:
     void setOnline(bool new_online) { if (online_ != new_online) { online_ = new_online; emit onlineChanged(); } }
     bool activated() const { return activated_; }
     void setActivated(bool new_activated) { if (activated_ != new_activated) { activated_ = new_activated; emit activatedChanged(); } }
+    bool recording() { return recording_; }
+    void setRecording(bool new_recording) { if (recording_ != new_recording) { recording_ = new_recording; emit recordingChanged(); } }
 
     QString effectiveOption() const;
 signals:
@@ -45,6 +48,7 @@ signals:
     void availableOptionsChanged();
     void onlineChanged();
     void activatedChanged();
+    void recordingChanged();
 
     void effectiveOptionChanged();
 private:
@@ -52,7 +56,7 @@ private:
     LiveStreamSource *source_;
     QString name_, description_, option_;
     QList<QString> available_options_;
-    bool online_ = false, activated_ = false;
+    bool online_ = false, activated_ = false, recording_ = false;
 };
 
 class LiveStreamSourceModel : public QAbstractListModel
@@ -67,6 +71,7 @@ public:
 
     Q_INVOKABLE void addFileSource(const QString &name, const QString &path);
     Q_INVOKABLE void addBilibiliSource(const QString &name, int room_display_id);
+    Q_INVOKABLE void setSourceRecording(int id, bool enabled);
     Q_INVOKABLE void removeSourceById(int id);
     Q_INVOKABLE void removeSourceByIndex(int index);
 
@@ -90,8 +95,10 @@ private:
     void ContinueUpdateSources();
     void UpdateSingleSourceCanceled();
 
-    void ActivateSource(LiveStreamSource *source, const QString &option);
-    void DeactivateSource(LiveStreamSource *source);
+    static void ActivateSource(LiveStreamSource *source, const QString &option);
+    static void DeactivateSource(LiveStreamSource *source);
+    static void EnableSourceRecording(LiveStreamSource *source, const QString &out_path);
+    static void DisableSourceRecording(LiveStreamSource *source);
 
     void LoadFromFile();
     void SaveToFile();

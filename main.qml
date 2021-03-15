@@ -15,6 +15,7 @@ Window {
     signal sourceReleased(point releasePoint)
     signal mutePressed()
     signal soloPressed()
+    signal recordPressed()
 
     id: windowMain
 
@@ -312,6 +313,9 @@ Window {
             } else if (event.key === Qt.Key_S) {
                 event.accepted = true;
                 soloPressed();
+            } else if (event.key === Qt.Key_R) {
+                event.accepted = true;
+                recordPressed();
             }
         }
     }

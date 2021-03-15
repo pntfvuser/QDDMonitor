@@ -189,7 +189,7 @@ StackView {
 
                         border.color: "black"
                         border.width: 1
-                        color: liveview.mute ? "lightgreen" : "transparent";
+                        color: liveview.mute ? "lightgreen" : "lightgray";
 
                         Text {
                             anchors.centerIn: parent
@@ -212,7 +212,7 @@ StackView {
 
                         border.color: "black"
                         border.width: 1
-                        color: liveview.solo ? "gold" : "transparent";
+                        color: liveview.solo ? "gold" : "lightgray";
 
                         Text {
                             anchors.centerIn: parent
@@ -225,6 +225,30 @@ StackView {
 
                             onClicked: {
                                 liveview.solo = !liveview.solo;
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.preferredHeight: buttonViewSettings.implicitHeight / 2
+                        Layout.preferredWidth: buttonViewSettings.implicitHeight / 2
+
+                        border.color: "black"
+                        border.width: 1
+                        color: display.sourceInfo && display.sourceInfo.recording ? "red" : "lightgray";
+
+                        Text {
+                            anchors.centerIn: parent
+                            font.pixelSize: parent.height - 4
+                            text: "R"
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+
+                            onClicked: {
+                                if (display.sourceId !== -1)
+                                    sourceModelMain.setSourceRecording(display.sourceId, !display.sourceInfo.recording);
                             }
                         }
                     }
@@ -275,6 +299,12 @@ StackView {
                 function onSoloPressed() {
                     if (mouseareaView.containsMouse) {
                         liveview.solo = !liveview.solo;
+                    }
+                }
+                function onRecordPressed() {
+                    if (mouseareaView.containsMouse) {
+                        if (display.sourceId !== -1)
+                            sourceModelMain.setSourceRecording(display.sourceId, !display.sourceInfo.recording);
                     }
                 }
             }

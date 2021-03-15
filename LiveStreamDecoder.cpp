@@ -72,10 +72,12 @@ void LiveStreamDecoder::CloseData()
     demuxer_in_.Close();
 }
 
-void LiveStreamDecoder::onNewInputStream(const QString &url_hint)
+void LiveStreamDecoder::onNewInputStream(const QString &url_hint, const QString &record_path)
 {
     if (open_)
         return;
+
+    remuxer_out_path_oneshot_ = record_path;
 
     int i, ret;
 
@@ -169,21 +171,6 @@ void LiveStreamDecoder::onNewInputStream(const QString &url_hint)
         return;
     }
 
-    /*
-    if (video_decoder_ctx_->pix_fmt != kHwPixelFormat)
-    {
-        sws_context_ = sws_getContext(video_decoder_ctx_->width, video_decoder_ctx_->height, video_decoder_ctx_->pix_fmt,
-                                      video_decoder_ctx_->width, video_decoder_ctx_->height, AV_PIX_FMT_RGB0,
-                                      SWS_POINT | SWS_BITEXACT, nullptr, nullptr, nullptr);
-        if (!sws_context_)
-        {
-            qCWarning(CategoryStreamDecoding, "Failed to open swscale context");
-            Close();
-            return;
-        }
-    }
-    */
-
     /* find the audio stream information */
     AVCodec *audio_decoder = nullptr;
     ret = av_find_best_stream(demuxer_ctx_.Get(), AVMEDIA_TYPE_AUDIO, -1, -1, &audio_decoder, 0);
@@ -222,6 +209,8 @@ void LiveStreamDecoder::onNewInputStream(const QString &url_hint)
 
     open_ = true;
 
+    StartRecording();
+
     LiveStreamSourceDemuxWorker *worker = new LiveStreamSourceDemuxWorker(this);
     worker->moveToThread(&demuxer_thread_);
     connect(&demuxer_thread_, &QThread::finished, worker, &QObject::deleteLater);
@@ -239,6 +228,30 @@ void LiveStreamDecoder::onDeleteInputStream()
         Close();
 }
 
+void LiveStreamDecoder::onSetDefaultMediaRecordFile(const QString &file_path)
+{
+    remuxer_out_path_default_ = file_path;
+    if (remuxer_out_path_oneshot_.isEmpty())
+    {
+        if (remuxer_out_path_default_.isEmpty())
+            StopRecording();
+        else
+            StartRecording();
+    }
+}
+
+void LiveStreamDecoder::onSetOneshotMediaRecordFile(const QString &file_path)
+{
+    remuxer_out_path_oneshot_ = file_path;
+    if (remuxer_out_path_default_.isEmpty())
+    {
+        if (remuxer_out_path_oneshot_.isEmpty())
+            StopRecording();
+        else
+            StartRecording();
+    }
+}
+
 int LiveStreamDecoder::AVIOReadCallback(void *opaque, uint8_t *buf, int buf_size)
 {
     Q_ASSERT(buf_size != 0);
@@ -254,42 +267,77 @@ int LiveStreamDecoder::AVIOReadCallback(void *opaque, uint8_t *buf, int buf_size
 
 void LiveStreamSourceDemuxWorker::Work()
 {
+    const int video_stream_index = decoder_->video_stream_index_, audio_stream_index = decoder_->audio_stream_index_;
+
     int ret;
     LiveStreamDecoder::AVPacketObject packet;
 
     while (true)
     {
-        ret = av_read_frame(parent_->demuxer_ctx_.Get(), packet.ReleaseAndGet());
+        ret = av_read_frame(decoder_->demuxer_ctx_.Get(), packet.ReleaseAndGet());
         if (Q_UNLIKELY(ret < 0))
         {
             if (ret != AVERROR_EOF)
             {
                 qCWarning(CategoryStreamDecoding, "Error while decoding video (reading frame) #%u", ret);
             }
-            parent_->demuxer_in_.Close();
-            QMutexLocker lock(&parent_->demuxer_out_mutex_);
-            parent_->demuxer_eof_ = true;
+            decoder_->demuxer_in_.Close();
+            QMutexLocker lock(&decoder_->demuxer_out_mutex_);
+            decoder_->demuxer_eof_ = true;
             return;
         }
         packet.SetOwn();
+        const int packet_stream_index = packet->stream_index;
 
-        if (packet->stream_index == parent_->video_stream_index_)
+        do
         {
-            QMutexLocker lock(&parent_->demuxer_out_mutex_);
-            while (!parent_->demuxer_eof_ && parent_->IsPacketBufferLongerThan(kPacketBufferFullThreshold))
-                parent_->demuxer_out_condition_.wait(lock.mutex());
-            if (Q_UNLIKELY(parent_->demuxer_eof_))
+            QMutexLocker lock(&decoder_->remuxer_mutex_);
+            if (!decoder_->remuxer_ctx_)
+                break;
+            const std::vector<int> &remuxer_stream_map = decoder_->remuxer_stream_map_;
+            if (packet_stream_index < 0 || packet_stream_index >= (int)remuxer_stream_map.size() || remuxer_stream_map[packet_stream_index] < 0)
+                break;
+            LiveStreamDecoder::AVPacketObject remux_packet;
+            if (av_packet_ref(remux_packet.Get(), packet.Get()) < 0)
+                break;
+            remux_packet.SetOwn();
+
+            remux_packet->stream_index = remuxer_stream_map[packet_stream_index];
+            AVStream *in_stream  = decoder_->demuxer_ctx_->streams[packet_stream_index];
+            AVStream *out_stream = decoder_->remuxer_ctx_->streams[remux_packet->stream_index];
+
+            remux_packet->pts = av_rescale_q_rnd(remux_packet->pts, in_stream->time_base, out_stream->time_base, static_cast<AVRounding>(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+            remux_packet->dts = av_rescale_q_rnd(remux_packet->dts, in_stream->time_base, out_stream->time_base, static_cast<AVRounding>(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+            remux_packet->duration = av_rescale_q(remux_packet->duration, in_stream->time_base, out_stream->time_base);
+            remux_packet->pos = -1;
+
+            ret = av_interleaved_write_frame(decoder_->remuxer_ctx_.Get(), remux_packet.Get());
+            if (Q_UNLIKELY(ret < 0))
+            {
+                lock.unlock();
+                decoder_->StopRecording();
+                //TODO: see if need to restart recording
+                break;
+            }
+        } while (false);
+
+        if (packet_stream_index == video_stream_index)
+        {
+            QMutexLocker lock(&decoder_->demuxer_out_mutex_);
+            while (!decoder_->demuxer_eof_ && decoder_->IsPacketBufferLongerThan(kPacketBufferFullThreshold))
+                decoder_->demuxer_out_condition_.wait(lock.mutex());
+            if (Q_UNLIKELY(decoder_->demuxer_eof_))
                 return;
-            parent_->video_packets_.push_back(std::move(packet));
+            decoder_->video_packets_.push_back(std::move(packet));
         }
-        else if (packet->stream_index == parent_->audio_stream_index_)
+        else if (packet_stream_index == audio_stream_index)
         {
-            QMutexLocker lock(&parent_->demuxer_out_mutex_);
-            while (!parent_->demuxer_eof_ && parent_->IsPacketBufferLongerThan(kPacketBufferFullThreshold))
-                parent_->demuxer_out_condition_.wait(lock.mutex());
-            if (Q_UNLIKELY(parent_->demuxer_eof_))
+            QMutexLocker lock(&decoder_->demuxer_out_mutex_);
+            while (!decoder_->demuxer_eof_ && decoder_->IsPacketBufferLongerThan(kPacketBufferFullThreshold))
+                decoder_->demuxer_out_condition_.wait(lock.mutex());
+            if (Q_UNLIKELY(decoder_->demuxer_eof_))
                 return;
-            parent_->audio_packets_.push_back(std::move(packet));
+            decoder_->audio_packets_.push_back(std::move(packet));
         }
     }
 }
@@ -728,9 +776,88 @@ void LiveStreamDecoder::StopPlaying()
     emit playingChanged(false);
 }
 
+void LiveStreamDecoder::StartRecording()
+{
+    if (!open_)
+        return;
+    if (remuxer_out_path_default_.isEmpty() && remuxer_out_path_oneshot_.isEmpty())
+        return;
+    QMutexLocker lock(&remuxer_mutex_);
+    if (remuxer_ctx_)
+        return;
+
+    AVFormatContextMuxerObject remuxer_ctx;
+
+    QByteArray path;
+    if (!remuxer_out_path_oneshot_.isEmpty())
+    {
+        path = remuxer_out_path_oneshot_.toLocal8Bit();
+        remuxer_out_path_oneshot_ = QString();
+    }
+    else
+    {
+        path = remuxer_out_path_default_.toLocal8Bit();
+    }
+
+    avformat_alloc_output_context2(remuxer_ctx.GetAddressOf(), NULL, NULL, path);
+    if (!remuxer_ctx)
+        return;
+
+    int stream_index = 0, ret = 0;
+    remuxer_stream_map_.clear();
+    remuxer_stream_map_.resize(demuxer_ctx_->nb_streams, 0);
+    for (size_t i = 0; i < remuxer_stream_map_.size(); ++i)
+    {
+        AVStream *out_stream;
+        AVStream *in_stream = demuxer_ctx_->streams[i];
+
+        AVCodecParameters *in_codecpar = in_stream->codecpar;
+        if (in_codecpar->codec_type != AVMEDIA_TYPE_AUDIO && in_codecpar->codec_type != AVMEDIA_TYPE_VIDEO && in_codecpar->codec_type != AVMEDIA_TYPE_SUBTITLE)
+        {
+            remuxer_stream_map_[i] = -1;
+            continue;
+        }
+        remuxer_stream_map_[i] = stream_index++;
+
+        out_stream = avformat_new_stream(remuxer_ctx.Get(), NULL);
+        if (!out_stream)
+            return;
+
+        ret = avcodec_parameters_copy(out_stream->codecpar, in_codecpar);
+        if (ret < 0)
+            return;
+        out_stream->codecpar->codec_tag = 0;
+    }
+
+    if (!(remuxer_ctx->flags & AVFMT_NOFILE))
+    {
+        ret = avio_open(&remuxer_ctx->pb, path, AVIO_FLAG_WRITE);
+        if (ret < 0)
+            return;
+    }
+
+    ret = avformat_write_header(remuxer_ctx.Get(), NULL);
+    if (ret < 0)
+        return;
+
+    remuxer_ctx_ = std::move(remuxer_ctx);
+}
+
+void LiveStreamDecoder::StopRecording()
+{
+    QMutexLocker lock(&remuxer_mutex_); //Already recording
+    if (!remuxer_ctx_)
+        return;
+
+    av_interleaved_write_frame(remuxer_ctx_.Get(), nullptr); //Flush
+    av_write_trailer(remuxer_ctx_.Get());
+    remuxer_ctx_ = nullptr;
+}
+
 void LiveStreamDecoder::Close()
 {
     demuxer_in_.Close();
+    StopRecording();
     {
         QMutexLocker lock(&demuxer_out_mutex_);
         demuxer_eof_ = true;

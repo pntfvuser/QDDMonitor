@@ -67,7 +67,7 @@ void LiveStreamSourceFile::Activate(const QString &)
     }
 
     BeginData();
-    emit newInputStream(file_path_);
+    emit newInputStream(file_path_, QString());
     feed_timer_->start(50);
 
     QSharedPointer<SubtitleFrame> dmk = QSharedPointer<SubtitleFrame>::create();

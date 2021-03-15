@@ -102,6 +102,24 @@ void LiveStreamSourceModel::addBilibiliSource(const QString &name, int room_disp
     AddSource(new LiveStreamSourceBilibili(room_display_id, source_network_manager_), name);
 }
 
+void LiveStreamSourceModel::setSourceRecording(int id, bool enabled)
+{
+    auto itr = sources_.find(id);
+    if (itr != sources_.end())
+    {
+        LiveStreamSourceInfo *source_info = itr->second.get();
+        if (source_info->recording() != enabled)
+        {
+            //TODO: support set record path
+            if (enabled)
+                EnableSourceRecording(source_info->source(), ".");
+            else
+                DisableSourceRecording(source_info->source());
+            source_info->setRecording(enabled);
+        }
+    }
+}
+
 void LiveStreamSourceModel::removeSourceById(int id)
 {
     auto itr = sources_.find(id);
@@ -420,6 +438,16 @@ void LiveStreamSourceModel::ActivateSource(LiveStreamSource *source, const QStri
 void LiveStreamSourceModel::DeactivateSource(LiveStreamSource *source)
 {
     QMetaObject::invokeMethod(source, "onRequestDeactivate");
+}
+
+void LiveStreamSourceModel::EnableSourceRecording(LiveStreamSource *source, const QString &out_path)
+{
+    QMetaObject::invokeMethod(source, "onRequestSetRecordPath", Q_ARG(QString, out_path));
+}
+
+void LiveStreamSourceModel::DisableSourceRecording(LiveStreamSource *source)
+{
+    QMetaObject::invokeMethod(source, "onRequestSetRecordPath", Q_ARG(QString, QString()));
 }
 
 void LiveStreamSourceModel::LoadFromFile()

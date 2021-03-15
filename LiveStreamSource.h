@@ -31,12 +31,15 @@ signals:
     void newSubtitleFrame(const QSharedPointer<SubtitleFrame> &audio_frame);
     void deactivated();
 
-    void newInputStream(const QString &url_hint);
+    void newInputStream(const QString &url_hint, const QString &record_path);
     void deleteInputStream();
+    void setDefaultMediaRecordFile(const QString &file_path);
+    void setOneshotMediaRecordFile(const QString &file_path);
 public slots:
     void onRequestUpdateInfo();
     void onRequestActivate(const QString &option);
     void onRequestDeactivate();
+    void onRequestSetRecordPath(const QString &path);
 private slots:
     void OnInvalidMediaRedirector();
     void OnDeleteMediaRedirector();
@@ -46,15 +49,20 @@ protected:
     void PushData(QIODevice *device);
     void EndData();
     void CloseData();
+
+    const QString &RecordPath() const { return record_path_; }
 private:
     virtual void UpdateInfo() = 0;
     virtual void Activate(const QString &option) = 0;
     virtual void Deactivate() = 0;
+    virtual void UpdateRecordPath() {}
     virtual void OnInvalidMedia() {}
     virtual void OnDeleteMedia() {}
 
     QThread decoder_thread_;
     LiveStreamDecoder *decoder_ = nullptr;
+
+    QString record_path_;
 };
 
 #endif // LIVESTREAMSOURCE_H

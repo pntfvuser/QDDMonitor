@@ -14,11 +14,11 @@ class LiveStreamSourceDemuxWorker : public QObject
     Q_OBJECT
 
 public:
-    explicit LiveStreamSourceDemuxWorker(LiveStreamDecoder *parent) :QObject(nullptr), parent_(parent) {}
+    explicit LiveStreamSourceDemuxWorker(LiveStreamDecoder *decoder) :QObject(nullptr), decoder_(decoder) {}
 public slots:
     void Work();
 private:
-    LiveStreamDecoder *parent_ = nullptr;
+    LiveStreamDecoder *decoder_ = nullptr;
 };
 
 class LiveStreamDecoder : public QObject
@@ -61,7 +61,7 @@ class LiveStreamDecoder : public QObject
                 av_packet_unref(&object);
         }
 
-        //AVPacket *Get() { return &object; }
+        AVPacket *Get() { return &object; }
         AVPacket *ReleaseAndGet()
         {
             if (owns_object)
@@ -102,11 +102,16 @@ class LiveStreamDecoder : public QObject
         void operator()(AVIOContext **object) const { uint8_t *buffer = (*object)->buffer; avio_context_free(object); av_free(buffer); }
     };
     using AVIOContextObject = AVObjectBase<AVIOContext, AVIOContextReleaseFunctor>;
-    struct AVFormatContextReleaseFunctor
+    struct AVFormatContextDemuxerReleaseFunctor
     {
         void operator()(AVFormatContext **object) const { avformat_close_input(object); }
     };
-    using AVFormatContextObject = AVObjectBase<AVFormatContext, AVFormatContextReleaseFunctor>;
+    using AVFormatContextDemuxerObject = AVObjectBase<AVFormatContext, AVFormatContextDemuxerReleaseFunctor>;
+    struct AVFormatContextMuxerReleaseFunctor
+    {
+        void operator()(AVFormatContext **object) const { AVFormatContext *p = *object; *object = nullptr; if (p && !(p->flags & AVFMT_NOFILE)) avio_closep(&p->pb); avformat_free_context(p); }
+    };
+    using AVFormatContextMuxerObject = AVObjectBase<AVFormatContext, AVFormatContextMuxerReleaseFunctor>;
     struct AVCodecContextReleaseFunctor
     {
         void operator()(AVCodecContext **object) const { avcodec_free_context(object); }
@@ -139,8 +144,10 @@ signals:
     void newAudioFrame(const QSharedPointer<AudioFrame> &audio_frame);
     void deleteMedia();
 public slots:
-    void onNewInputStream(const QString &url_hint);
+    void onNewInputStream(const QString &url_hint, const QString &record_path);
     void onDeleteInputStream();
+    void onSetDefaultMediaRecordFile(const QString &file_path);
+    void onSetOneshotMediaRecordFile(const QString &file_path);
 private slots:
     void OnPushTick();
 private:
@@ -163,29 +170,38 @@ private:
     void StartPlaying();
     void StopPlaying();
 
+    void StartRecording();
+    void StopRecording();
+
     void Close();
 
     AVIOContextObject input_ctx_;
 
     QThread demuxer_thread_;
-    BlockingFIFOBuffer demuxer_in_;
-    AVFormatContextObject demuxer_ctx_;
-    QMutex demuxer_out_mutex_;
-    QWaitCondition demuxer_out_condition_;
-    bool demuxer_eof_ = false;
-    std::vector<AVPacketObject> video_packets_, audio_packets_;
 
+    BlockingFIFOBuffer demuxer_in_;
+
+    AVFormatContextDemuxerObject demuxer_ctx_;
     int video_stream_index_, audio_stream_index_;
 
-    AVPixelFormat video_decoder_hw_pixel_format_;
+    QString remuxer_out_path_default_, remuxer_out_path_oneshot_;
+    QMutex remuxer_mutex_;
+    AVFormatContextMuxerObject remuxer_ctx_;
+    std::vector<int> remuxer_stream_map_;
+
+    QMutex demuxer_out_mutex_;
+    QWaitCondition demuxer_out_condition_;
+    std::vector<AVPacketObject> video_packets_, audio_packets_;
+    bool demuxer_eof_ = false;
+
     AVBufferRefObject video_decoder_hw_ctx_;
     AVCodecContextObject video_decoder_ctx_, audio_decoder_ctx_;
+    AVPixelFormat video_decoder_hw_pixel_format_;
     SwsContextObject sws_context_;
-    bool open_ = false;
 
-    bool playing_ = false, video_eof_ = false, audio_eof_ = false;
     std::vector<QSharedPointer<VideoFrame>> video_frames_;
     std::vector<QSharedPointer<AudioFrame>> audio_frames_;
+    bool open_ = false, playing_ = false, video_eof_ = false, audio_eof_ = false;
 
     AVRational video_stream_time_base_, audio_stream_time_base_;
     PlaybackClock::time_point base_time_;

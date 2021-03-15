@@ -258,7 +258,7 @@ void LiveStreamSourceBilibili::OnRequestStreamInfoComplete()
         emit activated();
 
         BeginData();
-        emit newInputStream("stream.flv");
+        emit newInputStream("stream.flv", RecordPath().isEmpty() ? QString() : QDir(RecordPath()).absoluteFilePath(GenerateRecordFileName()));
         connect(av_reply_, &QNetworkReply::readyRead, this, &LiveStreamSourceBilibili::OnAVStreamProgress);
         push_timer_->start();
 
@@ -317,6 +317,21 @@ void LiveStreamSourceBilibili::Deactivate()
     }
 }
 
+void LiveStreamSourceBilibili::UpdateRecordPath()
+{
+    if (active_ && av_reply_)
+    {
+        if (RecordPath().isEmpty())
+        {
+            emit setOneshotMediaRecordFile(QString());
+        }
+        else
+        {
+            emit setOneshotMediaRecordFile(QDir(RecordPath()).absoluteFilePath(GenerateRecordFileName()));
+        }
+    }
+}
+
 void LiveStreamSourceBilibili::OnInvalidMedia()
 {
     OnDeleteMedia();
@@ -349,4 +364,9 @@ void LiveStreamSourceBilibili::OnDeleteMedia()
             }
         });
     }
+}
+
+QString LiveStreamSourceBilibili::GenerateRecordFileName() const
+{
+    return "Bilibili " + QString::number(room_display_id_) + QDateTime::currentDateTime().toString(" yyyy-MM-dd hh-mm-ss-zzz") + ".mkv";
 }

@@ -29,8 +29,11 @@ private:
     virtual void UpdateInfo() override;
     virtual void Activate(const QString &option) override;
     virtual void Deactivate() override;
+    virtual void UpdateRecordPath() override;
     virtual void OnInvalidMedia() override;
     virtual void OnDeleteMedia() override;
+
+    QString GenerateRecordFileName() const;
 
     int room_display_id_ = -1, room_id_ = -1;
     QString description_;
