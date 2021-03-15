@@ -1,7 +1,7 @@
 #ifndef LIVESTREAMVIEWMODEL_H
 #define LIVESTREAMVIEWMODEL_H
 
-class LiveStreamSource;
+class LiveStreamSourceInfo;
 class LiveStreamSourceModel;
 class LiveStreamViewLayoutModel;
 class AudioOutput;
@@ -15,12 +15,12 @@ class LiveStreamViewInfo
     Q_PROPERTY(int rowSpan READ rowSpan)
     Q_PROPERTY(int columnSpan READ columnSpan)
     Q_PROPERTY(int sourceId READ sourceId)
-    Q_PROPERTY(LiveStreamSource *source READ source)
+    Q_PROPERTY(LiveStreamSourceInfo *sourceInfo READ sourceInfo)
     Q_PROPERTY(AudioOutput *audioOut READ audioOut)
 public:
     LiveStreamViewInfo() = default;
-    LiveStreamViewInfo(int row, int column, int row_span, int column_span, int source_id, LiveStreamSource *source, AudioOutput *audio_out)
-        :row_(row), column_(column), row_span_(row_span), column_span_(column_span), source_id_(source_id), source_(source), audio_out_(audio_out)
+    LiveStreamViewInfo(int row, int column, int row_span, int column_span, int source_id, LiveStreamSourceInfo *source_info, AudioOutput *audio_out)
+        :row_(row), column_(column), row_span_(row_span), column_span_(column_span), source_id_(source_id), source_info_(source_info), audio_out_(audio_out)
     {
     }
 
@@ -29,8 +29,8 @@ public:
     int rowSpan() const { return row_span_; }
     int columnSpan() const { return column_span_; }
     int sourceId() const { return source_id_; }
-    LiveStreamSource *source() const { return source_; }
-    void setSource(int source_id, LiveStreamSource *source) { source_id_ = source_id; source_ = source; }
+    LiveStreamSourceInfo *sourceInfo() const { return source_info_; }
+    void setSourceInfo(int source_id, LiveStreamSourceInfo *source_info) { source_id_ = source_id; source_info_ = source_info; }
     AudioOutput *audioOut() const { return audio_out_; }
 private:
     int row_;
@@ -38,7 +38,7 @@ private:
     int row_span_;
     int column_span_;
     int source_id_;
-    LiveStreamSource *source_;
+    LiveStreamSourceInfo *source_info_;
     AudioOutput *audio_out_;
 };
 

@@ -7,6 +7,39 @@
 
 Q_LOGGING_CATEGORY(CategorySourceControl, "qddm.sourcectrl")
 
+void LiveStreamSourceInfo::setOption(const QString &new_option)
+{
+    if (option_ != new_option)
+    {
+        QString old_effective_option = effectiveOption();
+        option_ = new_option;
+        emit optionChanged();
+        if (old_effective_option != effectiveOption())
+            emit effectiveOptionChanged();
+    }
+}
+
+void LiveStreamSourceInfo::setAvailableOptions(const QList<QString> &new_available_options)
+{
+    if (available_options_ != new_available_options)
+    {
+        QString old_effective_option = effectiveOption();
+        available_options_ = new_available_options;
+        emit availableOptionsChanged();
+        if (old_effective_option != effectiveOption())
+            emit effectiveOptionChanged();
+    }
+}
+
+QString LiveStreamSourceInfo::effectiveOption() const
+{
+    if (!option_.isEmpty())
+        return option_;
+    if (!available_options_.empty())
+        return available_options_.front();
+    return QString();
+}
+
 LiveStreamSourceModel::LiveStreamSourceModel(QObject *parent)
     :QAbstractListModel(parent), source_network_manager_(new QNetworkAccessManager)
 {
@@ -49,7 +82,7 @@ QVariant LiveStreamSourceModel::data(const QModelIndex &index, int role) const
             int id = sources_index_[index.row()];
             auto itr = sources_.find(id);
             if (itr != sources_.end())
-                return QVariant::fromValue(itr->second);
+                return QVariant::fromValue(itr->second.get());
         }
         break;
     default:
@@ -69,15 +102,6 @@ void LiveStreamSourceModel::addBilibiliSource(const QString &name, int room_disp
     AddSource(new LiveStreamSourceBilibili(room_display_id, source_network_manager_), name);
 }
 
-void LiveStreamSourceModel::setSourceOption(int id, const QString &option)
-{
-    auto itr = sources_.find(id);
-    if (itr != sources_.end())
-    {
-        itr->second.setOption(option);
-    }
-}
-
 void LiveStreamSourceModel::removeSourceById(int id)
 {
     auto itr = sources_.find(id);
@@ -95,9 +119,9 @@ void LiveStreamSourceModel::removeSourceById(int id)
             }
         }
 
-        emit deleteSource(itr->second.id());
-        activated_sources_.erase(itr->second.id());
-        itr->second.source()->deleteLater();
+        emit deleteSource(id);
+        activated_sources_.erase(id);
+        itr->second->source()->deleteLater();
         sources_.erase(itr);
     }
 }
@@ -117,15 +141,15 @@ void LiveStreamSourceModel::removeSourceByIndex(int index)
         auto itr = sources_.find(id);
         if (itr != sources_.end())
         {
-            emit deleteSource(itr->second.id());
-            activated_sources_.erase(itr->second.id());
-            itr->second.source()->deleteLater();
+            emit deleteSource(id);
+            activated_sources_.erase(id);
+            itr->second->source()->deleteLater();
             sources_.erase(itr);
         }
     }
 }
 
-LiveStreamSource *LiveStreamSourceModel::ActivateAndGetSource(int source_id)
+LiveStreamSourceInfo *LiveStreamSourceModel::ActivateAndGetSource(int source_id)
 {
     if (activated_sources_.count(source_id) > 0)
         return nullptr;
@@ -134,11 +158,11 @@ LiveStreamSource *LiveStreamSourceModel::ActivateAndGetSource(int source_id)
         return nullptr;
     activated_sources_.emplace(source_id);
 
-    const LiveStreamSourceInfo &source_info = itr->second;
-    if (source_info.online() && !source_info.activated())
-        ActivateSource(source_info.source(), source_info.effectiveOption());
+    LiveStreamSourceInfo *source_info = itr->second.get();
+    if (source_info->online() && !source_info->activated())
+        ActivateSource(source_info->source(), source_info->effectiveOption());
 
-    return itr->second.source();
+    return source_info;
 }
 
 void LiveStreamSourceModel::DeactivateSingleSource(int source_id)
@@ -146,12 +170,12 @@ void LiveStreamSourceModel::DeactivateSingleSource(int source_id)
     if (activated_sources_.erase(source_id) > 0)
     {
         auto itr = sources_.find(source_id);
-        if (itr != sources_.end() && itr->second.activated())
-            DeactivateSource(itr->second.source());
+        if (itr != sources_.end() && itr->second->activated())
+            DeactivateSource(itr->second->source());
     }
 }
 
-void LiveStreamSourceModel::ActivateAndGetSources(std::vector<std::pair<int, LiveStreamSource *>> &sources)
+void LiveStreamSourceModel::ActivateAndGetSources(std::vector<std::pair<int, LiveStreamSourceInfo *>> &sources)
 {
     std::unordered_set<int> new_activated_sources;
     for (auto &p : sources)
@@ -164,17 +188,17 @@ void LiveStreamSourceModel::ActivateAndGetSources(std::vector<std::pair<int, Liv
         else
         {
             new_activated_sources.insert(p.first);
-            const LiveStreamSourceInfo &source_info = itr->second;
-            p.second = source_info.source();
+            LiveStreamSourceInfo *source_info = itr->second.get();
+            p.second = source_info;
 
             auto itr_activated = activated_sources_.find(p.first);
             if (itr_activated == activated_sources_.end())
             {
                 //Not previously marked as activated
-                if (source_info.online() && !source_info.activated())
+                if (source_info->online() && !source_info->activated())
                 {
                     //Not activated yet and online, activate
-                    ActivateSource(source_info.source(), source_info.effectiveOption());
+                    ActivateSource(source_info->source(), source_info->effectiveOption());
                 }
             }
             else
@@ -187,9 +211,9 @@ void LiveStreamSourceModel::ActivateAndGetSources(std::vector<std::pair<int, Liv
     for (int id : activated_sources_)
     {
         auto itr = sources_.find(id);
-        if (itr != sources_.end() && itr->second.activated())
+        if (itr != sources_.end() && itr->second->activated())
         {
-            DeactivateSource(itr->second.source());
+            DeactivateSource(itr->second->source());
         }
     }
     activated_sources_ = std::move(new_activated_sources);
@@ -200,8 +224,8 @@ void LiveStreamSourceModel::DeactivateAllSource()
     for (int id : activated_sources_)
     {
         auto itr = sources_.find(id);
-        if (itr != sources_.end() && itr->second.activated())
-            DeactivateSource(itr->second.source());
+        if (itr != sources_.end() && itr->second->activated())
+            DeactivateSource(itr->second->source());
     }
     activated_sources_.clear();
 }
@@ -213,7 +237,7 @@ void LiveStreamSourceModel::AddSource(LiveStreamSource *source, const QString &n
     connect(source, &LiveStreamSource::activated, this, [this, id]() { OnActivated(id); });
     connect(source, &LiveStreamSource::deactivated, this, [this, id]() { OnDeactivated(id); });
     connect(&source_thread_, &QThread::finished, source, &QObject::deleteLater);
-    sources_.emplace(id, LiveStreamSourceInfo(id, source, name));
+    sources_.emplace(id, std::make_unique<LiveStreamSourceInfo>(id, source, name, this));
 
     int index = (int)sources_index_.size();
     beginInsertRows(QModelIndex(), index, index);
@@ -235,15 +259,11 @@ void LiveStreamSourceModel::OnActivated(int id)
     auto itr = sources_.find(id);
     if (itr == sources_.end())
         return;
-    itr->second.setActivated(true);
+    itr->second->setActivated(true);
     qCDebug(CategorySourceControl, "Source %d activated", id);
 
-    int idx = FindSourceIndex(id);
-    if (idx != -1)
-        emit dataChanged(index(idx), index(idx));
-
     if (activated_sources_.count(id) == 0)
-        DeactivateSource(itr->second.source());
+        DeactivateSource(itr->second->source());
 }
 
 void LiveStreamSourceModel::OnDeactivated(int id)
@@ -251,15 +271,11 @@ void LiveStreamSourceModel::OnDeactivated(int id)
     auto itr = sources_.find(id);
     if (itr == sources_.end())
         return;
-    itr->second.setActivated(false);
+    itr->second->setActivated(false);
     qCDebug(CategorySourceControl, "Source %d deactivated", id);
 
-    int idx = FindSourceIndex(id);
-    if (idx != -1)
-        emit dataChanged(index(idx), index(idx));
-
-    if (itr->second.online() && activated_sources_.count(id) > 0)
-        ActivateSource(itr->second.source(), itr->second.effectiveOption());
+    if (itr->second->online() && activated_sources_.count(id) > 0)
+        ActivateSource(itr->second->source(), itr->second->effectiveOption());
 }
 
 void LiveStreamSourceModel::StartUpdateSources()
@@ -289,7 +305,7 @@ void LiveStreamSourceModel::ContinueUpdateSources()
         UpdateSingleSourceCanceled();
         return;
     }
-    LiveStreamSource *source = itr->second.source();
+    LiveStreamSource *source = itr->second->source();
     connect(source, &LiveStreamSource::infoUpdated, this, &LiveStreamSourceModel::UpdateSingleSourceDone);
     QMetaObject::invokeMethod(source, "onRequestUpdateInfo");
 }
@@ -306,14 +322,14 @@ void LiveStreamSourceModel::UpdateSingleSourceDone(int status, const QString &de
         UpdateSingleSourceCanceled();
         return;
     }
-    LiveStreamSource *source = itr->second.source();
-    if (sender() != source)
+    LiveStreamSourceInfo &source_info = *itr->second;
+    LiveStreamSource *source = source_info.source();
+    if (sender() != source_info.source())
     {
         return;
     }
     disconnect(source, &LiveStreamSource::infoUpdated, this, &LiveStreamSourceModel::UpdateSingleSourceDone);
 
-    LiveStreamSourceInfo &source_info = itr->second;
     source_info.setDescription(description);
     source_info.setAvailableOptions(options);
 
@@ -329,9 +345,6 @@ void LiveStreamSourceModel::UpdateSingleSourceDone(int status, const QString &de
         int i = FindSourceIndex(id);
         if (i != -1)
         {
-            //Emit dataChanged
-            emit dataChanged(index(i), index(i));
-
             //Move its position if needed
             if (i >= sources_offline_pos_)
             {
@@ -363,9 +376,6 @@ void LiveStreamSourceModel::UpdateSingleSourceDone(int status, const QString &de
         int i = FindSourceIndex(id);
         if (i != -1)
         {
-            //Emit dataChanged
-            emit dataChanged(index(i), index(i));
-
             //Move its position if needed
             if (i < sources_offline_pos_)
             {
@@ -390,12 +400,6 @@ void LiveStreamSourceModel::UpdateSingleSourceDone(int status, const QString &de
                 sources_offline_pos_ -= 1;
             }
         }
-    }
-    else
-    {
-        int idx = FindSourceIndex(id);
-        if (idx != -1)
-            emit dataChanged(index(idx), index(idx));
     }
 
     sources_updated_count_ += 1;
@@ -459,9 +463,9 @@ void LiveStreamSourceModel::SaveToFile()
     for (const auto &p : sources_)
     {
         QJsonObject item;
-        item["type"] = p.second.source()->SourceType();
-        item["name"] = p.second.name();
-        item["data"] = p.second.source()->ToJson();
+        item["type"] = p.second->source()->SourceType();
+        item["name"] = p.second->name();
+        item["data"] = p.second->source()->ToJson();
         json_array.push_back(item);
     }
 

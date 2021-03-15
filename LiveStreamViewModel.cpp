@@ -87,12 +87,12 @@ void LiveStreamViewModel::setSource(int index_row, int source_id)
     {
         LiveStreamViewInfo &view_info = view_info_[index_row];
 
-        LiveStreamSource *source = source_model_->ActivateAndGetSource(source_id);
+        LiveStreamSourceInfo *source = source_model_->ActivateAndGetSource(source_id);
         if (source)
         {
             if (view_info.sourceId() != -1)
                 source_model_->DeactivateSingleSource(view_info.sourceId());
-            view_info.setSource(source_id, source);
+            view_info.setSourceInfo(source_id, source);
             emit dataChanged(index(index_row), index(index_row));
         }
     }
@@ -106,13 +106,13 @@ void LiveStreamViewModel::swapSource(int index_1, int index_2)
         LiveStreamViewInfo &view_info_2 = view_info_[index_2];
 
         int source_id_1 = view_info_1.sourceId();
-        LiveStreamSource *source_1 = view_info_1.source();
+        LiveStreamSourceInfo *source_1 = view_info_1.sourceInfo();
         int source_id_2 = view_info_2.sourceId();
-        LiveStreamSource *source_2 = view_info_2.source();
+        LiveStreamSourceInfo *source_2 = view_info_2.sourceInfo();
 
-        view_info_1.setSource(source_id_2, source_2);
+        view_info_1.setSourceInfo(source_id_2, source_2);
         emit dataChanged(index(index_1), index(index_1));
-        view_info_2.setSource(source_id_1, source_1);
+        view_info_2.setSourceInfo(source_id_1, source_1);
         emit dataChanged(index(index_2), index(index_2));
     }
 }
@@ -124,7 +124,7 @@ void LiveStreamViewModel::OnDeleteSource(int source_id)
         auto &view_info = view_info_[i];
         if (view_info.sourceId() == source_id)
         {
-            view_info.setSource(-1, nullptr);
+            view_info.setSourceInfo(-1, nullptr);
             emit dataChanged(index(i), index(i)); //Should be direct
         }
     }

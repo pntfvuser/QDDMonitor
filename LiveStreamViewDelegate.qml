@@ -136,7 +136,7 @@ StackView {
                 id: liveview
                 anchors.fill: parent
 
-                source: display.source
+                source: display.sourceInfo ? display.sourceInfo.source : null
                 audioOut: display.audioOut
                 subtitleOut.textDelegate: Text {
                     text: subtitleText

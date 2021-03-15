@@ -3,39 +3,50 @@
 
 class LiveStreamSource;
 
-class LiveStreamSourceInfo
+class LiveStreamSourceInfo : public QObject
 {
-    Q_GADGET
+    Q_OBJECT
 
-    Q_PROPERTY(int id READ id)
-    Q_PROPERTY(LiveStreamSource *source READ source)
-    Q_PROPERTY(QString name READ name)
-    Q_PROPERTY(QString description READ description)
-    Q_PROPERTY(QString option READ option)
-    Q_PROPERTY(QList<QString> availableOptions READ availableOptions)
-    Q_PROPERTY(bool online READ online)
-    Q_PROPERTY(bool activated READ activated)
+    Q_PROPERTY(int id READ id CONSTANT)
+    Q_PROPERTY(LiveStreamSource *source READ source CONSTANT)
+    Q_PROPERTY(QString name READ name NOTIFY nameChanged)
+    Q_PROPERTY(QString description READ description NOTIFY descriptionChanged)
+    Q_PROPERTY(QString option READ option WRITE setOption NOTIFY optionChanged)
+    Q_PROPERTY(QList<QString> availableOptions READ availableOptions NOTIFY availableOptionsChanged)
+    Q_PROPERTY(bool online READ online NOTIFY onlineChanged)
+    Q_PROPERTY(bool activated READ activated NOTIFY activatedChanged)
+
+    Q_PROPERTY(QString effectiveOption READ effectiveOption NOTIFY effectiveOptionChanged)
 public:
-    LiveStreamSourceInfo() = default;
-    LiveStreamSourceInfo(int id, LiveStreamSource *source, const QString &name) :id_(id), source_(source), name_(name) {}
+    explicit LiveStreamSourceInfo(QObject *parent = nullptr) :QObject(parent) {}
+    LiveStreamSourceInfo(int id, LiveStreamSource *source, const QString &name, QObject *parent = nullptr) :QObject(parent), id_(id), source_(source), name_(name) {}
 
     int id() const { return id_; }
     LiveStreamSource *source() const { return source_; }
 
     const QString &name() const { return name_; }
-    void setName(const QString &new_name) { name_ = new_name; }
+    void setName(const QString &new_name) { if (name_ != new_name) { name_ = new_name; emit nameChanged(); } }
     const QString &description() const { return description_; }
-    void setDescription(const QString &new_description) { description_ = new_description; }
+    void setDescription(const QString &new_description) { if (description_ != new_description) { description_ = new_description; emit descriptionChanged(); } }
     const QString &option() const { return option_; }
-    void setOption(const QString &new_option) { option_ = new_option; }
+    void setOption(const QString &new_option);
     const QList<QString> &availableOptions() const { return available_options_; }
-    void setAvailableOptions(const QList<QString> &new_available_options) { available_options_ = new_available_options; }
+    void setAvailableOptions(const QList<QString> &new_available_options);
     bool online() const { return online_; }
-    void setOnline(bool new_online) { online_ = new_online; }
+    void setOnline(bool new_online) { if (online_ != new_online) { online_ = new_online; emit onlineChanged(); } }
     bool activated() const { return activated_; }
-    void setActivated(bool new_activated) { activated_ = new_activated; }
+    void setActivated(bool new_activated) { if (activated_ != new_activated) { activated_ = new_activated; emit activatedChanged(); } }
 
-    QString effectiveOption() const { return option_.isEmpty() ? (available_options_.empty() ? "" : available_options_.front()) : option_; }
+    QString effectiveOption() const;
+signals:
+    void nameChanged();
+    void descriptionChanged();
+    void optionChanged();
+    void availableOptionsChanged();
+    void onlineChanged();
+    void activatedChanged();
+
+    void effectiveOptionChanged();
 private:
     int id_;
     LiveStreamSource *source_;
@@ -56,13 +67,12 @@ public:
 
     Q_INVOKABLE void addFileSource(const QString &name, const QString &path);
     Q_INVOKABLE void addBilibiliSource(const QString &name, int room_display_id);
-    Q_INVOKABLE void setSourceOption(int id, const QString &option);
     Q_INVOKABLE void removeSourceById(int id);
     Q_INVOKABLE void removeSourceByIndex(int index);
 
-    LiveStreamSource *ActivateAndGetSource(int source_id);
+    LiveStreamSourceInfo *ActivateAndGetSource(int source_id);
     void DeactivateSingleSource(int source_id);
-    void ActivateAndGetSources(std::vector<std::pair<int, LiveStreamSource *>> &sources);
+    void ActivateAndGetSources(std::vector<std::pair<int, LiveStreamSourceInfo *>> &sources);
     void DeactivateAllSource();
 signals:
     void newSource(int id);
@@ -89,7 +99,7 @@ private:
     QThread source_thread_;
     QNetworkAccessManager *source_network_manager_ = nullptr;
 
-    std::unordered_map<int, LiveStreamSourceInfo> sources_;
+    std::unordered_map<int, std::unique_ptr<LiveStreamSourceInfo>> sources_;
     std::vector<int> sources_index_;
     int sources_offline_pos_ = 0;
     int next_id_ = 0;

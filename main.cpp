@@ -22,6 +22,7 @@ int main(int argc, char *argv[])
     qmlRegisterAnonymousType<AudioOutput>("org.anon.QDDMonitor", 1);
     qmlRegisterAnonymousType<FixedGridLayoutAttachedType>("org.anon.QDDMonitor", 1);
     qmlRegisterAnonymousType<LiveStreamSource>("org.anon.QDDMonitor", 1);
+    qmlRegisterAnonymousType<LiveStreamSourceInfo>("org.anon.QDDMonitor", 1);
     qmlRegisterAnonymousType<LiveStreamSubtitleOverlay>("org.anon.QDDMonitor", 1);
 
     qmlRegisterType<LiveStreamSourceModel>("org.anon.QDDMonitor", 1, 0, "LiveStreamSourceModel");
