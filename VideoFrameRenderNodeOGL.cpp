@@ -387,13 +387,16 @@ void VideoFrameRenderNodeOGL::render(const RenderState *state)
     PlaybackClock::time_point render_begin = PlaybackClock::now();
 #endif
 
-    auto present_time_limit = playback_time - playback_time_interval_;
-    auto texture_buffer_itr = texture_buffers_uploaded_.begin(), texture_buffer_itr_end = texture_buffers_uploaded_.end();
-    for (; texture_buffer_itr != texture_buffer_itr_end; ++texture_buffer_itr)
-        if (texture_buffer_itr->present_time > present_time_limit)
-            break;
-    if (texture_buffer_itr != texture_buffers_uploaded_.end())
+    auto present_time_limit = playback_time;
+    if (!texture_buffers_uploaded_.empty() && texture_buffers_uploaded_.front().present_time < present_time_limit)
     {
+        auto texture_buffer_itr = texture_buffers_uploaded_.begin(), texture_buffer_itr_end = texture_buffers_uploaded_.end();
+        for (; texture_buffer_itr != texture_buffer_itr_end; ++texture_buffer_itr)
+            if (texture_buffer_itr->present_time > present_time_limit)
+                break;
+        Q_ASSERT(texture_buffer_itr != texture_buffers_uploaded_.begin());
+        --texture_buffer_itr;
+
         if (texture_buffer_itr->pixel_format != pixel_format_)
         {
             pixel_format_ = static_cast<AVPixelFormat>(texture_buffer_itr->pixel_format);
@@ -440,9 +443,9 @@ void VideoFrameRenderNodeOGL::render(const RenderState *state)
 #endif
 
         ++texture_buffer_itr;
+        texture_buffers_used_.insert(texture_buffers_used_.end(), std::make_move_iterator(texture_buffers_uploaded_.begin()), std::make_move_iterator(texture_buffer_itr));
+        texture_buffers_uploaded_.erase(texture_buffers_uploaded_.begin(), texture_buffer_itr);
     }
-    texture_buffers_used_.insert(texture_buffers_used_.end(), std::make_move_iterator(texture_buffers_uploaded_.begin()), std::make_move_iterator(texture_buffer_itr));
-    texture_buffers_uploaded_.erase(texture_buffers_uploaded_.begin(), texture_buffer_itr);
 
     Upload(playback_time);
 
