@@ -183,47 +183,49 @@ StackView {
                         value: 0.5
                     }
 
-                    Button {
+                    Rectangle {
                         Layout.preferredHeight: buttonViewSettings.implicitHeight / 2
                         Layout.preferredWidth: buttonViewSettings.implicitHeight / 2
 
-                        background: Rectangle {
-                            border.color: "black"
-                            border.width: 1
+                        border.color: "black"
+                        border.width: 1
+                        color: liveview.mute ? "lightgreen" : "transparent";
 
-                            color: liveview.mute ? "lightgreen" : "transparent";
-
-                            Text {
-                                anchors.centerIn: parent
-                                font.pixelSize: parent.height - 4
-                                text: "M"
-                            }
+                        Text {
+                            anchors.centerIn: parent
+                            font.pixelSize: parent.height - 4
+                            text: "M"
                         }
 
-                        onPressed: {
-                            liveview.mute = !liveview.mute;
+                        MouseArea {
+                            anchors.fill: parent
+
+                            onClicked: {
+                                liveview.mute = !liveview.mute;
+                            }
                         }
                     }
 
-                    Button {
+                    Rectangle {
                         Layout.preferredHeight: buttonViewSettings.implicitHeight / 2
                         Layout.preferredWidth: buttonViewSettings.implicitHeight / 2
 
-                        background: Rectangle {
-                            border.color: "black"
-                            border.width: 1
+                        border.color: "black"
+                        border.width: 1
+                        color: liveview.solo ? "gold" : "transparent";
 
-                            color: liveview.solo ? "gold" : "transparent";
-
-                            Text {
-                                anchors.centerIn: parent
-                                font.pixelSize: parent.height - 4
-                                text: "S"
-                            }
+                        Text {
+                            anchors.centerIn: parent
+                            font.pixelSize: parent.height - 4
+                            text: "S"
                         }
 
-                        onPressed: {
-                            liveview.solo = !liveview.solo;
+                        MouseArea {
+                            anchors.fill: parent
+
+                            onClicked: {
+                                liveview.solo = !liveview.solo;
+                            }
                         }
                     }
 

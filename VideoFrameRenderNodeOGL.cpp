@@ -6,7 +6,7 @@ Q_LOGGING_CATEGORY(CategoryVideoPlayback, "qddm.video")
 namespace
 {
 
-static constexpr int kVertexCount = 4 * 2; //quad
+static constexpr int kVertexCount = 4 * 2; //quad, vec2
 static constexpr int kVertexSize = kVertexCount * sizeof(GLfloat);
 
 constexpr inline qreal ScreenRefreshRate(qreal refresh_rate)
@@ -458,7 +458,7 @@ void VideoFrameRenderNodeOGL::render(const RenderState *state)
 
         shader_->bind();
         shader_->setUniformValue(matrix_uniform_index_, *state->projectionMatrix() * *matrix());
-        shader_->setUniformValue(opacity_uniform_index_, float(inheritedOpacity()));
+        shader_->setUniformValue(opacity_uniform_index_, (float)inheritedOpacity());
         if (color_matrix_uniform_index_ != -1)
             shader_->setUniformValue(color_matrix_uniform_index_, color_matrix_);
 
@@ -512,7 +512,7 @@ void VideoFrameRenderNodeOGL::render(const RenderState *state)
                 x2 = x1 + render_width - 1;
             }
 
-            GLfloat vertices[kVertexCount] = {
+            GLfloat vertices[] = {
                 GLfloat(x1), GLfloat(y1),
                 GLfloat(x1), GLfloat(y2),
                 GLfloat(x2), GLfloat(y2),
@@ -556,26 +556,6 @@ void VideoFrameRenderNodeOGL::render(const RenderState *state)
             min_timing_diff_ = render_time;
 #endif
     }
-    else
-    {
-        f->glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
-        f->glEnable(GL_BLEND);
-        f->glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
-        if (state->scissorEnabled())
-        {
-            f->glEnable(GL_SCISSOR_TEST);
-            const QRect r = state->scissorRect();
-            f->glScissor(r.x(), r.y(), r.width(), r.height());
-        }
-        if (state->stencilEnabled())
-        {
-            f->glEnable(GL_STENCIL_TEST);
-            f->glStencilFunc(GL_EQUAL, state->stencilValue(), 0xFF);
-            f->glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-        }
-    }
 
 #ifdef _DEBUG
     renders_per_second_ += 1;
@@ -613,12 +593,13 @@ void VideoFrameRenderNodeOGL::render(const RenderState *state)
 
 QSGRenderNode::StateFlags VideoFrameRenderNodeOGL::changedStates() const
 {
-    return BlendState | ScissorState | StencilState;
+    return ColorState | BlendState | ScissorState | StencilState;
 }
 
 QSGRenderNode::RenderingFlags VideoFrameRenderNodeOGL::flags() const
 {
-    return BoundedRectRendering | DepthAwareRendering;
+    //The node itself is DepthAwareRendering, but the flag causes strange behavior (Rectangles being clipped unexpectedly)
+    return BoundedRectRendering;
 }
 
 QRectF VideoFrameRenderNodeOGL::rect() const
