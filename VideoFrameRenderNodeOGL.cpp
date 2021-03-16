@@ -358,12 +358,18 @@ void VideoFrameRenderNodeOGL::Upload(PlaybackClock::time_point current_time)
                 buffer.colorspace = frame->frame->colorspace;
                 InitPixelUnpackBuffer(buffer);
             }
-            UpdatePixelUnpackBuffer(buffer, frame->frame.Get());
             buffer.present_time = frame->present_time;
+            UpdatePixelUnpackBuffer(buffer, frame->frame.Get());
 
             texture_buffers_uploaded_.push_back(std::move(buffer));
             texture_buffers_empty_.erase(texture_buffers_empty_.begin());
         }
+#ifdef _DEBUG
+        else
+        {
+            qCDebug(CategoryVideoPlayback) << "skipping impossible frame";
+        }
+#endif
         video_frames_.erase(video_frames_.begin());
     }
 }
@@ -388,46 +394,43 @@ void VideoFrameRenderNodeOGL::render(const RenderState *state)
 #endif
 
     auto present_time_limit = playback_time;
-    if (!texture_buffers_uploaded_.empty() && texture_buffers_uploaded_.front().present_time < present_time_limit)
+    if (!texture_buffers_uploaded_.empty() && texture_buffers_uploaded_.front().present_time <= present_time_limit)
     {
-        auto texture_buffer_itr = texture_buffers_uploaded_.begin(), texture_buffer_itr_end = texture_buffers_uploaded_.end();
-        for (; texture_buffer_itr != texture_buffer_itr_end; ++texture_buffer_itr)
-            if (texture_buffer_itr->present_time > present_time_limit)
-                break;
-        Q_ASSERT(texture_buffer_itr != texture_buffers_uploaded_.begin());
-        --texture_buffer_itr;
+        decltype(texture_buffers_uploaded_)::iterator texture_buffer_itr = texture_buffers_uploaded_.begin(), texture_buffer_itr_end = texture_buffers_uploaded_.end(), selected_texture_buffer_itr;
+        for (; texture_buffer_itr != texture_buffer_itr_end && texture_buffer_itr->present_time <= present_time_limit; ++texture_buffer_itr)
+            selected_texture_buffer_itr = texture_buffer_itr;
 
-        if (texture_buffer_itr->pixel_format != pixel_format_)
+        if (selected_texture_buffer_itr->pixel_format != pixel_format_)
         {
-            pixel_format_ = static_cast<AVPixelFormat>(texture_buffer_itr->pixel_format);
-            frame_size_ = texture_buffer_itr->frame_size;
+            pixel_format_ = static_cast<AVPixelFormat>(selected_texture_buffer_itr->pixel_format);
+            frame_size_ = selected_texture_buffer_itr->frame_size;
             InitShader();
             InitTexture();
             vertex_buffer_need_update_ = true;
             if (color_matrix_uniform_index_ != -1)
             {
-                color_range_ = texture_buffer_itr->color_range;
-                colorspace_ = texture_buffer_itr->colorspace;
+                color_range_ = selected_texture_buffer_itr->color_range;
+                colorspace_ = selected_texture_buffer_itr->colorspace;
                 InitColorMatrix();
             }
         }
         else
         {
-            if (frame_size_ != texture_buffer_itr->frame_size)
+            if (frame_size_ != selected_texture_buffer_itr->frame_size)
             {
-                frame_size_ = texture_buffer_itr->frame_size;
+                frame_size_ = selected_texture_buffer_itr->frame_size;
                 InitTexture();
                 vertex_buffer_need_update_ = true;
             }
-            if (color_matrix_uniform_index_ != -1 && (color_range_ != texture_buffer_itr->color_range || colorspace_ != texture_buffer_itr->colorspace))
+            if (color_matrix_uniform_index_ != -1 && (color_range_ != selected_texture_buffer_itr->color_range || colorspace_ != selected_texture_buffer_itr->colorspace))
             {
-                color_range_ = texture_buffer_itr->color_range;
-                colorspace_ = texture_buffer_itr->colorspace;
+                color_range_ = selected_texture_buffer_itr->color_range;
+                colorspace_ = selected_texture_buffer_itr->colorspace;
                 InitColorMatrix();
             }
         }
 
-        UpdateTexture(*texture_buffer_itr);
+        UpdateTexture(*selected_texture_buffer_itr);
 
 #ifdef _DEBUG
         texture_updates_per_second_ += 1;
@@ -435,14 +438,13 @@ void VideoFrameRenderNodeOGL::render(const RenderState *state)
             max_texture_diff_time_ = current_time - last_texture_change_time_;
         if (current_time - last_texture_change_time_ < min_texture_diff_time_)
             min_texture_diff_time_ = current_time - last_texture_change_time_;
-        if (current_time - texture_buffer_itr->present_time > max_latency_)
-            max_latency_ = current_time - texture_buffer_itr->present_time;
-        if (current_time - texture_buffer_itr->present_time < min_latency_)
-            min_latency_ = current_time - texture_buffer_itr->present_time;
+        if (current_time - selected_texture_buffer_itr->present_time > max_latency_)
+            max_latency_ = current_time - selected_texture_buffer_itr->present_time;
+        if (current_time - selected_texture_buffer_itr->present_time < min_latency_)
+            min_latency_ = current_time - selected_texture_buffer_itr->present_time;
         last_texture_change_time_ = current_time;
 #endif
 
-        ++texture_buffer_itr;
         texture_buffers_used_.insert(texture_buffers_used_.end(), std::make_move_iterator(texture_buffers_uploaded_.begin()), std::make_move_iterator(texture_buffer_itr));
         texture_buffers_uploaded_.erase(texture_buffers_uploaded_.begin(), texture_buffer_itr);
     }
@@ -587,6 +589,7 @@ void VideoFrameRenderNodeOGL::render(const RenderState *state)
         qCDebug(CategoryVideoPlayback, "%lldus max latency", std::chrono::duration_cast<std::chrono::microseconds>(max_latency_).count());
         qCDebug(CategoryVideoPlayback, "%lldus min latency", std::chrono::duration_cast<std::chrono::microseconds>(min_latency_).count());
         qCDebug(CategoryVideoPlayback, "%lldus max render time", std::chrono::duration_cast<std::chrono::microseconds>(min_timing_diff_).count());
+        qCDebug(CategoryVideoPlayback, "%lldus time unit", std::chrono::duration_cast<std::chrono::microseconds>(playback_time_interval_).count());
         max_diff_time_ = max_texture_diff_time_ = max_latency_ = min_timing_diff_ = std::chrono::seconds(-10);
         min_diff_time_ = min_texture_diff_time_ = min_latency_ = std::chrono::seconds(10);
         frames_per_second_ = renders_per_second_ = texture_updates_per_second_ = 0;
@@ -635,8 +638,6 @@ void VideoFrameRenderNodeOGL::AddVideoFrames(std::vector<QSharedPointer<VideoFra
                 break;
         video_frames_.insert(ritr.base(), std::move(frame));
     }
-    if (video_frames_.size() > kQueueSize)
-        video_frames_.erase(video_frames_.begin(), video_frames_.end() - kQueueSize);
 }
 
 void VideoFrameRenderNodeOGL::Synchronize(QQuickItem *item)
