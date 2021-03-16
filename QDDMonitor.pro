@@ -47,8 +47,11 @@ SOURCES += \
         main.cpp
 
 RESOURCES += qml.qrc \
+    lang.qrc \
     res.qrc \
     shader.qrc
+
+TRANSLATIONS += localization/qddmonitor_zh.ts
 
 # Additional import path used to resolve QML modules in Qt Creator's code model
 QML_IMPORT_PATH =

@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file>localization/qddmonitor_zh.qm</file>
+    </qresource>
+</RCC>

@@ -53,7 +53,7 @@ Window {
                 columns: 2
 
                 Label {
-                    text: qsTr("Name: ")
+                    text: qsTr("Name:")
                 }
                 TextField {
                     id: textInputRoomName
@@ -63,7 +63,7 @@ Window {
                 }
 
                 Label {
-                    text: qsTr("Room No.: ")
+                    text: qsTr("Room No.:")
                 }
                 TextField {
                     id: textInputRoomId
@@ -111,7 +111,7 @@ Window {
                 columns: 2
 
                 Label {
-                    text: qsTr("Rows: ")
+                    text: qsTr("Rows:")
                 }
                 TextField {
                     id: textInputLayoutRows
@@ -128,7 +128,7 @@ Window {
                 }
 
                 Label {
-                    text: qsTr("Columns: ")
+                    text: qsTr("Columns:")
                 }
                 TextField {
                     id: textInputLayoutColumns

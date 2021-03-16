@@ -9,8 +9,8 @@
 #include "FixedGridLayout.h"
 #include "AudioOutput.h"
 
-#include <QQmlContext>
 #include <QLoggingCategory>
+#include <QTranslator>
 
 int main(int argc, char *argv[])
 {
@@ -35,11 +35,16 @@ int main(int argc, char *argv[])
 
     QGuiApplication app(argc, argv);
 
-    QLoggingCategory::setFilterRules("qddm.video=false\n"
+    QTranslator translator;
+    translator.load(QLocale(), QLatin1String("qddmonitor"), QLatin1String("_"), QLatin1String(":/localization"), QLatin1String(".qm"));
+    app.installTranslator(&translator);
+
+    QLoggingCategory::setFilterRules(//"qddm.video=false\n"
                                      "qddm.audio=false\n"
                                      "qddm.decode=false\n"
-                                     //"qddm.sourcectrl=false\n"
-                                     "qt.scenegraph.general=true");
+                                     "qddm.sourcectrl=false\n"
+                                     //"qt.scenegraph.general=true"
+                                     );
 
     QQmlApplicationEngine engine;
 

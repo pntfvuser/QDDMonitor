@@ -49,7 +49,7 @@ StackView {
                     columnSpacing: 20
 
                     Label {
-                        text: qsTr("3D Audio: ")
+                        text: qsTr("3D Audio:")
                     }
                     CheckBox {
                         id: checkboxInputName
@@ -73,7 +73,7 @@ StackView {
                         Layout.fillWidth: true
 
                         Label {
-                            text: qsTr("x: ")
+                            text: qsTr("x:")
                         }
                         TextField {
                             id: textInputSourceX
@@ -86,7 +86,7 @@ StackView {
                         }
 
                         Label {
-                            text: qsTr("y: ")
+                            text: qsTr("y:")
                         }
                         TextField {
                             id: textInputSourceY
@@ -99,7 +99,7 @@ StackView {
                         }
 
                         Label {
-                            text: qsTr("z: ")
+                            text: qsTr("z:")
                         }
                         TextField {
                             id: textInputSourceZ
