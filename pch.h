@@ -71,18 +71,11 @@ using namespace std::chrono_literals;
 #include <AL/alc.h>
 #include <AL/alext.h>
 
-#ifdef _WIN32
-#include <d3d11.h>
-#endif
-
 extern "C"
 {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/hwcontext.h>
-#ifdef _WIN32
-#include <libavutil/hwcontext_d3d11va.h>
-#endif
 #include <libavutil/pixdesc.h>
 #include <libavutil/opt.h>
 #include <libavutil/avassert.h>

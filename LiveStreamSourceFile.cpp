@@ -44,6 +44,7 @@ QJsonObject LiveStreamSourceFile::ToJson() const
 {
     QJsonObject obj;
     QString file_path = file_path_;
+    file_path.detach();
     file_path.replace("\\", "\\\\");
     obj["file_path"] = file_path;
     return obj;
