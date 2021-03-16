@@ -22,7 +22,7 @@ Window {
     width: 640
     height: 480
     visible: true
-    title: "UI Test"
+    title: qsTr("QDDMonitor")
 
     NumberAnimation on playbackTimer {
         running: true
@@ -45,26 +45,34 @@ Window {
             anchors.left: parent.left
             width: 150
 
-            TextField {
-                id: textInputRoomName
-
+            GridLayout {
                 Layout.fillWidth: true
                 Layout.leftMargin: 5
                 Layout.rightMargin: 5
 
-                selectByMouse: true
-            }
+                columns: 2
 
-            TextField {
-                id: textInputRoomId
+                Label {
+                    text: qsTr("Name: ")
+                }
+                TextField {
+                    id: textInputRoomName
+                    Layout.fillWidth: true
 
-                Layout.fillWidth: true
-                Layout.leftMargin: 5
-                Layout.rightMargin: 5
+                    selectByMouse: true
+                }
 
-                inputMethodHints: Qt.ImhDigitsOnly
-                validator: IntValidator {}
-                selectByMouse: true
+                Label {
+                    text: qsTr("Room No.: ")
+                }
+                TextField {
+                    id: textInputRoomId
+                    Layout.fillWidth: true
+
+                    inputMethodHints: Qt.ImhDigitsOnly
+                    validator: IntValidator {}
+                    selectByMouse: true
+                }
             }
 
             Button {
