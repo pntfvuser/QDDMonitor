@@ -216,7 +216,7 @@ void AudioOutput::onSetAudioSourcePosition(void *source_id, QVector3D position)
             source->force_mono = false;
             if (source->channels > 1)
             {
-                InitSource(*source); //Force reinit one next frame
+                InitSource(*source); //Force reinit on next frame
                 StopSource(*source);
             }
         }
@@ -228,7 +228,7 @@ void AudioOutput::onSetAudioSourcePosition(void *source_id, QVector3D position)
             source->force_mono = true;
             if (source->channels > 1)
             {
-                InitSource(*source); //Force reinit one next frame
+                InitSource(*source); //Force reinit on next frame
                 StopSource(*source);
             }
         }
@@ -449,6 +449,7 @@ void AudioOutput::StartSource(const std::shared_ptr<AudioSource> &source, Playba
             if (!source->stopping)
             {
                 source->starting = false;
+                qCDebug(CategoryAudioPlayback) << "Filled buffer count when starting: " << source->al_buffer_occupied_count;
                 alSourcePlay(source->al_id);
                 ALenum ret = AL_NO_ERROR;
                 if ((ret = alGetError()) != AL_NO_ERROR)

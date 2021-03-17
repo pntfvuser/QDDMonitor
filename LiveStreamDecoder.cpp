@@ -7,8 +7,8 @@ static constexpr int kInputBufferSize = 0x1000, kInputBufferSizeLimit = 0x100000
 
 static constexpr PlaybackClock::duration kPacketBufferStartThreshold = 2500ms, kPacketBufferFullThreshold = 5000ms;
 static constexpr PlaybackClock::duration kFrameBufferStartThreshold = 200ms, kFrameBufferFullThreshold = 200ms;
-static constexpr std::chrono::milliseconds kFrameBufferPushInterval = 50ms;
-static constexpr PlaybackClock::duration kUploadToRenderLatency = 200ms;
+static constexpr std::chrono::milliseconds kFrameBufferPushInit = 50ms, kFrameBufferPushInterval = 50ms;
+static constexpr PlaybackClock::duration kUploadToRenderLatency = 120ms;
 
 template <typename ToDuration>
 static inline constexpr ToDuration AVTimestampToDuration(int64_t timestamp, AVRational time_base)
@@ -765,7 +765,7 @@ void LiveStreamDecoder::StartPlaying()
     auto video_played_duration = AVTimestampToDuration<std::chrono::microseconds>(video_frames_.front()->timestamp, video_stream_time_base_);
     auto audio_played_duration = AVTimestampToDuration<std::chrono::microseconds>(audio_frames_.front()->timestamp, audio_stream_time_base_);
     auto played_duration = std::max(video_played_duration, audio_played_duration);
-    pushed_time_ = std::chrono::duration_cast<std::chrono::milliseconds>(played_duration);
+    pushed_time_ = std::chrono::duration_cast<std::chrono::milliseconds>(played_duration) + kFrameBufferPushInit;
     base_time_ = current_time - played_duration;
     emit playingChanged(true);
 }
