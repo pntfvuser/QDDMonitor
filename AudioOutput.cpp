@@ -413,13 +413,13 @@ void AudioOutput::StartSource(const std::shared_ptr<AudioSource> &source, Playba
     }
     else
     {
-        qCDebug(CategoryAudioPlayback, "Latency: %lldns", offset_latency[1]);
+        qCDebug(CategoryAudioPlayback) << "Latency: " << offset_latency[1] << "ns";
         latency = std::chrono::nanoseconds(offset_latency[1]);
     }
 
     std::chrono::milliseconds sleep_time = std::chrono::duration_cast<std::chrono::milliseconds>(timestamp - PlaybackClock::now() - latency);
     unsigned char start_id = ++source->next_start_id;
-    qCDebug(CategoryAudioPlayback, "Starting audio playback after %lldms", sleep_time.count());
+    qCDebug(CategoryAudioPlayback) << "Starting audio playback after " << sleep_time.count() << "ms";
     if (Q_UNLIKELY(sleep_time.count() <= 0))
     {
         QTimer::singleShot(0, this, [source_weak = std::weak_ptr<AudioSource>(source), start_id]()

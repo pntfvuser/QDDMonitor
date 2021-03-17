@@ -569,21 +569,21 @@ void VideoFrameRenderNodeOGL::render(const RenderState *state)
             last_second_ = current_time;
         else
             last_second_ += std::chrono::seconds(1);
-        qCDebug(CategoryVideoPlayback, "%d textures uploaded", texture_buffers_uploaded_.size());
-        qCDebug(CategoryVideoPlayback, "%d textures used", texture_buffers_used_.size());
-        qCDebug(CategoryVideoPlayback, "%d textures empty", texture_buffers_empty_.size());
-        qCDebug(CategoryVideoPlayback, "%d frames in pending queue", video_frames_.size());
-        qCDebug(CategoryVideoPlayback, "%d fps from source", frames_per_second_);
-        qCDebug(CategoryVideoPlayback, "%d fps render", renders_per_second_);
-        qCDebug(CategoryVideoPlayback, "%d texture updates", texture_updates_per_second_);
-        qCDebug(CategoryVideoPlayback, "%lldus max diff (frame to frame)", std::chrono::duration_cast<std::chrono::microseconds>(max_diff_time_).count());
-        qCDebug(CategoryVideoPlayback, "%lldus min diff (frame to frame)", std::chrono::duration_cast<std::chrono::microseconds>(min_diff_time_).count());
-        qCDebug(CategoryVideoPlayback, "%lldus max diff (texture to texture)", std::chrono::duration_cast<std::chrono::microseconds>(max_texture_diff_time_).count());
-        qCDebug(CategoryVideoPlayback, "%lldus min diff (texture to texture)", std::chrono::duration_cast<std::chrono::microseconds>(min_texture_diff_time_).count());
-        qCDebug(CategoryVideoPlayback, "%lldus max latency", std::chrono::duration_cast<std::chrono::microseconds>(max_latency_).count());
-        qCDebug(CategoryVideoPlayback, "%lldus min latency", std::chrono::duration_cast<std::chrono::microseconds>(min_latency_).count());
-        qCDebug(CategoryVideoPlayback, "%lldus max render time", std::chrono::duration_cast<std::chrono::microseconds>(min_timing_diff_).count());
-        qCDebug(CategoryVideoPlayback, "%lldus time unit", std::chrono::duration_cast<std::chrono::microseconds>(playback_time_interval_).count());
+        qCDebug(CategoryVideoPlayback) << texture_buffers_uploaded_.size() << " textures uploaded";
+        qCDebug(CategoryVideoPlayback) << texture_buffers_used_.size() << " textures used";
+        qCDebug(CategoryVideoPlayback) << texture_buffers_empty_.size() << " textures empty";
+        qCDebug(CategoryVideoPlayback) << video_frames_.size() << " frames in pending queue";
+        qCDebug(CategoryVideoPlayback) << frames_per_second_ << " fps from source";
+        qCDebug(CategoryVideoPlayback) << renders_per_second_ << " fps render";
+        qCDebug(CategoryVideoPlayback) << texture_updates_per_second_ << " texture updates";
+        qCDebug(CategoryVideoPlayback) << std::chrono::duration_cast<std::chrono::microseconds>(max_diff_time_).count() << "us max diff (frame to frame)";
+        qCDebug(CategoryVideoPlayback) << std::chrono::duration_cast<std::chrono::microseconds>(min_diff_time_).count() << "us min diff (frame to frame)";
+        qCDebug(CategoryVideoPlayback) << std::chrono::duration_cast<std::chrono::microseconds>(max_texture_diff_time_).count() << "us max diff (texture to texture)";
+        qCDebug(CategoryVideoPlayback) << std::chrono::duration_cast<std::chrono::microseconds>(min_texture_diff_time_).count() << "us min diff (texture to texture)";
+        qCDebug(CategoryVideoPlayback) << std::chrono::duration_cast<std::chrono::microseconds>(max_latency_).count() << "us max latency";
+        qCDebug(CategoryVideoPlayback) << std::chrono::duration_cast<std::chrono::microseconds>(min_latency_).count() << "us min latency";
+        qCDebug(CategoryVideoPlayback) << std::chrono::duration_cast<std::chrono::microseconds>(min_timing_diff_).count() << "us max render time";
+        qCDebug(CategoryVideoPlayback) << std::chrono::duration_cast<std::chrono::microseconds>(playback_time_interval_).count() << "us time unit";
         max_diff_time_ = max_texture_diff_time_ = max_latency_ = min_timing_diff_ = std::chrono::seconds(-10);
         min_diff_time_ = min_texture_diff_time_ = min_latency_ = std::chrono::seconds(10);
         frames_per_second_ = renders_per_second_ = texture_updates_per_second_ = 0;
@@ -675,7 +675,7 @@ void VideoFrameRenderNodeOGL::Synchronize(QQuickItem *item)
 
 void VideoFrameRenderNodeOGL::ResynchronizeTimer(PlaybackClock::time_point current_time)
 {
-    qCDebug(CategoryVideoPlayback, "Resynchronizing clock, Error: %lldus", std::chrono::duration_cast<std::chrono::microseconds>(current_time - playback_time_base_).count());
+    qCDebug(CategoryVideoPlayback) << "Resynchronizing clock, Error: " << std::chrono::duration_cast<std::chrono::microseconds>(current_time - playback_time_base_).count() << "us";
     playback_time_base_ = current_time;
     playback_time_tick_ = 0;
 }

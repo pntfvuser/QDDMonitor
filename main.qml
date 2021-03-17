@@ -1,7 +1,7 @@
-import QtQuick 2.15
-import QtQuick.Window 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
+import QtQuick 2.12
+import QtQuick.Window 2.12
+import QtQuick.Controls 2.12
+import QtQuick.Layouts 1.12
 import org.anon.QDDMonitor 1.0
 
 Window {
@@ -340,7 +340,7 @@ Window {
         for (var i = repeaterViews.count - 1; i >= 0; --i) {
             var item = repeaterViews.itemAt(i);
             console.assert(item !== null);
-            if (item.contains(item.mapFromItem(null, releasePoint))) {
+            if (item.contains(item.mapFromItem(null, releasePoint.x, releasePoint.y))) {
                 if (i !== selectedSourceView) {
                     if (selectedSourceView == -1) {
                         viewModelMain.setSource(i, selectedSource);

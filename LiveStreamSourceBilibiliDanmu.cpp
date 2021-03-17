@@ -308,7 +308,7 @@ void LiveStreamSourceBilibiliDanmu::OnChatroomSocketBinaryMessage(const QByteArr
         DecodePacketHeader(packet_header, payload);
         if (packet_header.size_total < kPacketHeaderSize)
             break;
-        size_t packet_size = std::min(payload_size, packet_header.size_total);
+        size_t packet_size = std::min<size_t>(payload_size, packet_header.size_total);
 
         const char *packet_payload = payload + kPacketHeaderSize;
         size_t packet_payload_size = packet_size - kPacketHeaderSize;

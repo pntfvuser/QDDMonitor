@@ -156,12 +156,15 @@ void LiveStreamDecoder::onNewInputStream(const QString &url_hint, const QString 
 
     if (hw_device_type != AV_HWDEVICE_TYPE_NONE)
     {
-        if ((ret = av_hwdevice_ctx_create(video_decoder_hw_ctx_.ReleaseAndGetAddressOf(), hw_device_type, NULL, NULL, 0)) < 0)
+        if ((ret = av_hwdevice_ctx_create(video_decoder_hw_ctx_.ReleaseAndGetAddressOf(), hw_device_type, NULL, NULL, 0)) >= 0)
         {
-            Close();
-            return;
+            video_decoder_ctx_->hw_device_ctx = av_buffer_ref(video_decoder_hw_ctx_.Get());
         }
-        video_decoder_ctx_->hw_device_ctx = av_buffer_ref(video_decoder_hw_ctx_.Get());
+        else
+        {
+            video_decoder_hw_pixel_format_ = AV_PIX_FMT_NONE;
+            qCWarning(CategoryStreamDecoding, "Failed to open hw context for video stream #%u", ret);
+        }
     }
 
     if ((ret = avcodec_open2(video_decoder_ctx_.Get(), video_decoder, NULL)) < 0)
@@ -702,11 +705,11 @@ void LiveStreamDecoder::OnPushTick()
     if (PlaybackClock::now() - last_debug_report_ > std::chrono::seconds(1))
     {
         last_debug_report_ += std::chrono::seconds(1);
-        qCDebug(CategoryStreamDecoding, "Input buffer: %fkiB", (double)demuxer_in_.SizeLocked() / 1024);
-        qCDebug(CategoryStreamDecoding, "Video packet buffer: %lldms", video_packets_.empty() ? 0ll : AVTimestampToDuration<std::chrono::milliseconds>(video_packets_.back()->pts - video_packets_.front()->pts, video_stream_time_base_).count());
-        qCDebug(CategoryStreamDecoding, "Audio packet buffer: %lldms", audio_packets_.empty() ? 0ll : AVTimestampToDuration<std::chrono::milliseconds>(audio_packets_.back()->pts - audio_packets_.front()->pts, audio_stream_time_base_).count());
-        qCDebug(CategoryStreamDecoding, "Video frame buffer: %lldms", video_frames_.empty() ? 0ll : AVTimestampToDuration<std::chrono::milliseconds>(video_frames_.back()->timestamp - video_frames_.front()->timestamp, video_stream_time_base_).count());
-        qCDebug(CategoryStreamDecoding, "Audio frame buffer: %lldms", audio_frames_.empty() ? 0ll : AVTimestampToDuration<std::chrono::milliseconds>(audio_frames_.back()->timestamp - audio_frames_.front()->timestamp, audio_stream_time_base_).count());
+        qCDebug(CategoryStreamDecoding) << "Input buffer: %fkiB" << (double)demuxer_in_.SizeLocked() / 1024;
+        qCDebug(CategoryStreamDecoding) << "Video packet buffer: " << (video_packets_.empty() ? 0 : AVTimestampToDuration<std::chrono::milliseconds>(video_packets_.back()->pts - video_packets_.front()->pts, video_stream_time_base_).count()) << "ms";
+        qCDebug(CategoryStreamDecoding) << "Audio packet buffer: " << (audio_packets_.empty() ? 0ll : AVTimestampToDuration<std::chrono::milliseconds>(audio_packets_.back()->pts - audio_packets_.front()->pts, audio_stream_time_base_).count()) << "ms";
+        qCDebug(CategoryStreamDecoding) << "Video frame buffer: " << (video_frames_.empty() ? 0ll : AVTimestampToDuration<std::chrono::milliseconds>(video_frames_.back()->timestamp - video_frames_.front()->timestamp, video_stream_time_base_).count()) << "ms";
+        qCDebug(CategoryStreamDecoding) << "Audio frame buffer: " << (audio_frames_.empty() ? 0ll : AVTimestampToDuration<std::chrono::milliseconds>(audio_frames_.back()->timestamp - audio_frames_.front()->timestamp, audio_stream_time_base_).count()) << "ms";
     }
 #endif
 

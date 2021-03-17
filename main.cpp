@@ -19,11 +19,19 @@ int main(int argc, char *argv[])
     qRegisterMetaType<QSharedPointer<VideoFrame>>();
     qRegisterMetaType<QSharedPointer<SubtitleFrame>>();
 
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
     qmlRegisterAnonymousType<AudioOutput>("org.anon.QDDMonitor", 1);
     qmlRegisterAnonymousType<FixedGridLayoutAttachedType>("org.anon.QDDMonitor", 1);
     qmlRegisterAnonymousType<LiveStreamSource>("org.anon.QDDMonitor", 1);
     qmlRegisterAnonymousType<LiveStreamSourceInfo>("org.anon.QDDMonitor", 1);
     qmlRegisterAnonymousType<LiveStreamSubtitleOverlay>("org.anon.QDDMonitor", 1);
+#else
+    qmlRegisterUncreatableType<AudioOutput>("org.anon.QDDMonitor", 1, 0, "AudioOutput", "This type is intended to only be created in C++");
+    qmlRegisterUncreatableType<FixedGridLayoutAttachedType>("org.anon.QDDMonitor", 1, 0, "FixedGridLayoutAttachedType", "This type is intended to only be created in C++");
+    qmlRegisterUncreatableType<LiveStreamSource>("org.anon.QDDMonitor", 1, 0, "LiveStreamSource", "This type is intended to only be created in C++");
+    qmlRegisterUncreatableType<LiveStreamSourceInfo>("org.anon.QDDMonitor", 1, 0, "LiveStreamSourceInfo", "This type is intended to only be created in C++");
+    qmlRegisterUncreatableType<LiveStreamSubtitleOverlay>("org.anon.QDDMonitor", 1, 0, "LiveStreamSubtitleOverlay", "This type is intended to only be created in C++");
+#endif
 
     qmlRegisterType<LiveStreamSourceModel>("org.anon.QDDMonitor", 1, 0, "LiveStreamSourceModel");
     qmlRegisterType<LiveStreamViewModel>("org.anon.QDDMonitor", 1, 0, "LiveStreamViewModel");

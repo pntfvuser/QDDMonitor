@@ -29,6 +29,7 @@ HEADERS += \
     pch.h
 
 PRECOMPILED_HEADER = pch.h
+QMAKE_MOC_OPTIONS += -b pch.h
 
 SOURCES += \
         AudioOutput.cpp \
@@ -64,9 +65,9 @@ qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
-DEFINES += AL_LIBTYPE_STATIC ZLIB_WINAPI
-
 win32: {
+    DEFINES += AL_LIBTYPE_STATIC ZLIB_WINAPI
+
     INCLUDEPATH += C:/usr/include
     DEPENDPATH += C:/usr/include
 
@@ -82,5 +83,5 @@ win32: {
     LIBS += libavcodec.lib libavformat.lib libavutil.lib libswresample.lib libswscale.lib libx264.lib x265.lib OpenAL32.lib libssl.lib libcrypto.lib zlibstat.lib evr.lib mf.lib strmiids.lib mfplat.lib mfplay.lib mfreadwrite.lib mfuuid.lib ws2_32.lib bcrypt.lib secur32.lib
 }
 else:unix: {
-    LIBS += -lavcodec -lavformat -lavutil
+    LIBS += -lavcodec -lavformat -lavutil -lswresample -lswscale -lopenal -lz
 }
