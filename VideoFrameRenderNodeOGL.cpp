@@ -269,7 +269,7 @@ void VideoFrameRenderNodeOGL::UpdatePixelUnpackBuffer(PixelUnpackBufferItem &ite
     switch (item.pixel_format)
     {
     case AV_PIX_FMT_RGB0:
-        UpdateSinglePixelUnpackBuffer(item.buffers[0].get(), frame->data[0], frame->linesize[0], item.frame_size.width() * 1 * sizeof(GLubyte), item.frame_size.height());
+        UpdateSinglePixelUnpackBuffer(item.buffers[0].get(), frame->data[0], frame->linesize[0], item.frame_size.width() * 4 * sizeof(GLubyte), item.frame_size.height());
         break;
     case AV_PIX_FMT_NV12:
     case AV_PIX_FMT_NV21:
