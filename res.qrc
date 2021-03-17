@@ -3,5 +3,7 @@
         <file>images/settings-black.svg</file>
         <file>images/arrow_back-black.svg</file>
         <file>images/remove_circle.svg</file>
+        <file>images/hearing.svg</file>
+        <file>images/volume_up.svg</file>
     </qresource>
 </RCC>

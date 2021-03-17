@@ -41,7 +41,7 @@ Item {
             Rectangle {
                 Layout.preferredHeight: parent.height
                 Layout.preferredWidth: parent.height
-                radius: width / 2
+                radius: width * 0.5
                 color: display.online ? "green" : "red"
             }
 
