@@ -532,6 +532,7 @@ int LiveStreamDecoder::ReceiveVideoFrame()
     {
     case AV_PIX_FMT_NV12:
     case AV_PIX_FMT_NV21:
+    case AV_PIX_FMT_YUV420P:
     case AV_PIX_FMT_YUV444P:
     case AV_PIX_FMT_YUVJ444P:
         supported = true;

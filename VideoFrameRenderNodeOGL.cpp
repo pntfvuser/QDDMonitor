@@ -18,7 +18,7 @@ constexpr inline qreal ScreenRefreshRate(qreal refresh_rate)
 
 constexpr int DivideTwoRoundUp(int a)
 {
-    return a / 2 + a % 2;
+    return (a + 1) / 2;
 }
 
 struct ColorMatrix
@@ -135,7 +135,7 @@ VideoFrameRenderNodeOGL::VideoFrameRenderNodeOGL()
 
 VideoFrameRenderNodeOGL::~VideoFrameRenderNodeOGL()
 {
-    releaseResources();
+    VideoFrameRenderNodeOGL::releaseResources();
 }
 
 void VideoFrameRenderNodeOGL::releaseResources()
@@ -169,6 +169,7 @@ void VideoFrameRenderNodeOGL::InitShader()
         shader_->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/default.vert");
         shader_->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/yuvbiplanar.frag");
         break;
+    case AV_PIX_FMT_YUV420P:
     case AV_PIX_FMT_YUV444P:
     case AV_PIX_FMT_YUVJ444P:
         shader_->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/default.vert");
@@ -207,6 +208,11 @@ void VideoFrameRenderNodeOGL::InitTexture()
         InitSingleTexture(textures_[1], DivideTwoRoundUp(frame_size_.width()), DivideTwoRoundUp(frame_size_.height()), QOpenGLTexture::RG8_UNorm, QOpenGLTexture::RG, QOpenGLTexture::UInt8);
         textures_[2] = nullptr; Q_ASSERT(texture_2_uniform_index_ == -1);
         break;
+    case AV_PIX_FMT_YUV420P:
+        InitSingleTexture(textures_[0], frame_size_.width(), frame_size_.height(), QOpenGLTexture::R8_UNorm, QOpenGLTexture::Red, QOpenGLTexture::UInt8);
+        InitSingleTexture(textures_[1], DivideTwoRoundUp(frame_size_.width()), DivideTwoRoundUp(frame_size_.height()), QOpenGLTexture::R8_UNorm, QOpenGLTexture::Red, QOpenGLTexture::UInt8);
+        InitSingleTexture(textures_[2], DivideTwoRoundUp(frame_size_.width()), DivideTwoRoundUp(frame_size_.height()), QOpenGLTexture::R8_UNorm, QOpenGLTexture::Red, QOpenGLTexture::UInt8);
+        break;
     case AV_PIX_FMT_YUV444P:
     case AV_PIX_FMT_YUVJ444P:
         InitSingleTexture(textures_[0], frame_size_.width(), frame_size_.height(), QOpenGLTexture::R8_UNorm, QOpenGLTexture::Red, QOpenGLTexture::UInt8);
@@ -229,6 +235,11 @@ void VideoFrameRenderNodeOGL::UpdateTexture(PixelUnpackBufferItem &item)
     case AV_PIX_FMT_NV21:
         UpdateSingleTexture(textures_[0].get(), QOpenGLTexture::Red, QOpenGLTexture::UInt8, item.buffers[0].get());
         UpdateSingleTexture(textures_[1].get(), QOpenGLTexture::RG, QOpenGLTexture::UInt8, item.buffers[1].get());
+        break;
+    case AV_PIX_FMT_YUV420P:
+        UpdateSingleTexture(textures_[0].get(), QOpenGLTexture::Red, QOpenGLTexture::UInt8, item.buffers[0].get());
+        UpdateSingleTexture(textures_[1].get(), QOpenGLTexture::Red, QOpenGLTexture::UInt8, item.buffers[1].get());
+        UpdateSingleTexture(textures_[2].get(), QOpenGLTexture::Red, QOpenGLTexture::UInt8, item.buffers[2].get());
         break;
     case AV_PIX_FMT_YUV444P:
     case AV_PIX_FMT_YUVJ444P:
@@ -253,6 +264,11 @@ void VideoFrameRenderNodeOGL::InitPixelUnpackBuffer(PixelUnpackBufferItem &item)
         InitSinglePixelUnpackBuffer(item.buffers[0], item.frame_size.width() * item.frame_size.height() * 1 * sizeof(GLubyte));
         InitSinglePixelUnpackBuffer(item.buffers[1], DivideTwoRoundUp(item.frame_size.width()) * DivideTwoRoundUp(item.frame_size.height()) * 2 * sizeof(GLubyte));
         break;
+    case AV_PIX_FMT_YUV420P:
+        InitSinglePixelUnpackBuffer(item.buffers[0], item.frame_size.width() * item.frame_size.height() * 1 * sizeof(GLubyte));
+        InitSinglePixelUnpackBuffer(item.buffers[1], DivideTwoRoundUp(item.frame_size.width()) * DivideTwoRoundUp(item.frame_size.height()) * 1 * sizeof(GLubyte));
+        InitSinglePixelUnpackBuffer(item.buffers[2], DivideTwoRoundUp(item.frame_size.width()) * DivideTwoRoundUp(item.frame_size.height()) * 1 * sizeof(GLubyte));
+        break;
     case AV_PIX_FMT_YUV444P:
     case AV_PIX_FMT_YUVJ444P:
         InitSinglePixelUnpackBuffer(item.buffers[0], item.frame_size.width() * item.frame_size.height() * 1 * sizeof(GLubyte));
@@ -275,6 +291,11 @@ void VideoFrameRenderNodeOGL::UpdatePixelUnpackBuffer(PixelUnpackBufferItem &ite
     case AV_PIX_FMT_NV21:
         UpdateSinglePixelUnpackBuffer(item.buffers[0].get(), frame->data[0], frame->linesize[0], item.frame_size.width() * 1 * sizeof(GLubyte), item.frame_size.height());
         UpdateSinglePixelUnpackBuffer(item.buffers[1].get(), frame->data[1], frame->linesize[1], DivideTwoRoundUp(item.frame_size.width()) * 2 * sizeof(GLubyte), DivideTwoRoundUp(item.frame_size.height()));
+        break;
+    case AV_PIX_FMT_YUV420P:
+        UpdateSinglePixelUnpackBuffer(item.buffers[0].get(), frame->data[0], frame->linesize[0], item.frame_size.width() * 1 * sizeof(GLubyte), item.frame_size.height());
+        UpdateSinglePixelUnpackBuffer(item.buffers[1].get(), frame->data[1], frame->linesize[1], DivideTwoRoundUp(item.frame_size.width()) * 1 * sizeof(GLubyte), DivideTwoRoundUp(item.frame_size.height()));
+        UpdateSinglePixelUnpackBuffer(item.buffers[2].get(), frame->data[2], frame->linesize[2], DivideTwoRoundUp(item.frame_size.width()) * 1 * sizeof(GLubyte), DivideTwoRoundUp(item.frame_size.height()));
         break;
     case AV_PIX_FMT_YUV444P:
     case AV_PIX_FMT_YUVJ444P:
