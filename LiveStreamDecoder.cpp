@@ -126,7 +126,6 @@ void LiveStreamDecoder::onNewInputStream(const QString &url_hint, const QString 
 
     AVStream *video_stream = demuxer_ctx_->streams[video_stream_index_];
 
-    AVHWDeviceType hw_device_type = AV_HWDEVICE_TYPE_NONE;
     video_decoder_hw_pixel_format_ = AV_PIX_FMT_NONE;
     for (i = 0;; i++)
     {
@@ -135,9 +134,15 @@ void LiveStreamDecoder::onNewInputStream(const QString &url_hint, const QString 
             break;
         if (video_decoder_hw_config->device_type != AV_HWDEVICE_TYPE_NONE && video_decoder_hw_config->pix_fmt != AV_PIX_FMT_NONE && (video_decoder_hw_config->methods & AV_CODEC_HW_CONFIG_METHOD_AD_HOC) != 0)
         {
-            hw_device_type = video_decoder_hw_config->device_type;
-            video_decoder_hw_pixel_format_ = video_decoder_hw_config->pix_fmt;
-            break;
+            if ((ret = av_hwdevice_ctx_create(video_decoder_hw_ctx_.ReleaseAndGetAddressOf(), video_decoder_hw_config->device_type, NULL, NULL, 0)) >= 0)
+            {
+                video_decoder_hw_pixel_format_ = video_decoder_hw_config->pix_fmt;
+                break;
+            }
+            else
+            {
+                qCDebug(CategoryStreamDecoding, "Failed to open hw context for video stream #%u", ret);
+            }
         }
     }
 
@@ -154,17 +159,9 @@ void LiveStreamDecoder::onNewInputStream(const QString &url_hint, const QString 
         return;
     }
 
-    if (hw_device_type != AV_HWDEVICE_TYPE_NONE)
+    if (video_decoder_hw_pixel_format_ != AV_PIX_FMT_NONE)
     {
-        if ((ret = av_hwdevice_ctx_create(video_decoder_hw_ctx_.ReleaseAndGetAddressOf(), hw_device_type, NULL, NULL, 0)) >= 0)
-        {
-            video_decoder_ctx_->hw_device_ctx = av_buffer_ref(video_decoder_hw_ctx_.Get());
-        }
-        else
-        {
-            video_decoder_hw_pixel_format_ = AV_PIX_FMT_NONE;
-            qCWarning(CategoryStreamDecoding, "Failed to open hw context for video stream #%u", ret);
-        }
+        video_decoder_ctx_->hw_device_ctx = av_buffer_ref(video_decoder_hw_ctx_.Get());
     }
 
     if ((ret = avcodec_open2(video_decoder_ctx_.Get(), video_decoder, NULL)) < 0)
