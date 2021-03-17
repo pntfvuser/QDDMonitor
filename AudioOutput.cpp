@@ -160,8 +160,7 @@ void AudioOutput::onNewAudioFrame(void *source_id, const QSharedPointer<AudioFra
         StartSource(itr->second, audio_frame->present_time);
     }
 
-    if (!source->starting)
-        CollectExhaustedBuffer(*source); //All buffers are available to be freed on a stopped source
+    CollectExhaustedBuffer(*source);
 
     AppendBufferToSource(*source);
     while (source->buffer_block.size() < source->buffer_block_cap && !source->pending_frames.empty())
@@ -234,6 +233,7 @@ void AudioOutput::onSetAudioSourcePosition(void *source_id, QVector3D position)
         }
     }
 
+    qCDebug(CategoryAudioPlayback) << "Set position of audio source " << source->al_id << " to " << position;
     alSource3f(source->al_id, AL_POSITION, position.x(), position.y(), position.z());
 }
 
@@ -418,22 +418,23 @@ void AudioOutput::StartSource(const std::shared_ptr<AudioSource> &source, Playba
     }
 
     std::chrono::milliseconds sleep_time = std::chrono::duration_cast<std::chrono::milliseconds>(timestamp - PlaybackClock::now() - latency);
+    unsigned char start_id = ++source->next_start_id;
     qCDebug(CategoryAudioPlayback, "Starting audio playback after %lldms", sleep_time.count());
     if (Q_UNLIKELY(sleep_time.count() <= 0))
     {
-        QTimer::singleShot(0, this, [source_weak = std::weak_ptr<AudioSource>(source)]()
+        QTimer::singleShot(0, this, [source_weak = std::weak_ptr<AudioSource>(source), start_id]()
         {
             auto source = source_weak.lock();
             if (!source)
                 return;
-            if (!source->stopping)
+            if (!source->stopping && source->starting && source->next_start_id == start_id)
             {
                 source->starting = false;
                 alSourcePlay(source->al_id);
                 ALenum ret = AL_NO_ERROR;
                 if ((ret = alGetError()) != AL_NO_ERROR)
                 {
-                    qCWarning(CategoryAudioPlayback, "Can't start playback #%d", ret);
+                    qCCritical(CategoryAudioPlayback, "Can't start playback #%d", ret);
                 }
             }
         });
@@ -441,12 +442,12 @@ void AudioOutput::StartSource(const std::shared_ptr<AudioSource> &source, Playba
     }
     else
     {
-        QTimer::singleShot(sleep_time, Qt::PreciseTimer, this, [source_weak = std::weak_ptr<AudioSource>(source)]()
+        QTimer::singleShot(sleep_time, Qt::PreciseTimer, this, [source_weak = std::weak_ptr<AudioSource>(source), start_id]()
         {
             auto source = source_weak.lock();
             if (!source)
                 return;
-            if (!source->stopping)
+            if (!source->stopping && source->starting && source->next_start_id == start_id)
             {
                 source->starting = false;
                 qCDebug(CategoryAudioPlayback) << "Filled buffer count when starting: " << source->al_buffer_occupied_count;
@@ -454,7 +455,7 @@ void AudioOutput::StartSource(const std::shared_ptr<AudioSource> &source, Playba
                 ALenum ret = AL_NO_ERROR;
                 if ((ret = alGetError()) != AL_NO_ERROR)
                 {
-                    qCWarning(CategoryAudioPlayback, "Can't start playback #%d", ret);
+                    qCCritical(CategoryAudioPlayback, "Can't start playback #%d", ret);
                 }
             }
         });
@@ -489,17 +490,20 @@ void AudioOutput::AppendBufferToSource(AudioSource &source)
     while (source.buffer_block.size() >= source.buffer_block_cap && source.al_buffer_free_count > 0)
     {
         ALenum ret = AL_NO_ERROR;
-        ALBufferId buffer_id = source.al_buffer_free[--source.al_buffer_free_count];
+        ALBufferId buffer_id = source.al_buffer_free[source.al_buffer_free_count - 1];
         alBufferData(buffer_id, source.al_buffer_format, source.buffer_block.data(), source.buffer_block_cap, source.sample_rate);
         if ((ret = alGetError()) != AL_NO_ERROR)
         {
             qCWarning(CategoryAudioPlayback, "Can't specify OpenAL buffer content #%d", ret);
+            return;
         }
         alSourceQueueBuffers(source.al_id, 1, &buffer_id);
         if ((ret = alGetError()) != AL_NO_ERROR)
         {
             qCWarning(CategoryAudioPlayback, "Can't append buffer to queue #%d", ret);
+            return;
         }
+        --source.al_buffer_free_count;
         source.al_buffer_occupied[source.al_buffer_occupied_count++] = buffer_id;
         source.buffer_block.erase(source.buffer_block.begin(), source.buffer_block.begin() + source.buffer_block_cap);
     }
@@ -508,12 +512,13 @@ void AudioOutput::AppendBufferToSource(AudioSource &source)
 void AudioOutput::CollectExhaustedBuffer(AudioSource &source)
 {
     if (source.starting)
-        return;
+        return; //All buffers are available to be freed on a stopped source
     ALint buffers_processed = 0;
     alGetSourcei(source.al_id, AL_BUFFERS_PROCESSED, &buffers_processed);
     if (alGetError() != AL_NO_ERROR)
     {
         qCWarning(CategoryAudioPlayback, "Can't get number of exhausted buffer");
+        return;
     }
     if (buffers_processed > 0)
     {
@@ -523,6 +528,7 @@ void AudioOutput::CollectExhaustedBuffer(AudioSource &source)
         if (alGetError() != AL_NO_ERROR)
         {
             qCWarning(CategoryAudioPlayback, "Can't unqueue buffer");
+            return;
         }
         ALsizei after = before + buffers_processed;
 
@@ -554,6 +560,7 @@ void AudioOutput::StopSource(AudioOutput::AudioSource &source)
 {
     source.pending_frames.clear();
     source.buffer_block.clear();
+    source.starting = false;
     alSourceStop(source.al_id);
     CollectExhaustedBuffer(source);
 }

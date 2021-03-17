@@ -42,6 +42,7 @@ class AudioOutput : public QObject
         ALBufferId al_buffer_occupied[kALBufferCount], al_buffer_free[kALBufferCount];
         ALsizei al_buffer_occupied_count = 0, al_buffer_free_count = 0;
 
+        unsigned char next_start_id = 0;
         bool starting = false, muted = false, stopping = false;
     };
 public:
