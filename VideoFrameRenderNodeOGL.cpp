@@ -342,34 +342,28 @@ void VideoFrameRenderNodeOGL::Upload(PlaybackClock::time_point current_time)
         texture_buffers_empty_.insert(texture_buffers_empty_.end(), std::make_move_iterator(itr), std::make_move_iterator(itr_end));
         texture_buffers_used_.erase(itr, itr_end);
     }
+
+    RemoveImpossibleFrame(current_time);
     while (!video_frames_.empty() && !texture_buffers_empty_.empty())
     {
         auto &frame = video_frames_.front();
-        if (frame->present_time > current_time)
+        auto &buffer = texture_buffers_empty_.front();
+        Q_ASSERT(frame->present_time > current_time);
+        if (!buffer.IsCompatible(frame->frame.Get()))
         {
-            auto &buffer = texture_buffers_empty_.front();
-            if (!buffer.IsCompatible(frame->frame.Get()))
-            {
-                for (int i = 0; i < kTextureItemCount; ++i)
-                    buffer.buffers[i].reset();
-                buffer.frame_size = QSize(frame->frame->width, frame->frame->height);
-                buffer.pixel_format = static_cast<AVPixelFormat>(frame->frame->format);
-                buffer.color_range = frame->frame->color_range;
-                buffer.colorspace = frame->frame->colorspace;
-                InitPixelUnpackBuffer(buffer);
-            }
-            buffer.present_time = frame->present_time;
-            UpdatePixelUnpackBuffer(buffer, frame->frame.Get());
+            for (int i = 0; i < kTextureItemCount; ++i)
+                buffer.buffers[i].reset();
+            buffer.frame_size = QSize(frame->frame->width, frame->frame->height);
+            buffer.pixel_format = static_cast<AVPixelFormat>(frame->frame->format);
+            buffer.color_range = frame->frame->color_range;
+            buffer.colorspace = frame->frame->colorspace;
+            InitPixelUnpackBuffer(buffer);
+        }
+        buffer.present_time = frame->present_time;
+        UpdatePixelUnpackBuffer(buffer, frame->frame.Get());
 
-            texture_buffers_uploaded_.push_back(std::move(buffer));
-            texture_buffers_empty_.erase(texture_buffers_empty_.begin());
-        }
-#ifdef _DEBUG
-        else
-        {
-            qCDebug(CategoryVideoPlayback) << "skipping impossible frame";
-        }
-#endif
+        texture_buffers_uploaded_.push_back(std::move(buffer));
+        texture_buffers_empty_.erase(texture_buffers_empty_.begin());
         video_frames_.erase(video_frames_.begin());
     }
 }
@@ -623,6 +617,7 @@ void VideoFrameRenderNodeOGL::AddVideoFrame(const QSharedPointer<VideoFrame> &fr
         if ((*ritr)->present_time < frame->present_time)
             break;
     video_frames_.insert(ritr.base(), frame);
+    RemoveImpossibleFrame(PlaybackClock::now());
 }
 
 void VideoFrameRenderNodeOGL::AddVideoFrames(std::vector<QSharedPointer<VideoFrame>> &&frames)
@@ -638,6 +633,7 @@ void VideoFrameRenderNodeOGL::AddVideoFrames(std::vector<QSharedPointer<VideoFra
                 break;
         video_frames_.insert(ritr.base(), std::move(frame));
     }
+    RemoveImpossibleFrame(PlaybackClock::now());
 }
 
 void VideoFrameRenderNodeOGL::Synchronize(QQuickItem *item)
@@ -682,4 +678,18 @@ void VideoFrameRenderNodeOGL::ResynchronizeTimer(PlaybackClock::time_point curre
     qCDebug(CategoryVideoPlayback, "Resynchronizing clock, Error: %lldus", std::chrono::duration_cast<std::chrono::microseconds>(current_time - playback_time_base_).count());
     playback_time_base_ = current_time;
     playback_time_tick_ = 0;
+}
+
+void VideoFrameRenderNodeOGL::RemoveImpossibleFrame(PlaybackClock::time_point current_time)
+{
+    auto itr_begin = video_frames_.begin(), itr_end = video_frames_.end();
+    auto itr = itr_begin;
+    for (; itr != itr_end; ++itr)
+        if ((*itr)->present_time > current_time)
+            break;
+#ifdef _DEBUG
+    if (itr != itr_begin)
+        qCDebug(CategoryVideoPlayback) << "Skipping " << itr - itr_begin << "impossible frame";
+#endif
+    video_frames_.erase(itr_begin, itr);
 }

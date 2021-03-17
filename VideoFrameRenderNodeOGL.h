@@ -47,6 +47,7 @@ private:
     void Upload(PlaybackClock::time_point current_time);
 
     void ResynchronizeTimer(PlaybackClock::time_point current_time);
+    void RemoveImpossibleFrame(PlaybackClock::time_point current_time);
 
     int width_ = 0, height_ = 0;
     QScreen *screen_ = nullptr;
