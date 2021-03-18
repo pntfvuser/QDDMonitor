@@ -4,7 +4,7 @@ import QtQuick.Layouts 1.12
 
 Item {
     id: itemSourceDelegate
-    height: textSourceName.implicitHeight + 20
+    height: columnlayoutSourceDelegate.implicitHeight + 20
 
     Item {
         anchors.fill: parent
@@ -34,44 +34,71 @@ Item {
             }
         }
 
-        RowLayout {
+        ColumnLayout {
+            id: columnlayoutSourceDelegate
+
             anchors.fill: parent
             anchors.margins: 5
 
-            Rectangle {
-                Layout.preferredHeight: parent.height
-                Layout.preferredWidth: parent.height
-                radius: width * 0.5
-                color: display.online ? "green" : "red"
+            spacing: 5
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.preferredHeight: textSourceName.implicitHeight
+
+                Rectangle {
+                    Layout.preferredHeight: parent.height
+                    Layout.preferredWidth: parent.height
+                    radius: width * 0.5
+                    color: display.online ? "green" : "red"
+                }
+
+                Text {
+                    id: textSourceName
+
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
+
+                    font.pixelSize: 16
+
+                    text: display.name
+                }
+
+                Button {
+                    Layout.preferredHeight: parent.height
+                    Layout.preferredWidth: parent.height
+
+                    background: Rectangle {
+                        color: parent.pressed ? "gray" : "lightgray"
+                        Image {
+                            anchors.fill: parent
+                            source: "images/remove_circle.svg"
+                        }
+                    }
+
+                    onClicked: {
+                        sourceModelMain.removeSourceByIndex(index)
+                    }
+                }
+            }
+
+            Image {
+                Layout.fillWidth: true
+                Layout.preferredHeight: width * 0.5617 //470x264
+
+                source: display.cover
+                sourceSize.width: 500
+                fillMode: Image.PreserveAspectFit
             }
 
             Text {
-                id: textSourceName
-
-                Layout.fillHeight: true
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
 
                 font.pixelSize: 16
 
-                text: display.name
-            }
-
-            Button {
-                Layout.preferredHeight: parent.height
-                Layout.preferredWidth: parent.height
-
-                background: Rectangle {
-                    color: parent.pressed ? "gray" : "lightgray"
-                    Image {
-                        anchors.fill: parent
-                        source: "images/remove_circle.svg"
-                    }
-                }
-
-                onClicked: {
-                    sourceModelMain.removeSourceByIndex(index)
-                }
+                text: display.description
             }
         }
     }

@@ -52,7 +52,7 @@ QJsonObject LiveStreamSourceFile::ToJson() const
 
 void LiveStreamSourceFile::UpdateInfo()
 {
-    emit infoUpdated(STATUS_ONLINE, file_path_, QList<QString>());
+    emit infoUpdated(STATUS_ONLINE, file_path_, QUrl(), QList<QString>());
 }
 
 void LiveStreamSourceFile::Activate(const QString &)

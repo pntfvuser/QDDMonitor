@@ -21,6 +21,8 @@ public:
 private slots:
     void OnRequestUpdateInfoProgress();
     void OnRequestUpdateInfoComplete();
+    void OnRequestRoomInfoProgress();
+    void OnRequestRoomInfoComplete();
     void OnRequestStreamInfoProgress();
     void OnRequestStreamInfoComplete();
     void OnAVStreamProgress();
@@ -36,7 +38,8 @@ private:
     QString GenerateRecordFileName() const;
 
     int room_display_id_ = -1, room_id_ = -1;
-    QString description_;
+    int status_ = STATUS_OFFLINE;
+    QList<QString> quality_desc_;
     QHash<QString, int> quality_;
 
     bool active_ = false;

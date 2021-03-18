@@ -24,7 +24,7 @@ public:
     virtual QString SourceType() const = 0;
     virtual QJsonObject ToJson() const = 0;
 signals:
-    void infoUpdated(int status, const QString &description, const QList<QString> &options);
+    void infoUpdated(int status, const QString &description, const QUrl &cover, const QList<QString> &options);
 
     void invalidSourceArgument();
     void activated();

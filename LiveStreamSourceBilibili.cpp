@@ -12,7 +12,6 @@ LiveStreamSourceBilibili::LiveStreamSourceBilibili(int room_display_id, QNetwork
 {
     connect(push_timer_, &QTimer::timeout, this, &LiveStreamSourceBilibili::OnAVStreamPush);
     push_timer_->setInterval(50);
-    description_ = tr("bilibili live room %1").arg(room_display_id);
 }
 
 LiveStreamSourceBilibili::~LiveStreamSourceBilibili()
@@ -74,7 +73,7 @@ void LiveStreamSourceBilibili::OnRequestUpdateInfoProgress()
     {
         info_reply_->deleteLater();
         info_reply_ = nullptr;
-        emit infoUpdated(-1, description_, QList<QString>());
+        emit infoUpdated(-1, QString(), QUrl(), QList<QString>());
         return;
     }
 }
@@ -89,20 +88,20 @@ void LiveStreamSourceBilibili::OnRequestUpdateInfoComplete()
 
     if (!json_doc.isObject())
     {
-        emit infoUpdated(-1, description_, QList<QString>());
+        emit infoUpdated(-1, QString(), QUrl(), QList<QString>());
         return;
     }
     QJsonObject json_object = json_doc.object();
     int code = (int)json_object.value("code").toDouble(-1);
     if (code != 0)
     {
-        emit infoUpdated(-abs(code), description_, QList<QString>());
+        emit infoUpdated(-abs(code), QString(), QUrl(), QList<QString>());
         return;
     }
     QJsonValue data_value = json_object.value("data");
     if (!data_value.isObject())
     {
-        emit infoUpdated(-1, description_, QList<QString>());
+        emit infoUpdated(-1, QString(), QUrl(), QList<QString>());
         return;
     }
     QJsonObject data_object = data_value.toObject();
@@ -110,43 +109,103 @@ void LiveStreamSourceBilibili::OnRequestUpdateInfoComplete()
     QJsonValue room_id_value = data_object.value("room_id");
     if (!room_id_value.isDouble())
     {
-        emit infoUpdated(-1, description_, QList<QString>());
+        emit infoUpdated(-1, QString(), QUrl(), QList<QString>());
         return;
     }
     QJsonValue live_status_value = data_object.value("live_status");
     if (!room_id_value.isDouble())
     {
-        emit infoUpdated(-1, description_, QList<QString>());
+        emit infoUpdated(-1, QString(), QUrl(), QList<QString>());
         return;
     }
+
     room_id_ = (int)room_id_value.toDouble();
     int status = (int)live_status_value.toDouble();
-    status = status == 1 ? STATUS_ONLINE : STATUS_OFFLINE;
-    quality_.clear();
+    status_ = status == 1 ? STATUS_ONLINE : STATUS_OFFLINE;
 
+    quality_.clear();
+    quality_desc_.clear();
     QJsonValue qn_desc_value = data_object.value("playurl_info").toObject().value("playurl").toObject().value("g_qn_desc");
-    if (!qn_desc_value.isArray())
+    if (qn_desc_value.isArray())
     {
-        emit infoUpdated(status, description_, QList<QString>());
-        return;
-    }
-    QJsonArray qn_desc = qn_desc_value.toArray();
-    QList<QString> descs;
-    for (const QJsonValue value : qn_desc)
-    {
-        if (value.isObject())
+        QJsonArray qn_desc = qn_desc_value.toArray();
+        for (const QJsonValue value : qn_desc)
         {
-            QJsonObject value_object = value.toObject();
-            QJsonValue qn_value = value_object.value("qn"), desc_value = value_object.value("desc");
-            if (qn_value.isDouble() && desc_value.isString())
+            if (value.isObject())
             {
-                QString desc = desc_value.toString();
-                quality_.insert(desc, (int)qn_value.toDouble());
-                descs.append(desc);
+                QJsonObject value_object = value.toObject();
+                QJsonValue qn_value = value_object.value("qn"), desc_value = value_object.value("desc");
+                if (qn_value.isDouble() && desc_value.isString())
+                {
+                    QString desc = desc_value.toString();
+                    quality_.insert(desc, (int)qn_value.toDouble());
+                    quality_desc_.append(desc);
+                }
             }
         }
     }
-    emit infoUpdated(status, description_, descs);
+
+    QUrl request_url("https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom");
+    QUrlQuery request_query;
+    request_query.addQueryItem("room_id", QString::number(room_id_));
+    request_url.setQuery(request_query);
+
+    QNetworkRequest request(request_url);
+    info_reply_ = network_manager_->get(request);
+    connect(info_reply_, &QNetworkReply::readyRead, this, &LiveStreamSourceBilibili::OnRequestRoomInfoProgress);
+    connect(info_reply_, &QNetworkReply::finished, this, &LiveStreamSourceBilibili::OnRequestRoomInfoComplete);
+}
+
+void LiveStreamSourceBilibili::OnRequestRoomInfoProgress()
+{
+    if (!info_reply_)
+        return;
+    if (info_reply_->bytesAvailable() > 65536)
+    {
+        info_reply_->deleteLater();
+        info_reply_ = nullptr;
+        emit infoUpdated(status_, QString(), QUrl(), quality_desc_);
+        return;
+    }
+}
+
+void LiveStreamSourceBilibili::OnRequestRoomInfoComplete()
+{
+    if (!info_reply_)
+        return;
+    QJsonDocument json_doc = QJsonDocument::fromJson(info_reply_->readAll());
+    info_reply_->deleteLater();
+    info_reply_ = nullptr;
+
+    if (!json_doc.isObject())
+    {
+        emit infoUpdated(-1, QString(), QUrl(), QList<QString>());
+        return;
+    }
+    QJsonObject json_object = json_doc.object();
+    int code = (int)json_object.value("code").toDouble(-1);
+    if (code != 0)
+    {
+        emit infoUpdated(-abs(code), QString(), QUrl(), QList<QString>());
+        return;
+    }
+    QJsonValue data_value = json_object.value("data");
+    if (!data_value.isObject())
+    {
+        emit infoUpdated(-1, QString(), QUrl(), QList<QString>());
+        return;
+    }
+    QJsonObject data_object = data_value.toObject();
+
+    QJsonValue room_info_value = data_object.value("room_info");
+    if (!room_info_value.isObject())
+    {
+        emit infoUpdated(-1, QString(), QUrl(), QList<QString>());
+        return;
+    }
+    QJsonObject room_info_object = room_info_value.toObject();
+
+    emit infoUpdated(status_, room_info_object.value("title").toString(), QUrl(room_info_object.value("cover").toString()), quality_desc_);
 }
 
 void LiveStreamSourceBilibili::Activate(const QString &quality_name)

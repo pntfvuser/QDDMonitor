@@ -328,7 +328,7 @@ void LiveStreamSourceModel::ContinueUpdateSources()
     QMetaObject::invokeMethod(source, "onRequestUpdateInfo");
 }
 
-void LiveStreamSourceModel::UpdateSingleSourceDone(int status, const QString &description, const QList<QString> &options)
+void LiveStreamSourceModel::UpdateSingleSourceDone(int status, const QString &description, const QUrl &cover, const QList<QString> &options)
 {
     if (sources_updated_count_ == -1)
         return;
@@ -349,6 +349,7 @@ void LiveStreamSourceModel::UpdateSingleSourceDone(int status, const QString &de
     disconnect(source, &LiveStreamSource::infoUpdated, this, &LiveStreamSourceModel::UpdateSingleSourceDone);
 
     source_info.setDescription(description);
+    source_info.setCover(cover);
     source_info.setAvailableOptions(options);
 
     if (status == LiveStreamSource::STATUS_ONLINE && source_info.online() == false)

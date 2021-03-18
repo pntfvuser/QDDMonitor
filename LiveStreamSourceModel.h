@@ -11,6 +11,7 @@ class LiveStreamSourceInfo : public QObject
     Q_PROPERTY(LiveStreamSource *source READ source CONSTANT)
     Q_PROPERTY(QString name READ name NOTIFY nameChanged)
     Q_PROPERTY(QString description READ description NOTIFY descriptionChanged)
+    Q_PROPERTY(QUrl cover READ cover NOTIFY coverChanged)
     Q_PROPERTY(QString option READ option WRITE setOption NOTIFY optionChanged)
     Q_PROPERTY(QList<QString> availableOptions READ availableOptions NOTIFY availableOptionsChanged)
     Q_PROPERTY(bool online READ online NOTIFY onlineChanged)
@@ -29,6 +30,8 @@ public:
     void setName(const QString &new_name) { if (name_ != new_name) { name_ = new_name; emit nameChanged(); } }
     const QString &description() const { return description_; }
     void setDescription(const QString &new_description) { if (description_ != new_description) { description_ = new_description; emit descriptionChanged(); } }
+    const QUrl &cover() const { return cover_; }
+    void setCover(const QUrl &new_cover) { if (cover_ != new_cover) { cover_ = new_cover; emit coverChanged(); } }
     const QString &option() const { return option_; }
     void setOption(const QString &new_option);
     const QList<QString> &availableOptions() const { return available_options_; }
@@ -44,6 +47,7 @@ public:
 signals:
     void nameChanged();
     void descriptionChanged();
+    void coverChanged();
     void optionChanged();
     void availableOptionsChanged();
     void onlineChanged();
@@ -54,7 +58,9 @@ signals:
 private:
     int id_;
     LiveStreamSource *source_;
-    QString name_, description_, option_;
+    QString name_, description_;
+    QUrl cover_;
+    QString option_;
     QList<QString> available_options_;
     bool online_ = false, activated_ = false, recording_ = false;
 };
@@ -83,7 +89,7 @@ signals:
     void newSource(int id);
     void deleteSource(int id);
 public slots:
-    void UpdateSingleSourceDone(int status, const QString &description, const QList<QString> &options);
+    void UpdateSingleSourceDone(int status, const QString &description, const QUrl &cover, const QList<QString> &options);
 private:
     void AddSource(LiveStreamSource *source, const QString &name);
     int FindSourceIndex(int id);
