@@ -20,8 +20,8 @@ int main(int argc, char *argv[])
     qRegisterMetaType<QSharedPointer<SubtitleFrame>>();
 
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
-    qmlRegisterAnonymousType<AudioOutput>("org.anon.QDDMonitor", 1);
     qmlRegisterAnonymousType<FixedGridLayoutAttachedType>("org.anon.QDDMonitor", 1);
+    qmlRegisterAnonymousType<AudioOutput>("org.anon.QDDMonitor", 1);
     qmlRegisterAnonymousType<LiveStreamSource>("org.anon.QDDMonitor", 1);
     qmlRegisterAnonymousType<LiveStreamSourceInfo>("org.anon.QDDMonitor", 1);
     qmlRegisterAnonymousType<LiveStreamSubtitleOverlay>("org.anon.QDDMonitor", 1);
@@ -33,10 +33,10 @@ int main(int argc, char *argv[])
     qmlRegisterUncreatableType<LiveStreamSubtitleOverlay>("org.anon.QDDMonitor", 1, 0, "LiveStreamSubtitleOverlay", "This type is intended to only be created in C++");
 #endif
 
+    qmlRegisterType<FixedGridLayout>("org.anon.QDDMonitor", 1, 0, "FixedGridLayout");
     qmlRegisterType<LiveStreamSourceModel>("org.anon.QDDMonitor", 1, 0, "LiveStreamSourceModel");
     qmlRegisterType<LiveStreamViewModel>("org.anon.QDDMonitor", 1, 0, "LiveStreamViewModel");
     qmlRegisterType<LiveStreamViewLayoutModel>("org.anon.QDDMonitor", 1, 0, "LiveStreamViewLayoutModel");
-    qmlRegisterType<FixedGridLayout>("org.anon.QDDMonitor", 1, 0, "FixedGridLayout");
     qmlRegisterType<LiveStreamView>("org.anon.QDDMonitor", 1, 0, "LiveStreamView");
 
     QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);

@@ -98,8 +98,7 @@ Window {
                 }
 
                 delegate: LiveStreamSourceDelegate {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
+                    width: parent.width
                 }
             }
 
