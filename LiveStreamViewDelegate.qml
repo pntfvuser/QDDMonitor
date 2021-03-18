@@ -225,8 +225,13 @@ StackView {
     }
 
     initialItem: Page {
-        Item {
+        MouseArea {
+            id: mouseareaView
+
             anchors.fill: parent
+
+            hoverEnabled: true
+            preventStealing: true
 
             Rectangle {
                 anchors.fill: parent
@@ -275,6 +280,18 @@ StackView {
 
                     Item {
                         Layout.fillWidth: true
+                    }
+
+                    DropUpMenu {
+                        Layout.preferredHeight: buttonViewSettings.implicitHeight * 0.5
+                        Layout.preferredWidth: buttonViewSettings.implicitHeight * 2
+
+                        values: display.sourceInfo ? display.sourceInfo.availableOptions : []
+                        selectedValue: display.sourceInfo ? display.sourceInfo.effectiveOption : ""
+
+                        onSelectedValueIndexChanged: {
+                            sourceModelMain.setSourceOption(display.sourceId, selectedValueIndex);
+                        }
                     }
 
                     Slider {
@@ -370,26 +387,12 @@ StackView {
                 }
             }
 
-            MouseArea {
-                id: mouseareaView
+            onPressed: {
+                sourcePressed(display.sourceId, index);
+            }
 
-                anchors.fill: parent
-
-                hoverEnabled: true
-                preventStealing: true
-                propagateComposedEvents: true
-
-                onPressed: {
-                    if (rectangleToolbar.contains(mapToItem(rectangleToolbar, mouse.x, mouse.y))) {
-                        mouse.accepted = false;
-                        return;
-                    }
-                    sourcePressed(display.sourceId, index);
-                }
-
-                onReleased: {
-                    sourceReleased(mapToItem(null, mouse.x, mouse.y));
-                }
+            onReleased: {
+                sourceReleased(mapToItem(null, mouse.x, mouse.y));
             }
 
             Connections {

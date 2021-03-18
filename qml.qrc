@@ -3,5 +3,6 @@
         <file>main.qml</file>
         <file>LiveStreamViewDelegate.qml</file>
         <file>LiveStreamSourceDelegate.qml</file>
+        <file>DropUpMenu.qml</file>
     </qresource>
 </RCC>

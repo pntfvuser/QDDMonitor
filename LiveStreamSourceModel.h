@@ -12,7 +12,7 @@ class LiveStreamSourceInfo : public QObject
     Q_PROPERTY(QString name READ name NOTIFY nameChanged)
     Q_PROPERTY(QString description READ description NOTIFY descriptionChanged)
     Q_PROPERTY(QUrl cover READ cover NOTIFY coverChanged)
-    Q_PROPERTY(QString option READ option WRITE setOption NOTIFY optionChanged)
+    Q_PROPERTY(int optionIndex READ optionIndex NOTIFY optionIndexChanged)
     Q_PROPERTY(QList<QString> availableOptions READ availableOptions NOTIFY availableOptionsChanged)
     Q_PROPERTY(bool online READ online NOTIFY onlineChanged)
     Q_PROPERTY(bool activated READ activated NOTIFY activatedChanged)
@@ -32,8 +32,8 @@ public:
     void setDescription(const QString &new_description) { if (description_ != new_description) { description_ = new_description; emit descriptionChanged(); } }
     const QUrl &cover() const { return cover_; }
     void setCover(const QUrl &new_cover) { if (cover_ != new_cover) { cover_ = new_cover; emit coverChanged(); } }
-    const QString &option() const { return option_; }
-    void setOption(const QString &new_option);
+    int optionIndex() const { return option_index_; }
+    void setOptionIndex(int new_option_index);
     const QList<QString> &availableOptions() const { return available_options_; }
     void setAvailableOptions(const QList<QString> &new_available_options);
     bool online() const { return online_; }
@@ -48,7 +48,7 @@ signals:
     void nameChanged();
     void descriptionChanged();
     void coverChanged();
-    void optionChanged();
+    void optionIndexChanged();
     void availableOptionsChanged();
     void onlineChanged();
     void activatedChanged();
@@ -60,7 +60,7 @@ private:
     LiveStreamSource *source_;
     QString name_, description_;
     QUrl cover_;
-    QString option_;
+    int option_index_ = -1;
     QList<QString> available_options_;
     bool online_ = false, activated_ = false, recording_ = false;
 };
@@ -77,6 +77,7 @@ public:
 
     Q_INVOKABLE void addFileSource(const QString &name, const QString &path);
     Q_INVOKABLE void addBilibiliSource(const QString &name, int room_display_id);
+    Q_INVOKABLE void setSourceOption(int id, int option_index);
     Q_INVOKABLE void setSourceRecording(int id, bool enabled);
     Q_INVOKABLE void removeSourceById(int id);
     Q_INVOKABLE void removeSourceByIndex(int index);

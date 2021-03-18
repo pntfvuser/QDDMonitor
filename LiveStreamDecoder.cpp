@@ -8,7 +8,7 @@ static constexpr int kInputBufferSize = 0x1000, kInputBufferSizeLimit = 0x100000
 static constexpr PlaybackClock::duration kPacketBufferStartThreshold = 2500ms, kPacketBufferFullThreshold = 5000ms;
 static constexpr PlaybackClock::duration kFrameBufferStartThreshold = 200ms, kFrameBufferFullThreshold = 200ms;
 static constexpr std::chrono::milliseconds kFrameBufferPushInit = 50ms, kFrameBufferPushInterval = 50ms;
-static constexpr PlaybackClock::duration kUploadToRenderLatency = 120ms;
+static constexpr PlaybackClock::duration kUploadToRenderLatency = 150ms;
 
 template <typename ToDuration>
 static inline constexpr ToDuration AVTimestampToDuration(int64_t timestamp, AVRational time_base)

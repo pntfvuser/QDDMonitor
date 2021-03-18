@@ -7,13 +7,17 @@
 
 Q_LOGGING_CATEGORY(CategorySourceControl, "qddm.sourcectrl")
 
-void LiveStreamSourceInfo::setOption(const QString &new_option)
+void LiveStreamSourceInfo::setOptionIndex(int new_option_index)
 {
-    if (option_ != new_option)
+    if (new_option_index < 0 || new_option_index >= available_options_.size())
+        new_option_index = available_options_.empty() ? -1 : 0;
+    if (option_index_ != new_option_index)
     {
         QString old_effective_option = effectiveOption();
-        option_ = new_option;
-        emit optionChanged();
+
+        option_index_ = new_option_index;
+        emit optionIndexChanged();
+
         if (old_effective_option != effectiveOption())
             emit effectiveOptionChanged();
     }
@@ -24,8 +28,21 @@ void LiveStreamSourceInfo::setAvailableOptions(const QList<QString> &new_availab
     if (available_options_ != new_available_options)
     {
         QString old_effective_option = effectiveOption();
+
+        if (option_index_ >= new_available_options.size())
+        {
+            Q_ASSERT(!available_options_.empty());
+            option_index_ = new_available_options.empty() ? -1 : 0;
+            emit optionIndexChanged();
+        }
         available_options_ = new_available_options;
         emit availableOptionsChanged();
+        if (option_index_ == -1 && !available_options_.empty())
+        {
+            option_index_ = 0;
+            emit optionIndexChanged();
+        }
+
         if (old_effective_option != effectiveOption())
             emit effectiveOptionChanged();
     }
@@ -33,8 +50,8 @@ void LiveStreamSourceInfo::setAvailableOptions(const QList<QString> &new_availab
 
 QString LiveStreamSourceInfo::effectiveOption() const
 {
-    if (!option_.isEmpty())
-        return option_;
+    if (option_index_ != -1)
+        return available_options_[option_index_];
     if (!available_options_.empty())
         return available_options_.front();
     return QString();
@@ -100,6 +117,19 @@ void LiveStreamSourceModel::addFileSource(const QString &name, const QString &pa
 void LiveStreamSourceModel::addBilibiliSource(const QString &name, int room_display_id)
 {
     AddSource(new LiveStreamSourceBilibili(room_display_id, source_network_manager_), name);
+}
+
+void LiveStreamSourceModel::setSourceOption(int id, int option_index)
+{
+    auto itr = sources_.find(id);
+    if (itr != sources_.end())
+    {
+        LiveStreamSourceInfo *source_info = itr->second.get();
+        QString effective_option = source_info->effectiveOption();
+        source_info->setOptionIndex(option_index);
+        if (effective_option != source_info->effectiveOption())
+            DeactivateSource(source_info->source());
+    }
 }
 
 void LiveStreamSourceModel::setSourceRecording(int id, bool enabled)
