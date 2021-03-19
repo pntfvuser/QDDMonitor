@@ -158,6 +158,7 @@ void AudioOutput::onNewAudioFrame(void *source_id, const QSharedPointer<AudioFra
     }
     if (source_state != AL_PLAYING && !source->starting)
     {
+        StopSource(*itr->second); //Clear buffer for syncing
         StartSource(itr->second, audio_frame->present_time);
     }
 
@@ -420,6 +421,8 @@ void AudioOutput::StartSource(const std::shared_ptr<AudioSource> &source, Playba
     auto sleep_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(sleep_time).count();
     unsigned char start_id = ++source->next_start_id;
     qCDebug(CategoryAudioPlayback) << "Starting audio playback after " << sleep_time_ms << "ms";
+
+    source->starting = true;
     if (Q_UNLIKELY(sleep_time_ms <= 0))
     {
         QTimer::singleShot(0, this, [source_weak = std::weak_ptr<AudioSource>(source), start_id, sleep_time]()
@@ -448,7 +451,6 @@ void AudioOutput::StartSource(const std::shared_ptr<AudioSource> &source, Playba
                 }
             }
         });
-        source->starting = true;
     }
     else
     {
@@ -469,7 +471,6 @@ void AudioOutput::StartSource(const std::shared_ptr<AudioSource> &source, Playba
                 }
             }
         });
-        source->starting = true;
     }
 }
 
