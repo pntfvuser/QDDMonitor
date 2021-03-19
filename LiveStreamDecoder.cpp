@@ -5,10 +5,10 @@ Q_LOGGING_CATEGORY(CategoryStreamDecoding, "qddm.decode")
 
 static constexpr int kInputBufferSize = 0x1000, kInputBufferSizeLimit = 0x100000;
 
-static constexpr PlaybackClock::duration kPacketBufferStartThreshold = 2500ms, kPacketBufferFullThreshold = 5000ms;
+static constexpr PlaybackClock::duration kPacketBufferStartThreshold = 2400ms, kPacketBufferStartThresholdLowLatencyInit = 200ms, kPacketBufferStartThresholdLowLatencyStep = 200ms, kPacketBufferFullThreshold = 5000ms;
 static constexpr PlaybackClock::duration kFrameBufferStartThreshold = 200ms, kFrameBufferFullThreshold = 200ms;
 static constexpr std::chrono::milliseconds kFrameBufferPushInit = 50ms, kFrameBufferPushInterval = 50ms;
-static constexpr PlaybackClock::duration kUploadToRenderLatency = 150ms;
+static constexpr PlaybackClock::duration kUploadToRenderLatency = 120ms;
 
 template <typename ToDuration>
 static inline constexpr ToDuration AVTimestampToDuration(int64_t timestamp, AVRational time_base)
@@ -232,6 +232,7 @@ void LiveStreamDecoder::onClearBuffer()
 {
     StopPlaying();
     ClearBuffer();
+    packet_buffer_start_threshold_ = kPacketBufferStartThresholdLowLatencyInit;
 }
 
 void LiveStreamDecoder::onSetDefaultMediaRecordFile(const QString &file_path)
@@ -805,7 +806,7 @@ void LiveStreamDecoder::OnPushTick()
     if (!playing() && IsFrameBufferLongerThan(kFrameBufferStartThreshold))
     {
         QMutexLocker lock(&demuxer_out_mutex_);
-        if (IsPacketBufferLongerThan(kPacketBufferStartThreshold))
+        if (IsPacketBufferLongerThan(packet_buffer_start_threshold_))
         {
             lock.unlock();
             qCDebug(CategoryStreamDecoding, "Start playing");
@@ -845,6 +846,8 @@ void LiveStreamDecoder::OnPushTick()
             if (video_frames_.empty() || audio_frames_.empty())
             {
                 qCDebug(CategoryStreamDecoding, "Frame buffer is empty");
+                packet_buffer_start_threshold_ += kPacketBufferStartThresholdLowLatencyStep;
+                qCDebug(CategoryStreamDecoding) << "Next packet buffer startup threshold: " << std::chrono::duration_cast<std::chrono::milliseconds>(packet_buffer_start_threshold_).count() << "ms";
                 StopPlaying();
             }
         }
@@ -916,6 +919,7 @@ bool LiveStreamDecoder::IsFrameBufferLongerThan(PlaybackClock::duration duration
 void LiveStreamDecoder::InitPlaying()
 {
     video_eof_ = audio_eof_ = false;
+    packet_buffer_start_threshold_ = kPacketBufferStartThreshold;
 }
 
 void LiveStreamDecoder::StartPlaying()

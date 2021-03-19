@@ -211,6 +211,7 @@ private:
     AVRational video_stream_time_base_, audio_stream_time_base_;
     PlaybackClock::time_point base_time_;
     std::chrono::milliseconds pushed_time_;
+    PlaybackClock::duration packet_buffer_start_threshold_;
 
     QTimer *push_timer_ = nullptr;
     PlaybackClock::time_point push_tick_time_;
