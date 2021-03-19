@@ -4,42 +4,46 @@
 <context>
     <name>LiveStreamSourceBilibili</name>
     <message>
-        <location filename="../LiveStreamSourceBilibili.cpp" line="15"/>
         <source>bilibili live room %1</source>
-        <translation>bilibili直播间%1</translation>
+        <translation type="vanished">bilibili直播间%1</translation>
     </message>
 </context>
 <context>
     <name>LiveStreamViewDelegate</name>
     <message>
-        <location filename="../LiveStreamViewDelegate.qml" line="38"/>
+        <location filename="../LiveStreamViewDelegate.qml" line="42"/>
         <source>Settings</source>
         <translation>设置</translation>
     </message>
     <message>
-        <location filename="../LiveStreamViewDelegate.qml" line="52"/>
+        <location filename="../LiveStreamViewDelegate.qml" line="56"/>
         <source>3D Audio:</source>
         <translation>3D音效:</translation>
     </message>
     <message>
-        <location filename="../LiveStreamViewDelegate.qml" line="57"/>
+        <location filename="../LiveStreamViewDelegate.qml" line="61"/>
         <source>Enabled</source>
         <translation>启用</translation>
     </message>
     <message>
-        <location filename="../LiveStreamViewDelegate.qml" line="76"/>
+        <location filename="../LiveStreamViewDelegate.qml" line="72"/>
         <source>x:</source>
         <translation>x:</translation>
     </message>
     <message>
-        <location filename="../LiveStreamViewDelegate.qml" line="89"/>
+        <location filename="../LiveStreamViewDelegate.qml" line="94"/>
         <source>y:</source>
         <translation>y:</translation>
     </message>
     <message>
-        <location filename="../LiveStreamViewDelegate.qml" line="102"/>
+        <location filename="../LiveStreamViewDelegate.qml" line="116"/>
         <source>z:</source>
         <translation>z:</translation>
+    </message>
+    <message>
+        <location filename="../LiveStreamViewDelegate.qml" line="308"/>
+        <source>Resync</source>
+        <translation>清除缓冲</translation>
     </message>
 </context>
 <context>
@@ -81,22 +85,22 @@
         <translation>房间号:</translation>
     </message>
     <message>
-        <location filename="../main.qml" line="114"/>
+        <location filename="../main.qml" line="113"/>
         <source>Rows:</source>
         <translation>网格行数:</translation>
     </message>
     <message>
-        <location filename="../main.qml" line="131"/>
+        <location filename="../main.qml" line="130"/>
         <source>Columns:</source>
         <translation>网格列数:</translation>
     </message>
     <message>
-        <location filename="../main.qml" line="149"/>
+        <location filename="../main.qml" line="148"/>
         <source>Save layout</source>
         <translation>保存布局</translation>
     </message>
     <message>
-        <location filename="../main.qml" line="149"/>
+        <location filename="../main.qml" line="148"/>
         <source>Edit layout</source>
         <translation>开始编辑布局</translation>
     </message>

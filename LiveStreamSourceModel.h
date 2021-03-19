@@ -79,6 +79,7 @@ public:
     Q_INVOKABLE void addBilibiliSource(const QString &name, int room_display_id);
     Q_INVOKABLE void setSourceOption(int id, int option_index);
     Q_INVOKABLE void setSourceRecording(int id, bool enabled);
+    Q_INVOKABLE void clearSourceBuffer(int id);
     Q_INVOKABLE void removeSourceById(int id);
     Q_INVOKABLE void removeSourceByIndex(int index);
 
@@ -104,6 +105,7 @@ private:
 
     static void ActivateSource(LiveStreamSource *source, const QString &option);
     static void DeactivateSource(LiveStreamSource *source);
+    static void ClearSourceBuffer(LiveStreamSource *source);
     static void EnableSourceRecording(LiveStreamSource *source, const QString &out_path);
     static void DisableSourceRecording(LiveStreamSource *source);
 

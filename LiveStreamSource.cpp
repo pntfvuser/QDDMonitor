@@ -10,6 +10,7 @@ LiveStreamSource::LiveStreamSource(QObject *parent)
     decoder_->moveToThread(&decoder_thread_);
     connect(this, &LiveStreamSource::newInputStream, decoder_, &LiveStreamDecoder::onNewInputStream);
     connect(this, &LiveStreamSource::deleteInputStream, decoder_, &LiveStreamDecoder::onDeleteInputStream);
+    connect(this, &LiveStreamSource::clearBuffer, decoder_, &LiveStreamDecoder::onClearBuffer);
     connect(this, &LiveStreamSource::setDefaultMediaRecordFile, decoder_, &LiveStreamDecoder::onSetDefaultMediaRecordFile);
     connect(this, &LiveStreamSource::setOneshotMediaRecordFile, decoder_, &LiveStreamDecoder::onSetOneshotMediaRecordFile);
     connect(decoder_, &LiveStreamDecoder::invalidMedia, this, &LiveStreamSource::OnInvalidMediaRedirector);
@@ -39,6 +40,11 @@ void LiveStreamSource::onRequestActivate(const QString &option)
 void LiveStreamSource::onRequestDeactivate()
 {
     Deactivate();
+}
+
+void LiveStreamSource::onRequestClearBuffer()
+{
+    emit clearBuffer();
 }
 
 void LiveStreamSource::onRequestSetRecordPath(const QString &path)

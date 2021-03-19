@@ -228,6 +228,12 @@ void LiveStreamDecoder::onDeleteInputStream()
         Close();
 }
 
+void LiveStreamDecoder::onClearBuffer()
+{
+    StopPlaying();
+    ClearBuffer();
+}
+
 void LiveStreamDecoder::onSetDefaultMediaRecordFile(const QString &file_path)
 {
     remuxer_out_path_default_ = file_path;
@@ -348,50 +354,56 @@ void LiveStreamDecoder::Decode()
 
     int ret;
 
-    int64_t timestamp_video_front, timestamp_audio_front;
     int64_t timestamp_video_frame_full, timestamp_audio_frame_full;
 
     QMutexLocker lock(&demuxer_out_mutex_);
 
     if (!video_frames_.empty())
     {
-        timestamp_video_front = video_frames_.front()->timestamp;
-        timestamp_video_frame_full = timestamp_video_front + DurationToAVTimestamp(kFrameBufferFullThreshold, video_stream_time_base_);
+        timestamp_video_frame_full = video_frames_.front()->timestamp + DurationToAVTimestamp(kFrameBufferFullThreshold, video_stream_time_base_);
     }
     else if (!video_packets_.empty())
     {
-        timestamp_video_front = video_packets_.front()->pts;
-        timestamp_video_frame_full = timestamp_video_front + DurationToAVTimestamp(kFrameBufferFullThreshold, video_stream_time_base_);
+        timestamp_video_frame_full = video_packets_.front()->pts + DurationToAVTimestamp(kFrameBufferFullThreshold, video_stream_time_base_);
     }
     else
     {
-        timestamp_video_front = -1;
+        timestamp_video_frame_full = -1;
     }
     if (!audio_frames_.empty())
     {
-        timestamp_audio_front = audio_frames_.front()->timestamp;
-        timestamp_audio_frame_full = timestamp_audio_front + DurationToAVTimestamp(kFrameBufferFullThreshold, audio_stream_time_base_);
+        timestamp_audio_frame_full = audio_frames_.front()->timestamp + DurationToAVTimestamp(kFrameBufferFullThreshold, audio_stream_time_base_);
     }
     else if (!audio_packets_.empty())
     {
-        timestamp_audio_front = audio_packets_.front()->pts;
-        timestamp_audio_frame_full = timestamp_audio_front + DurationToAVTimestamp(kFrameBufferFullThreshold, audio_stream_time_base_);
+        timestamp_audio_frame_full = audio_packets_.front()->pts + DurationToAVTimestamp(kFrameBufferFullThreshold, audio_stream_time_base_);
     }
     else
     {
-        timestamp_audio_front = -1;
+        timestamp_audio_frame_full = -1;
     }
 
     if (video_eof_)
     {
         video_packets_.clear();
     }
+    else if (video_packets_.empty() && demuxer_eof_)
+    {
+        ret = SendVideoPacket(nullptr);
+        if (ret < 0 && ret != AVERROR_EOF)
+        {
+            lock.unlock();
+            Close();
+            return;
+        }
+        video_eof_ = true;
+    }
     else
     {
         auto video_packet_itr = video_packets_.begin(), video_packet_itr_end = video_packets_.end();
         while (video_packet_itr != video_packet_itr_end && (video_frames_.empty() || video_frames_.back()->timestamp < timestamp_video_frame_full))
         {
-            ret = SendVideoPacket(**video_packet_itr);
+            ret = SendVideoPacket(video_packet_itr->Get());
             ++video_packet_itr;
             if (ret == AVERROR_EOF)
             {
@@ -411,12 +423,23 @@ void LiveStreamDecoder::Decode()
     {
         audio_packets_.clear();
     }
+    else if (audio_packets_.empty() && demuxer_eof_)
+    {
+        ret = SendAudioPacket(nullptr);
+        if (ret < 0 && ret != AVERROR_EOF)
+        {
+            lock.unlock();
+            Close();
+            return;
+        }
+        audio_eof_ = true;
+    }
     else
     {
         auto audio_packet_itr = audio_packets_.begin(), audio_packet_itr_end = audio_packets_.end();
         while (audio_packet_itr != audio_packet_itr_end && (audio_frames_.empty() || audio_frames_.back()->timestamp < timestamp_audio_frame_full))
         {
-            ret = SendAudioPacket(**audio_packet_itr);
+            ret = SendAudioPacket(audio_packet_itr->Get());
             ++audio_packet_itr;
             if (ret == AVERROR_EOF)
             {
@@ -436,12 +459,12 @@ void LiveStreamDecoder::Decode()
     demuxer_out_condition_.notify_all();
 }
 
-int LiveStreamDecoder::SendVideoPacket(AVPacket &packet)
+int LiveStreamDecoder::SendVideoPacket(AVPacket *packet)
 {
     if (video_eof_)
         return AVERROR_EOF;
     int ret = 0;
-    ret = avcodec_send_packet(video_decoder_ctx_.Get(), &packet);
+    ret = avcodec_send_packet(video_decoder_ctx_.Get(), packet);
     if (ret < 0)
     {
         if (ret == AVERROR_EOF)
@@ -457,12 +480,12 @@ int LiveStreamDecoder::SendVideoPacket(AVPacket &packet)
     return ret == AVERROR(EAGAIN) ? 0 : ret;
 }
 
-int LiveStreamDecoder::SendAudioPacket(AVPacket &packet)
+int LiveStreamDecoder::SendAudioPacket(AVPacket *packet)
 {
     if (audio_eof_)
         return AVERROR_EOF;
     int ret = 0;
-    ret = avcodec_send_packet(audio_decoder_ctx_.Get(), &packet);
+    ret = avcodec_send_packet(audio_decoder_ctx_.Get(), packet);
     if (ret < 0)
     {
         if (ret == AVERROR_EOF)
@@ -622,6 +645,142 @@ int LiveStreamDecoder::ReceiveAudioFrame()
     return 0;
 }
 
+void LiveStreamDecoder::ClearBuffer()
+{
+    video_frames_.clear();
+    audio_frames_.clear();
+
+    QMutexLocker lock(&demuxer_out_mutex_);
+
+    if (!video_eof_)
+    {
+        auto video_packet_itr = video_packets_.begin(), video_packet_itr_end = video_packets_.end();
+        while (video_packet_itr != video_packet_itr_end)
+        {
+            int ret = SkipVideoPacket(video_packet_itr->Get());
+            ++video_packet_itr;
+            if (ret == AVERROR_EOF)
+            {
+                break;
+            }
+            else if (ret < 0)
+            {
+                lock.unlock();
+                Close();
+                return;
+            }
+        }
+    }
+    video_packets_.clear();
+
+    if (!audio_eof_)
+    {
+        auto audio_packet_itr = audio_packets_.begin(), audio_packet_itr_end = audio_packets_.end();
+        while (audio_packet_itr != audio_packet_itr_end)
+        {
+            int ret = SkipAudioPacket(audio_packet_itr->Get());
+            ++audio_packet_itr;
+            if (ret == AVERROR_EOF)
+            {
+                break;
+            }
+            else if (ret < 0)
+            {
+                lock.unlock();
+                Close();
+                return;
+            }
+        }
+    }
+    audio_packets_.clear();
+
+    lock.unlock();
+    demuxer_out_condition_.notify_all();
+}
+
+int LiveStreamDecoder::SkipVideoPacket(AVPacket *packet)
+{
+    if (video_eof_)
+        return AVERROR_EOF;
+    int ret = 0;
+    ret = avcodec_send_packet(video_decoder_ctx_.Get(), packet);
+    if (ret < 0)
+    {
+        if (ret == AVERROR_EOF)
+            video_eof_ = true;
+        else
+            qCWarning(CategoryStreamDecoding, "Error while decoding video (sending packet) #%u", ret);
+        return ret;
+    }
+
+    AVFrameObject frame;
+    if (!(frame = av_frame_alloc()))
+    {
+        qCWarning(CategoryStreamDecoding, "Can not alloc frame");
+        return AVERROR(ENOMEM);
+    }
+    do
+    {
+        ret = avcodec_receive_frame(video_decoder_ctx_.Get(), frame.Get());
+        if (ret == AVERROR(EAGAIN))
+        {
+            ret = 0;
+            break;
+        }
+        else if (ret == AVERROR_EOF)
+        {
+            video_eof_ = true;
+        }
+        else if (ret < 0)
+        {
+            qCWarning(CategoryStreamDecoding, "Error while decoding video (receiving frame) #%u", ret);
+        }
+    } while (ret >= 0);
+    return ret;
+}
+
+int LiveStreamDecoder::SkipAudioPacket(AVPacket *packet)
+{
+    if (audio_eof_)
+        return AVERROR_EOF;
+    int ret = 0;
+    ret = avcodec_send_packet(audio_decoder_ctx_.Get(), packet);
+    if (ret < 0)
+    {
+        if (ret == AVERROR_EOF)
+            audio_eof_ = true;
+        else
+            qCWarning(CategoryStreamDecoding, "Error while decoding audio (sending packet) #%u", ret);
+        return ret;
+    }
+
+    AVFrameObject frame;
+    if (!(frame = av_frame_alloc()))
+    {
+        qCWarning(CategoryStreamDecoding, "Can not alloc frame");
+        return AVERROR(ENOMEM);
+    }
+    do
+    {
+        ret = avcodec_receive_frame(audio_decoder_ctx_.Get(), frame.Get());
+        if (ret == AVERROR(EAGAIN))
+        {
+            ret = 0;
+            break;
+        }
+        else if (ret == AVERROR_EOF)
+        {
+            audio_eof_ = true;
+        }
+        else if (ret < 0)
+        {
+            qCWarning(CategoryStreamDecoding, "Error while decoding audio (receiving frame) #%u", ret);
+        }
+    } while (ret >= 0);
+    return ret;
+}
+
+
 void LiveStreamDecoder::StartPushTick()
 {
     push_tick_time_ = PlaybackClock::now();
@@ -649,6 +808,7 @@ void LiveStreamDecoder::OnPushTick()
         if (IsPacketBufferLongerThan(kPacketBufferStartThreshold))
         {
             lock.unlock();
+            qCDebug(CategoryStreamDecoding, "Start playing");
             StartPlaying();
         }
     }
@@ -703,7 +863,7 @@ void LiveStreamDecoder::OnPushTick()
     if (PlaybackClock::now() - last_debug_report_ > std::chrono::seconds(1))
     {
         last_debug_report_ += std::chrono::seconds(1);
-        qCDebug(CategoryStreamDecoding) << "Input buffer: %fkiB" << (double)demuxer_in_.SizeLocked() / 1024;
+        qCDebug(CategoryStreamDecoding) << "Input buffer: " << (double)demuxer_in_.SizeLocked() / 1024 << "kiB";
         qCDebug(CategoryStreamDecoding) << "Video packet buffer: " << (video_packets_.empty() ? 0 : AVTimestampToDuration<std::chrono::milliseconds>(video_packets_.back()->pts - video_packets_.front()->pts, video_stream_time_base_).count()) << "ms";
         qCDebug(CategoryStreamDecoding) << "Audio packet buffer: " << (audio_packets_.empty() ? 0ll : AVTimestampToDuration<std::chrono::milliseconds>(audio_packets_.back()->pts - audio_packets_.front()->pts, audio_stream_time_base_).count()) << "ms";
         qCDebug(CategoryStreamDecoding) << "Video frame buffer: " << (video_frames_.empty() ? 0ll : AVTimestampToDuration<std::chrono::milliseconds>(video_frames_.back()->timestamp - video_frames_.front()->timestamp, video_stream_time_base_).count()) << "ms";

@@ -33,12 +33,14 @@ signals:
 
     void newInputStream(const QString &url_hint, const QString &record_path);
     void deleteInputStream();
+    void clearBuffer();
     void setDefaultMediaRecordFile(const QString &file_path);
     void setOneshotMediaRecordFile(const QString &file_path);
 public slots:
     void onRequestUpdateInfo();
     void onRequestActivate(const QString &option);
     void onRequestDeactivate();
+    void onRequestClearBuffer();
     void onRequestSetRecordPath(const QString &path);
 private slots:
     void OnInvalidMediaRedirector();

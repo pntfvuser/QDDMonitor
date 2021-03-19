@@ -4,6 +4,7 @@
 Q_LOGGING_CATEGORY(CategoryAudioPlayback, "qddm.audio")
 
 static constexpr auto kFallbackLatencyAssumption = std::chrono::milliseconds(60);
+static constexpr int kBufferBlockSizeMS = 50;
 
 AudioOutput::AudioSource::AudioSource()
 {
@@ -292,8 +293,6 @@ void AudioOutput::InitSource(AudioOutput::AudioSource &source)
 
 void AudioOutput::InitSource(AudioSource &source, int channels, int64_t channel_layout, AVSampleFormat sample_fmt, int sample_rate)
 {
-    static constexpr int kBufferBlockSizeMS = 50;
-
     source.channels = channels;
     source.sample_format = sample_fmt;
     source.sample_rate = sample_rate;
@@ -417,12 +416,13 @@ void AudioOutput::StartSource(const std::shared_ptr<AudioSource> &source, Playba
         latency = std::chrono::nanoseconds(offset_latency[1]);
     }
 
-    std::chrono::milliseconds sleep_time = std::chrono::duration_cast<std::chrono::milliseconds>(timestamp - PlaybackClock::now() - latency);
+    auto sleep_time = timestamp - PlaybackClock::now() - latency;
+    auto sleep_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(sleep_time).count();
     unsigned char start_id = ++source->next_start_id;
-    qCDebug(CategoryAudioPlayback) << "Starting audio playback after " << sleep_time.count() << "ms";
-    if (Q_UNLIKELY(sleep_time.count() <= 0))
+    qCDebug(CategoryAudioPlayback) << "Starting audio playback after " << sleep_time_ms << "ms";
+    if (Q_UNLIKELY(sleep_time_ms <= 0))
     {
-        QTimer::singleShot(0, this, [source_weak = std::weak_ptr<AudioSource>(source), start_id]()
+        QTimer::singleShot(0, this, [source_weak = std::weak_ptr<AudioSource>(source), start_id, sleep_time]()
         {
             auto source = source_weak.lock();
             if (!source)
@@ -430,6 +430,16 @@ void AudioOutput::StartSource(const std::shared_ptr<AudioSource> &source, Playba
             if (!source->stopping && source->starting && source->next_start_id == start_id)
             {
                 source->starting = false;
+                if (sleep_time.count() < 0)
+                {
+                    auto offset_time = -sleep_time;
+                    if (source->al_buffer_occupied_count > 0 && offset_time < std::chrono::milliseconds((source->al_buffer_occupied_count - 1) * kBufferBlockSizeMS))
+                    {
+                        double skipping_seconds = (double)offset_time.count() * decltype(offset_time)::period::num / decltype(offset_time)::period::den;
+                        qCDebug(CategoryAudioPlayback) << "Skipping " << skipping_seconds << "s";
+                        alSourcef(source->al_id, AL_SEC_OFFSET, static_cast<ALfloat>(skipping_seconds));
+                    }
+                }
                 alSourcePlay(source->al_id);
                 ALenum ret = AL_NO_ERROR;
                 if ((ret = alGetError()) != AL_NO_ERROR)
@@ -442,7 +452,7 @@ void AudioOutput::StartSource(const std::shared_ptr<AudioSource> &source, Playba
     }
     else
     {
-        QTimer::singleShot(sleep_time, Qt::PreciseTimer, this, [source_weak = std::weak_ptr<AudioSource>(source), start_id]()
+        QTimer::singleShot(sleep_time_ms, Qt::PreciseTimer, this, [source_weak = std::weak_ptr<AudioSource>(source), start_id]()
         {
             auto source = source_weak.lock();
             if (!source)

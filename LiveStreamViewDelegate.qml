@@ -294,6 +294,30 @@ StackView {
                         }
                     }
 
+                    Rectangle {
+                        Layout.preferredHeight: buttonViewSettings.implicitHeight * 0.5
+                        Layout.preferredWidth: buttonViewSettings.implicitHeight * 2
+
+                        border.color: "black"
+                        border.width: 1
+                        color: "lightgray";
+
+                        Text {
+                            anchors.centerIn: parent
+                            font.pixelSize: parent.height - 4
+                            text: qsTr("Resync")
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+
+                            onClicked: {
+                                if (display.sourceId !== -1)
+                                    sourceModelMain.clearSourceBuffer(display.sourceId);
+                            }
+                        }
+                    }
+
                     Slider {
                         id: sliderVolume
 

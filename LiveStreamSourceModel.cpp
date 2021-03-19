@@ -150,6 +150,16 @@ void LiveStreamSourceModel::setSourceRecording(int id, bool enabled)
     }
 }
 
+void LiveStreamSourceModel::clearSourceBuffer(int id)
+{
+    auto itr = sources_.find(id);
+    if (itr != sources_.end())
+    {
+        LiveStreamSourceInfo *source_info = itr->second.get();
+        ClearSourceBuffer(source_info->source());
+    }
+}
+
 void LiveStreamSourceModel::removeSourceById(int id)
 {
     auto itr = sources_.find(id);
@@ -469,6 +479,11 @@ void LiveStreamSourceModel::ActivateSource(LiveStreamSource *source, const QStri
 void LiveStreamSourceModel::DeactivateSource(LiveStreamSource *source)
 {
     QMetaObject::invokeMethod(source, "onRequestDeactivate");
+}
+
+void LiveStreamSourceModel::ClearSourceBuffer(LiveStreamSource *source)
+{
+    QMetaObject::invokeMethod(source, "onRequestClearBuffer");
 }
 
 void LiveStreamSourceModel::EnableSourceRecording(LiveStreamSource *source, const QString &out_path)

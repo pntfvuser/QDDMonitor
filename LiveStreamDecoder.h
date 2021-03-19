@@ -146,6 +146,7 @@ signals:
 public slots:
     void onNewInputStream(const QString &url_hint, const QString &record_path);
     void onDeleteInputStream();
+    void onClearBuffer();
     void onSetDefaultMediaRecordFile(const QString &file_path);
     void onSetOneshotMediaRecordFile(const QString &file_path);
 private slots:
@@ -155,10 +156,14 @@ private:
     static int AVIOReadCallback(void *opaque, uint8_t *buf, int buf_size);
 
     void Decode();
-    int SendVideoPacket(AVPacket &packet);
-    int SendAudioPacket(AVPacket &packet);
+    int SendVideoPacket(AVPacket *packet);
+    int SendAudioPacket(AVPacket *packet);
     int ReceiveVideoFrame();
     int ReceiveAudioFrame();
+
+    void ClearBuffer();
+    int SkipVideoPacket(AVPacket *packet);
+    int SkipAudioPacket(AVPacket *packet);
 
     void StartPushTick();
     void StopPushTick();
