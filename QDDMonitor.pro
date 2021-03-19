@@ -68,16 +68,30 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 win32: {
     DEFINES += AL_LIBTYPE_STATIC ZLIB_WINAPI
 
+    #Comment this for DX12 renderer
+    DEFINES += _WIN32_WINNT=0x0601
+
     INCLUDEPATH += C:/usr/include
     DEPENDPATH += C:/usr/include
 
-    CONFIG(release, debug|release): {
-        INCLUDEPATH += C:/usr/lib/Win32/Release/include
-        LIBS += -LC:/usr/lib/Win32/Release
-    }
-    else:CONFIG(debug, debug|release): {
-        INCLUDEPATH += C:/usr/lib/Win32/Debug/include
-        LIBS += -LC:/usr/lib/Win32/Debug
+    contains(QT_ARCH, x86_64): {
+        CONFIG(release, debug|release): {
+            INCLUDEPATH += C:/usr/lib/x64/Release/include
+            LIBS += -LC:/usr/lib/x64/Release
+        }
+        else:CONFIG(debug, debug|release): {
+            INCLUDEPATH += C:/usr/lib/x64/Debug/include
+            LIBS += -LC:/usr/lib/x64/Debug
+        }
+    } else: {
+        CONFIG(release, debug|release): {
+            INCLUDEPATH += C:/usr/lib/Win32/Release/include
+            LIBS += -LC:/usr/lib/Win32/Release
+        }
+        else:CONFIG(debug, debug|release): {
+            INCLUDEPATH += C:/usr/lib/Win32/Debug/include
+            LIBS += -LC:/usr/lib/Win32/Debug
+        }
     }
 
     LIBS += libavcodec.lib libavformat.lib libavutil.lib libswresample.lib libswscale.lib libx264.lib x265.lib OpenAL32.lib libssl.lib libcrypto.lib zlibstat.lib evr.lib mf.lib strmiids.lib mfplat.lib mfplay.lib mfreadwrite.lib mfuuid.lib ws2_32.lib bcrypt.lib secur32.lib
