@@ -261,7 +261,7 @@ StackView {
                 t: playbackTimer
             }
 
-            Rectangle {
+            Item {
                 id: rectangleToolbar
 
                 height: buttonViewSettings.implicitHeight
@@ -272,11 +272,18 @@ StackView {
                 enabled: mouseareaView.containsMouse
                 visible: mouseareaView.containsMouse
 
-                color: "#55000000"
+                Rectangle {
+                    anchors.fill: parent
+
+                    color: "black"
+                    opacity: 0.3
+                }
 
                 RowLayout {
                     anchors.fill: parent
                     spacing: buttonViewSettings.implicitHeight * 0.25
+
+                    opacity: 0.999 //For unknown reason this perfectly solves some serious render issue related to Rectangle(Items unexpectedly clipped, etc.)
 
                     Item {
                         Layout.fillWidth: true
@@ -294,27 +301,15 @@ StackView {
                         }
                     }
 
-                    Rectangle {
+                    Button {
                         Layout.preferredHeight: buttonViewSettings.implicitHeight * 0.5
                         Layout.preferredWidth: buttonViewSettings.implicitHeight * 2
 
-                        border.color: "black"
-                        border.width: 1
-                        color: "lightgray";
+                        text: qsTr("Resync")
 
-                        Text {
-                            anchors.centerIn: parent
-                            font.pixelSize: parent.height - 4
-                            text: qsTr("Resync")
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-
-                            onClicked: {
-                                if (display.sourceId !== -1)
-                                    sourceModelMain.clearSourceBuffer(display.sourceId);
-                            }
+                        onClicked: {
+                            if (display.sourceId !== -1)
+                                sourceModelMain.clearSourceBuffer(display.sourceId);
                         }
                     }
 

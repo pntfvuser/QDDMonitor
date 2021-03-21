@@ -58,6 +58,8 @@ Item {
         width: parent.width
         height: listviewValues.count * parent.height
 
+        opacity: 0.999 //For unknown reason this perfectly solves some serious render issue related to Rectangle(Items unexpectedly clipped, etc.)
+
         padding: 0
 
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
