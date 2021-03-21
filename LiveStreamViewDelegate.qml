@@ -302,15 +302,12 @@ StackView {
                     }
 
                     Button {
+                        id: buttonResync
+
                         Layout.preferredHeight: buttonViewSettings.implicitHeight * 0.5
                         Layout.preferredWidth: buttonViewSettings.implicitHeight * 2
 
                         text: qsTr("Resync")
-
-                        onClicked: {
-                            if (display.sourceId !== -1)
-                                sourceModelMain.clearSourceBuffer(display.sourceId);
-                        }
                     }
 
                     Slider {
@@ -412,6 +409,15 @@ StackView {
 
             onReleased: {
                 sourceReleased(mapToItem(null, mouse.x, mouse.y));
+            }
+
+            Connections {
+                target: buttonResync
+
+                function onClicked() {
+                    if (display.sourceId !== -1)
+                        sourceModelMain.clearSourceBuffer(display.sourceId);
+                }
             }
 
             Connections {
