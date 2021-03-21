@@ -353,7 +353,7 @@ void LiveStreamSourceModel::ContinueUpdateSources()
     if (sources_updated_count_ >= (int)sources_updating_.size())
     {
         sources_updated_count_ = -1;
-        QTimer::singleShot(1000, this, &LiveStreamSourceModel::StartUpdateSources);
+        QTimer::singleShot(5000, this, &LiveStreamSourceModel::StartUpdateSources);
         return;
     }
     int id = sources_updating_[sources_updated_count_];

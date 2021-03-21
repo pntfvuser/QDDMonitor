@@ -244,7 +244,7 @@ void AudioOutput::onSetAudioSourceMute(void *source_id, bool mute)
     AudioSource *source = GetOrCreateSource(source_id);
 
     source->muted = mute;
-    alSourcef(source->al_id, AL_MAX_GAIN, mute ? 0.0f : 1.0f);
+    alSourcef(source->al_id, AL_MAX_GAIN, mute || (solo_source_id_ && solo_source_id_ != source_id) ? 0.0f : 1.0f);
 }
 
 void AudioOutput::onSetAudioSourceSolo(void *source_id, bool solo)

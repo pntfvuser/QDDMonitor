@@ -60,6 +60,7 @@ void LiveStreamSourceBilibili::UpdateInfo()
     request_url.setQuery(request_query);
 
     QNetworkRequest request(request_url);
+    request.setRawHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.190 Safari/537.36");
     info_reply_ = network_manager_->get(request);
     connect(info_reply_, &QNetworkReply::readyRead, this, &LiveStreamSourceBilibili::OnRequestUpdateInfoProgress);
     connect(info_reply_, &QNetworkReply::finished, this, &LiveStreamSourceBilibili::OnRequestUpdateInfoComplete);
@@ -69,7 +70,7 @@ void LiveStreamSourceBilibili::OnRequestUpdateInfoProgress()
 {
     if (!info_reply_)
         return;
-    if (info_reply_->bytesAvailable() > 2048)
+    if (info_reply_->bytesAvailable() > 65536)
     {
         info_reply_->deleteLater();
         info_reply_ = nullptr;
@@ -151,6 +152,7 @@ void LiveStreamSourceBilibili::OnRequestUpdateInfoComplete()
     request_url.setQuery(request_query);
 
     QNetworkRequest request(request_url);
+    request.setRawHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.190 Safari/537.36");
     info_reply_ = network_manager_->get(request);
     connect(info_reply_, &QNetworkReply::readyRead, this, &LiveStreamSourceBilibili::OnRequestRoomInfoProgress);
     connect(info_reply_, &QNetworkReply::finished, this, &LiveStreamSourceBilibili::OnRequestRoomInfoComplete);
@@ -247,6 +249,7 @@ void LiveStreamSourceBilibili::Activate(const QString &quality_name)
     request_url.setQuery(request_query);
 
     QNetworkRequest request(request_url);
+    request.setRawHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.190 Safari/537.36");
     stream_info_reply_ = network_manager_->get(request);
     if (!stream_info_reply_)
     {
@@ -261,7 +264,7 @@ void LiveStreamSourceBilibili::OnRequestStreamInfoProgress()
 {
     if (!stream_info_reply_ || sender() != stream_info_reply_)
         return;
-    if (stream_info_reply_->bytesAvailable() > 2048)
+    if (stream_info_reply_->bytesAvailable() > 65536)
     {
         stream_info_reply_->deleteLater();
         stream_info_reply_ = nullptr;
