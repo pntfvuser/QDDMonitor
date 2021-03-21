@@ -128,18 +128,36 @@ void LiveStreamDecoder::onNewInputStream(const QString &url_hint, const QString 
 
     AVBufferRef *video_decoder_hw_ctx = nullptr;
     video_decoder_hw_pixel_format_ = AV_PIX_FMT_NONE;
-    for (i = 0;; i++)
+
+    for (i = 0; video_decoder_hw_pixel_format_ == AV_PIX_FMT_NONE; i++)
     {
         const AVCodecHWConfig *video_decoder_hw_config = avcodec_get_hw_config(video_decoder, i);
         if (!video_decoder_hw_config)
             break;
-        if (video_decoder_hw_config->device_type != AV_HWDEVICE_TYPE_NONE && video_decoder_hw_config->pix_fmt != AV_PIX_FMT_NONE && (video_decoder_hw_config->methods & AV_CODEC_HW_CONFIG_METHOD_AD_HOC) != 0)
+        if (video_decoder_hw_config->device_type != AV_HWDEVICE_TYPE_NONE && video_decoder_hw_config->pix_fmt != AV_PIX_FMT_NONE && (video_decoder_hw_config->methods & AV_CODEC_HW_CONFIG_METHOD_AD_HOC) == 0) //Prefer non adhoc
         {
             if ((ret = av_hwdevice_ctx_create(video_decoder_hw_ctx_.ReleaseAndGetAddressOf(), video_decoder_hw_config->device_type, NULL, NULL, 0)) >= 0)
             {
-                video_decoder_hw_ctx = video_decoder_hw_ctx_.Get(); //Use shared hw context for d3d11va
+                video_decoder_hw_ctx = video_decoder_hw_ctx_.Get();
                 video_decoder_hw_pixel_format_ = video_decoder_hw_config->pix_fmt;
-                break;
+            }
+            else
+            {
+                qCDebug(CategoryStreamDecoding, "Failed to open hw context for video stream #%u", ret);
+            }
+        }
+    }
+    for (i = 0; video_decoder_hw_pixel_format_ == AV_PIX_FMT_NONE; i++)
+    {
+        const AVCodecHWConfig *video_decoder_hw_config = avcodec_get_hw_config(video_decoder, i);
+        if (!video_decoder_hw_config)
+            break;
+        if (video_decoder_hw_config->device_type != AV_HWDEVICE_TYPE_NONE && video_decoder_hw_config->pix_fmt != AV_PIX_FMT_NONE)
+        {
+            if ((ret = av_hwdevice_ctx_create(video_decoder_hw_ctx_.ReleaseAndGetAddressOf(), video_decoder_hw_config->device_type, NULL, NULL, 0)) >= 0)
+            {
+                video_decoder_hw_ctx = video_decoder_hw_ctx_.Get();
+                video_decoder_hw_pixel_format_ = video_decoder_hw_config->pix_fmt;
             }
             else
             {
