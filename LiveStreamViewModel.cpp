@@ -132,7 +132,14 @@ void LiveStreamViewModel::OnDeleteSource(int source_id)
 
 void LiveStreamViewModel::LoadFromFile()
 {
-    QFile file("saved_view_layout.json");
+    QString data_path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+
+    QDir dir;
+    if (!dir.exists(data_path))
+        dir.mkpath(data_path);
+    dir.cd(data_path);
+
+    QFile file(dir.absoluteFilePath("saved_view_layout.json"));
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
         return;
     if (file.bytesAvailable() >= 0x1000)
@@ -184,7 +191,14 @@ void LiveStreamViewModel::SaveToFile()
     json_object["columns"] = columns_;
     json_object["layout"] = std::move(json_array);
 
-    QFile file("saved_view_layout.json");
+    QString data_path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+
+    QDir dir;
+    if (!dir.exists(data_path))
+        dir.mkpath(data_path);
+    dir.cd(data_path);
+
+    QFile file(dir.absoluteFilePath("saved_view_layout.json"));
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
         return;
     file.write(QJsonDocument(json_object).toJson(QJsonDocument::Compact));

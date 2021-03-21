@@ -498,7 +498,14 @@ void LiveStreamSourceModel::DisableSourceRecording(LiveStreamSource *source)
 
 void LiveStreamSourceModel::LoadFromFile()
 {
-    QFile file("saved_sources.json");
+    QString data_path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+
+    QDir dir;
+    if (!dir.exists(data_path))
+        dir.mkpath(data_path);
+    dir.cd(data_path);
+
+    QFile file(dir.absoluteFilePath("saved_sources.json"));
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
         return;
     if (file.bytesAvailable() >= 0x1000)
@@ -543,7 +550,14 @@ void LiveStreamSourceModel::SaveToFile()
         json_array.push_back(item);
     }
 
-    QFile file("saved_sources.json");
+    QString data_path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+
+    QDir dir;
+    if (!dir.exists(data_path))
+        dir.mkpath(data_path);
+    dir.cd(data_path);
+
+    QFile file(dir.absoluteFilePath("saved_sources.json"));
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
         return;
     file.write(QJsonDocument(json_array).toJson(QJsonDocument::Compact));
