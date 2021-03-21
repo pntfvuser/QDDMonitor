@@ -26,8 +26,8 @@ int main(int argc, char *argv[])
     qmlRegisterAnonymousType<LiveStreamSourceInfo>("org.anon.QDDMonitor", 1);
     qmlRegisterAnonymousType<LiveStreamSubtitleOverlay>("org.anon.QDDMonitor", 1);
 #else
-    qmlRegisterUncreatableType<AudioOutput>("org.anon.QDDMonitor", 1, 0, "AudioOutput", "This type is intended to only be created in C++");
     qmlRegisterUncreatableType<FixedGridLayoutAttachedType>("org.anon.QDDMonitor", 1, 0, "FixedGridLayoutAttachedType", "This type is intended to only be created in C++");
+    qmlRegisterUncreatableType<AudioOutput>("org.anon.QDDMonitor", 1, 0, "AudioOutput", "This type is intended to only be created in C++");
     qmlRegisterUncreatableType<LiveStreamSource>("org.anon.QDDMonitor", 1, 0, "LiveStreamSource", "This type is intended to only be created in C++");
     qmlRegisterUncreatableType<LiveStreamSourceInfo>("org.anon.QDDMonitor", 1, 0, "LiveStreamSourceInfo", "This type is intended to only be created in C++");
     qmlRegisterUncreatableType<LiveStreamSubtitleOverlay>("org.anon.QDDMonitor", 1, 0, "LiveStreamSubtitleOverlay", "This type is intended to only be created in C++");

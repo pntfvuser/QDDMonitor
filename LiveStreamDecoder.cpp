@@ -126,6 +126,7 @@ void LiveStreamDecoder::onNewInputStream(const QString &url_hint, const QString 
 
     AVStream *video_stream = demuxer_ctx_->streams[video_stream_index_];
 
+    AVBufferRef *video_decoder_hw_ctx = nullptr;
     video_decoder_hw_pixel_format_ = AV_PIX_FMT_NONE;
     for (i = 0;; i++)
     {
@@ -136,6 +137,7 @@ void LiveStreamDecoder::onNewInputStream(const QString &url_hint, const QString 
         {
             if ((ret = av_hwdevice_ctx_create(video_decoder_hw_ctx_.ReleaseAndGetAddressOf(), video_decoder_hw_config->device_type, NULL, NULL, 0)) >= 0)
             {
+                video_decoder_hw_ctx = video_decoder_hw_ctx_.Get(); //Use shared hw context for d3d11va
                 video_decoder_hw_pixel_format_ = video_decoder_hw_config->pix_fmt;
                 break;
             }
@@ -161,7 +163,8 @@ void LiveStreamDecoder::onNewInputStream(const QString &url_hint, const QString 
 
     if (video_decoder_hw_pixel_format_ != AV_PIX_FMT_NONE)
     {
-        video_decoder_ctx_->hw_device_ctx = av_buffer_ref(video_decoder_hw_ctx_.Get());
+        Q_ASSERT(video_decoder_hw_ctx);
+        video_decoder_ctx_->hw_device_ctx = av_buffer_ref(video_decoder_hw_ctx);
     }
 
     if ((ret = avcodec_open2(video_decoder_ctx_.Get(), video_decoder, NULL)) < 0)
@@ -529,7 +532,6 @@ int LiveStreamDecoder::ReceiveVideoFrame()
         return ret;
     }
 
-    //Save important properties
     auto pts = frame->pts;
 
     if (frame->format == video_decoder_hw_pixel_format_) //HW pixel format, copy back first
@@ -557,6 +559,7 @@ int LiveStreamDecoder::ReceiveVideoFrame()
     case AV_PIX_FMT_NV12:
     case AV_PIX_FMT_NV21:
     case AV_PIX_FMT_YUV420P:
+    case AV_PIX_FMT_YUVJ420P:
     case AV_PIX_FMT_YUV444P:
     case AV_PIX_FMT_YUVJ444P:
         supported = true;

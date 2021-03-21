@@ -47,14 +47,9 @@ using namespace std::chrono_literals;
 #include <QTimer>
 #include <QPainter>
 #include <QScreen>
+#include <QStandardPaths>
 #include <QStaticText>
 #include <QWebSocket>
-
-#include <QOpenGLFunctions>
-#include <QOpenGLBuffer>
-#include <QOpenGLTexture>
-#include <QOpenGLPixelTransferOptions>
-#include <QOpenGLShaderProgram>
 
 #include <QQmlContext>
 #include <QQuickWindow>
@@ -64,6 +59,12 @@ using namespace std::chrono_literals;
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+
+#include <QOpenGLFunctions>
+#include <QOpenGLBuffer>
+#include <QOpenGLTexture>
+#include <QOpenGLPixelTransferOptions>
+#include <QOpenGLShaderProgram>
 
 #include <zlib.h>
 

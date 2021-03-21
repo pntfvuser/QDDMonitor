@@ -68,9 +68,6 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 win32: {
     DEFINES += AL_LIBTYPE_STATIC ZLIB_WINAPI
 
-    #Comment this for DX12 renderer
-    DEFINES += _WIN32_WINNT=0x0601
-
     INCLUDEPATH += C:/usr/include
     DEPENDPATH += C:/usr/include
 

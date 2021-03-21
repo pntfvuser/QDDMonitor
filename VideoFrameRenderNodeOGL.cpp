@@ -64,6 +64,7 @@ static constexpr ColorMatrix kColorMatrixBT2020J(kBT2020Eff, kJpegRangeEff);
 void InitSinglePixelUnpackBuffer(std::unique_ptr<QOpenGLBuffer> &buffer, int buffer_size)
 {
     buffer = std::make_unique<QOpenGLBuffer>(QOpenGLBuffer::PixelUnpackBuffer);
+    buffer->setUsagePattern(QOpenGLBuffer::StreamDraw);
     buffer->create();
     buffer->bind();
     buffer->allocate(buffer_size);
@@ -170,6 +171,7 @@ void VideoFrameRenderNodeOGL::InitShader()
         shader_->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/yuvbiplanar.frag");
         break;
     case AV_PIX_FMT_YUV420P:
+    case AV_PIX_FMT_YUVJ420P:
     case AV_PIX_FMT_YUV444P:
     case AV_PIX_FMT_YUVJ444P:
         shader_->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/default.vert");
@@ -181,7 +183,7 @@ void VideoFrameRenderNodeOGL::InitShader()
         return;
     }
 
-    shader_->bindAttributeLocation("position", 0);
+    shader_->bindAttributeLocation("positionIn", 0);
     shader_->bindAttributeLocation("texCoordIn", 1);
     shader_->link();
 
@@ -209,6 +211,7 @@ void VideoFrameRenderNodeOGL::InitTexture()
         textures_[2] = nullptr; Q_ASSERT(texture_2_uniform_index_ == -1);
         break;
     case AV_PIX_FMT_YUV420P:
+    case AV_PIX_FMT_YUVJ420P:
         InitSingleTexture(textures_[0], frame_size_.width(), frame_size_.height(), QOpenGLTexture::R8_UNorm, QOpenGLTexture::Red, QOpenGLTexture::UInt8);
         InitSingleTexture(textures_[1], DivideTwoRoundUp(frame_size_.width()), DivideTwoRoundUp(frame_size_.height()), QOpenGLTexture::R8_UNorm, QOpenGLTexture::Red, QOpenGLTexture::UInt8);
         InitSingleTexture(textures_[2], DivideTwoRoundUp(frame_size_.width()), DivideTwoRoundUp(frame_size_.height()), QOpenGLTexture::R8_UNorm, QOpenGLTexture::Red, QOpenGLTexture::UInt8);
@@ -237,6 +240,7 @@ void VideoFrameRenderNodeOGL::UpdateTexture(PixelUnpackBufferItem &item)
         UpdateSingleTexture(textures_[1].get(), QOpenGLTexture::RG, QOpenGLTexture::UInt8, item.buffers[1].get());
         break;
     case AV_PIX_FMT_YUV420P:
+    case AV_PIX_FMT_YUVJ420P:
         UpdateSingleTexture(textures_[0].get(), QOpenGLTexture::Red, QOpenGLTexture::UInt8, item.buffers[0].get());
         UpdateSingleTexture(textures_[1].get(), QOpenGLTexture::Red, QOpenGLTexture::UInt8, item.buffers[1].get());
         UpdateSingleTexture(textures_[2].get(), QOpenGLTexture::Red, QOpenGLTexture::UInt8, item.buffers[2].get());
@@ -265,6 +269,7 @@ void VideoFrameRenderNodeOGL::InitPixelUnpackBuffer(PixelUnpackBufferItem &item)
         InitSinglePixelUnpackBuffer(item.buffers[1], DivideTwoRoundUp(item.frame_size.width()) * DivideTwoRoundUp(item.frame_size.height()) * 2 * sizeof(GLubyte));
         break;
     case AV_PIX_FMT_YUV420P:
+    case AV_PIX_FMT_YUVJ420P:
         InitSinglePixelUnpackBuffer(item.buffers[0], item.frame_size.width() * item.frame_size.height() * 1 * sizeof(GLubyte));
         InitSinglePixelUnpackBuffer(item.buffers[1], DivideTwoRoundUp(item.frame_size.width()) * DivideTwoRoundUp(item.frame_size.height()) * 1 * sizeof(GLubyte));
         InitSinglePixelUnpackBuffer(item.buffers[2], DivideTwoRoundUp(item.frame_size.width()) * DivideTwoRoundUp(item.frame_size.height()) * 1 * sizeof(GLubyte));
@@ -293,6 +298,7 @@ void VideoFrameRenderNodeOGL::UpdatePixelUnpackBuffer(PixelUnpackBufferItem &ite
         UpdateSinglePixelUnpackBuffer(item.buffers[1].get(), frame->data[1], frame->linesize[1], DivideTwoRoundUp(item.frame_size.width()) * 2 * sizeof(GLubyte), DivideTwoRoundUp(item.frame_size.height()));
         break;
     case AV_PIX_FMT_YUV420P:
+    case AV_PIX_FMT_YUVJ420P:
         UpdateSinglePixelUnpackBuffer(item.buffers[0].get(), frame->data[0], frame->linesize[0], item.frame_size.width() * 1 * sizeof(GLubyte), item.frame_size.height());
         UpdateSinglePixelUnpackBuffer(item.buffers[1].get(), frame->data[1], frame->linesize[1], DivideTwoRoundUp(item.frame_size.width()) * 1 * sizeof(GLubyte), DivideTwoRoundUp(item.frame_size.height()));
         UpdateSinglePixelUnpackBuffer(item.buffers[2].get(), frame->data[2], frame->linesize[2], DivideTwoRoundUp(item.frame_size.width()) * 1 * sizeof(GLubyte), DivideTwoRoundUp(item.frame_size.height()));
@@ -348,6 +354,7 @@ void VideoFrameRenderNodeOGL::InitVertexBuffer()
         1.0f, 0.0f,
     };
     vertex_buffer_ = std::make_unique<QOpenGLBuffer>(QOpenGLBuffer::VertexBuffer);
+    vertex_buffer_->setUsagePattern(QOpenGLBuffer::StaticDraw);
     vertex_buffer_->create();
     vertex_buffer_->bind();
     vertex_buffer_->allocate(kVertexSize + sizeof(kTexCoordIn));
@@ -478,7 +485,7 @@ void VideoFrameRenderNodeOGL::render(const RenderState *state)
 
         shader_->bind();
         shader_->setUniformValue(matrix_uniform_index_, *state->projectionMatrix() * *matrix());
-        shader_->setUniformValue(opacity_uniform_index_, (float)inheritedOpacity());
+        shader_->setUniformValue(opacity_uniform_index_, (GLfloat)inheritedOpacity());
         if (color_matrix_uniform_index_ != -1)
             shader_->setUniformValue(color_matrix_uniform_index_, color_matrix_);
 
@@ -498,7 +505,6 @@ void VideoFrameRenderNodeOGL::render(const RenderState *state)
                     textures_[2]->bind();
                     shader_->setUniformValue(texture_2_uniform_index_, 2);
                 }
-                f->glActiveTexture(GL_TEXTURE0);
             }
         }
 
@@ -552,7 +558,7 @@ void VideoFrameRenderNodeOGL::render(const RenderState *state)
         f->glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
         f->glEnable(GL_BLEND);
-        f->glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         if (state->scissorEnabled())
         {
@@ -575,6 +581,8 @@ void VideoFrameRenderNodeOGL::render(const RenderState *state)
         if (render_time > min_timing_diff_)
             min_timing_diff_ = render_time;
 #endif
+
+        f->glActiveTexture(GL_TEXTURE0);
     }
 
 #ifdef _DEBUG
@@ -619,8 +627,7 @@ QSGRenderNode::StateFlags VideoFrameRenderNodeOGL::changedStates() const
 
 QSGRenderNode::RenderingFlags VideoFrameRenderNodeOGL::flags() const
 {
-    //The node itself is DepthAwareRendering, but the flag causes strange behavior (Rectangles being clipped unexpectedly)
-    return BoundedRectRendering;
+    return BoundedRectRendering | DepthAwareRendering;
 }
 
 QRectF VideoFrameRenderNodeOGL::rect() const

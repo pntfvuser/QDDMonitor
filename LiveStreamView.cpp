@@ -3,9 +3,10 @@
 
 #include "LiveStreamSource.h"
 #include "LiveStreamDecoder.h"
-#include "VideoFrameRenderNodeOGL.h"
 #include "AudioOutput.h"
 #include "LiveStreamSubtitleOverlay.h"
+
+#include "VideoFrameRenderNodeOGL.h"
 
 LiveStreamView::LiveStreamView(QQuickItem *parent)
     :QQuickItem(parent)
@@ -140,7 +141,6 @@ void LiveStreamView::setT(qreal new_t)
 QSGNode *LiveStreamView::updatePaintNode(QSGNode *node_base, QQuickItem::UpdatePaintNodeData *)
 {
     VideoFrameRenderNodeOGL *node = static_cast<VideoFrameRenderNodeOGL *>(node_base);
-
     if (!node)
     {
         if (width() <= 0 || height() <= 0)
