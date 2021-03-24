@@ -4,5 +4,5 @@ varying highp vec2 texCoord;
 
 void main(void)
 {
-    gl_FragColor = vec4(texture2D(texture0, texCoord).rgb, opacity);
+    gl_FragColor = vec4(texture2D(texture0, texCoord).rgb, 1.0) * opacity;
 }

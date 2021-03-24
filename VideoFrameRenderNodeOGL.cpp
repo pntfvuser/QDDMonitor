@@ -558,7 +558,7 @@ void VideoFrameRenderNodeOGL::render(const RenderState *state)
         f->glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
         f->glEnable(GL_BLEND);
-        f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        f->glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
         if (state->scissorEnabled())
         {

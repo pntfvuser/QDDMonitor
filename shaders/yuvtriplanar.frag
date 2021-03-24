@@ -12,5 +12,5 @@ void main()
     mediump float V = texture2D(texture2, texCoord).r;
     mediump vec4 colorYUV = vec4(Y, U, V, 1.0);
     mediump vec4 colorRGB = colorMatrix * colorYUV;
-    gl_FragColor = vec4(colorRGB.rgb, opacity);
+    gl_FragColor = vec4(colorRGB.rgb, 1.0) * opacity;
 }
